@@ -13,8 +13,12 @@
     "package:dir": "npm run build && electron-builder --mac --dir"
   },
   "dependencies": {
+    "highlight.js": "^11.10.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "rehype-highlight": "^7.0.0",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -41,9 +45,16 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
         { "target": "dmg", "arch": ["arm64", "x64"] }
       ]
+    },
+    "dmg": {
+      "writeUpdateInfo": false
     }
   }
 }

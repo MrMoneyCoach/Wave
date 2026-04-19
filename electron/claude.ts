@@ -1,6 +1,8 @@
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import { EventEmitter } from "events";
 
+export type PermissionMode = "safe" | "autonomous";
+
 /**
  * Wraps the `claude` CLI for a single project. Uses --resume across messages
  * so multi-turn conversations persist. No API cost — authed via the user's
@@ -12,7 +14,11 @@ export class ClaudeSession extends EventEmitter {
   private busy = false;
   private current: ChildProcessWithoutNullStreams | null = null;
 
-  constructor(public readonly projectId: string, public readonly cwd: string) {
+  constructor(
+    public readonly projectId: string,
+    public readonly cwd: string,
+    public permissionMode: PermissionMode = "safe",
+  ) {
     super();
   }
 
@@ -21,17 +27,25 @@ export class ClaudeSession extends EventEmitter {
     this.drain();
   }
 
-  kill() {
-    this.queue = [];
+  stop() {
     if (this.current) {
       try {
         this.current.kill("SIGTERM");
       } catch {
         /* ignore */
       }
-      this.current = null;
     }
+  }
+
+  kill() {
+    this.queue = [];
+    this.stop();
+    this.current = null;
     this.busy = false;
+  }
+
+  resetConversation() {
+    this.sessionId = null;
   }
 
   private drain() {
@@ -47,14 +61,26 @@ export class ClaudeSession extends EventEmitter {
     if (this.sessionId) {
       args.push("--resume", this.sessionId);
     }
+    if (this.permissionMode === "autonomous") {
+      args.push("--dangerously-skip-permissions");
+    }
 
     const env = {
       ...process.env,
       PATH: `${process.env.PATH || ""}:/usr/local/bin:/opt/homebrew/bin`,
     };
 
-    const child = spawn("claude", args, { cwd: this.cwd, env });
+    let child: ChildProcessWithoutNullStreams;
+    try {
+      child = spawn("claude", args, { cwd: this.cwd, env });
+    } catch (err) {
+      this.emit("error", (err as Error).message);
+      this.busy = false;
+      this.drain();
+      return;
+    }
     this.current = child;
+    this.emit("status", "working");
 
     let stdoutBuf = "";
     let stderrBuf = "";
@@ -77,16 +103,18 @@ export class ClaudeSession extends EventEmitter {
       this.emit("error", err.message);
       this.busy = false;
       this.current = null;
+      this.emit("status", "idle");
       this.drain();
     });
 
     child.on("close", (code) => {
-      if (code !== 0 && stderrBuf) {
+      if (code !== 0 && code !== null && stderrBuf) {
         this.emit("error", stderrBuf.trim() || `claude exited with code ${code}`);
       }
       this.emit("done");
       this.busy = false;
       this.current = null;
+      this.emit("status", "idle");
       this.drain();
     });
   }
@@ -103,13 +131,35 @@ export class ClaudeSession extends EventEmitter {
       this.sessionId = obj.session_id;
     }
 
-    // stream-json emits assistant messages as { type: "assistant", message: { content: [...] } }
     if (obj.type === "assistant" && obj.message?.content) {
       for (const block of obj.message.content) {
         if (block.type === "text" && typeof block.text === "string") {
-          this.emit("delta", block.text);
+          this.emit("text", block.text);
+        } else if (block.type === "tool_use") {
+          this.emit("tool_use", { id: block.id, name: block.name, input: block.input });
         }
       }
+    }
+
+    if (obj.type === "user" && obj.message?.content) {
+      for (const block of obj.message.content) {
+        if (block.type === "tool_result") {
+          const content = typeof block.content === "string"
+            ? block.content
+            : Array.isArray(block.content)
+              ? block.content.map((c: any) => (typeof c === "string" ? c : c?.text ?? "")).join("")
+              : "";
+          this.emit("tool_result", {
+            toolUseId: block.tool_use_id,
+            content,
+            isError: Boolean(block.is_error),
+          });
+        }
+      }
+    }
+
+    if (obj.type === "result") {
+      this.emit("result", { subtype: obj.subtype, durationMs: obj.duration_ms });
     }
   }
 }
