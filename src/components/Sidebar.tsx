@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { Project } from "../types";
 
+const COMMANDER_ID = "__commander__";
+
 type Props = {
   projects: Project[];
   activeId: string | null;
@@ -12,17 +14,22 @@ export function Sidebar({ projects, activeId, onSelect, onUpdate }: Props) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
 
+  const commander = projects.find((p) => p.id === COMMANDER_ID);
+  const others = projects.filter((p) => p.id !== COMMANDER_ID);
+
   async function addProject() {
     const name = newName.trim();
     if (!name) return;
     const id = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString(36)}`;
-    onUpdate([...projects, { id, name, path: "" }]);
+    const next = [...projects, { id, name, path: "", permissionMode: "safe" as const }];
+    onUpdate(next);
     setNewName("");
     setAdding(false);
     onSelect(id);
   }
 
   function removeProject(id: string) {
+    if (id === COMMANDER_ID) return;
     onUpdate(projects.filter((p) => p.id !== id));
     if (activeId === id && projects.length > 1) {
       const next = projects.find((p) => p.id !== id);
@@ -36,6 +43,19 @@ export function Sidebar({ projects, activeId, onSelect, onUpdate }: Props) {
         <span className="brand-mark">A</span>
         <span className="brand-name">Alfred</span>
       </div>
+
+      {commander && (
+        <div className="commander">
+          <button
+            className={`commander-btn ${commander.id === activeId ? "active" : ""}`}
+            onClick={() => onSelect(commander.id)}
+          >
+            <span className="commander-dot" />
+            <span className="commander-name">{commander.name}</span>
+            <span className="commander-sub">across all projects</span>
+          </button>
+        </div>
+      )}
 
       <div className="projects">
         <div className="projects-head">
@@ -61,7 +81,7 @@ export function Sidebar({ projects, activeId, onSelect, onUpdate }: Props) {
         )}
 
         <ul>
-          {projects.map((p) => (
+          {others.map((p) => (
             <li
               key={p.id}
               className={p.id === activeId ? "active" : ""}

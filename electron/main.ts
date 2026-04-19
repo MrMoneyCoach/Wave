@@ -1,14 +1,22 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu, Notification } from "electron";
 import * as path from "path";
 import * as fs from "fs";
+import { autoUpdater } from "electron-updater";
 import { ClaudeSession, PermissionMode } from "./claude";
 import { loadProjects, saveProjects, Project } from "./projects";
 import * as convo from "./conversations";
+import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 
 const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
 const sessions = new Map<string, ClaudeSession>();
+
+function withCommander(projects: Project[]): Project[] {
+  const commander = ensureCommanderProject(projects);
+  const rest = projects.filter((p) => p.id !== COMMANDER_ID);
+  return [commander, ...rest];
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -23,6 +31,12 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // Auto-allow microphone for voice input.
+  mainWindow.webContents.session.setPermissionRequestHandler((_wc, permission, callback) => {
+    if (permission === "media") return callback(true);
+    callback(false);
   });
 
   if (isDev) {
@@ -45,6 +59,11 @@ function buildMenu() {
           label: "Alfred",
           submenu: [
             { role: "about" as const },
+            { type: "separator" as const },
+            {
+              label: "Check for Updates…",
+              click: () => autoUpdater.checkForUpdates().catch(() => {}),
+            },
             { type: "separator" as const },
             { role: "services" as const },
             { type: "separator" as const },
@@ -70,6 +89,17 @@ function buildMenu() {
           click: () => mainWindow?.webContents.send("menu:stop"),
         },
         { type: "separator" },
+        {
+          label: "Toggle Voice",
+          accelerator: "CmdOrCtrl+Shift+V",
+          click: () => mainWindow?.webContents.send("menu:toggle-voice"),
+        },
+        { type: "separator" },
+        {
+          label: "Go to Alfred (Commander)",
+          accelerator: "CmdOrCtrl+0",
+          click: () => mainWindow?.webContents.send("menu:go-commander"),
+        },
         {
           label: "Next Project",
           accelerator: "CmdOrCtrl+]",
@@ -104,9 +134,26 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function setupAutoUpdate() {
+  if (isDev) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on("update-downloaded", () => {
+    mainWindow?.webContents.send("update:ready");
+  });
+  autoUpdater.on("error", (err) => console.warn("auto-update", err.message));
+  autoUpdater.checkForUpdates().catch(() => {});
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 60 * 60 * 1000);
+}
+
 app.whenReady().then(() => {
   createWindow();
   buildMenu();
+  setupAutoUpdate();
+  // Seed commander CLAUDE.md with current projects.
+  refreshCommanderContext(loadProjects());
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -118,10 +165,12 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-ipcMain.handle("projects:list", () => loadProjects());
+ipcMain.handle("projects:list", () => withCommander(loadProjects()));
 
 ipcMain.handle("projects:save", (_e, projects: Project[]) => {
-  saveProjects(projects);
+  const toStore = projects.filter((p) => p.id !== COMMANDER_ID);
+  saveProjects(toStore);
+  refreshCommanderContext(toStore);
   return true;
 });
 
@@ -180,7 +229,7 @@ function wireSession(session: ClaudeSession) {
   session.on("done", () => {
     send("chat:done", { projectId: session.projectId });
     if (mainWindow && !mainWindow.isFocused() && Notification.isSupported()) {
-      new Notification({ title: "Alfred", body: `${session.projectId} response ready` }).show();
+      new Notification({ title: "Alfred", body: "Response ready" }).show();
     }
   });
   session.on("error", (err: string) =>
@@ -228,4 +277,8 @@ ipcMain.handle("chat:reset", (_e, projectId: string) => {
   }
   convo.clear(projectId);
   return true;
+});
+
+ipcMain.handle("update:install", () => {
+  autoUpdater.quitAndInstall();
 });

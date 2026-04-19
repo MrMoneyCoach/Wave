@@ -6,12 +6,16 @@ A personal Mac chat app for managing your Claude Code projects. Markdown output,
 
 ## What it does
 
+- **Alfred, a talking orb in the corner** — an animated avatar that listens, thinks, and speaks back
+- **Wake word: "Alfred"** — any sentence starting with "Alfred, …" becomes a command
+- **Cross-project Commander** — the Alfred pinned at the top of the sidebar can work across every project ("what's happening across everything?")
 - **One chat per project** — Wave, Claude Code, Solomon, or anything you add
 - **Watches Claude work** — see files being read, edits being made, commands running, in real time
 - **Remembers** — each project keeps its own conversation history across restarts
 - **Slash commands** — `/status`, `/next`, `/plan`, `/review`, `/commit`, `/push`, `/test`, `/explain`, `/clear`
 - **Safe by default, autonomous when you want it** — toggle per project
-- **Keyboard-first** — `⌘1`..`⌘9` jump to projects, `⌘N` new conversation, `⌘.` stop, `⌘[`/`⌘]` cycle
+- **Auto-updates** — new versions install themselves in the background
+- **Keyboard-first** — `⌘0` Commander, `⌘1`..`⌘9` projects, `⌘N` new, `⌘.` stop, `⌘⇧V` toggle voice
 - **Zero API spend** — drives the `claude` CLI, authed with your Max plan
 
 ## Install (non-programmer version)
@@ -57,6 +61,18 @@ Three projects are pre-seeded: **Wave**, **Claude Code**, **Solomon**. For each:
 
 Add more projects any time with the **+** button.
 
+## Talking to Alfred
+
+Click the orb in the bottom-right to turn voice on. Then just start a sentence with "Alfred":
+
+> "Alfred, what's happening across all my projects?"
+> "Alfred, search the web for frontend job postings"
+> "Alfred, commit the pending changes on Wave"
+
+Alfred listens continuously while the orb is on. It pauses its mic while speaking so it doesn't hear itself. Turn voice off any time with `⌘⇧V` or by clicking the orb.
+
+**A note on LinkedIn, Gmail, Twitter, etc.** Right now Alfred can search the public web via Claude's built-in search tool, which is great for public job boards, articles, docs, and aggregators. Sites that require a login (LinkedIn, Gmail, private Twitter) can only be reached once we add a browser-automation MCP server with your cookies — that's a planned upgrade.
+
 ## Daily use
 
 Type naturally, or hit `/` for slash commands:
@@ -92,9 +108,11 @@ npm run package:dir    # faster: .app bundle without DMG
 
 | Shortcut | Action |
 | --- | --- |
+| `⌘0` | Jump to Alfred (Commander) |
 | `⌘1` – `⌘9` | Jump to project 1–9 |
 | `⌘]` / `⌘[` | Next / previous project |
 | `⌘N` | New conversation |
 | `⌘.` | Stop Alfred |
+| `⌘⇧V` | Toggle voice |
 | `/` | Open slash-command palette |
 | `Enter` / `Shift+Enter` | Send / new line |

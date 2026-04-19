@@ -73,6 +73,9 @@ const api = {
 
   onMenu: (event: string, cb: (arg?: unknown) => void) =>
     on<unknown>(`menu:${event}`, cb),
+
+  installUpdate: () => ipcRenderer.invoke("update:install"),
+  onUpdateReady: (cb: () => void) => on<unknown>("update:ready", () => cb()),
 };
 
 contextBridge.exposeInMainWorld("alfred", api);

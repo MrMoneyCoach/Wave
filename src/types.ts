@@ -54,6 +54,9 @@ export type AlfredApi = {
   onError: (cb: (p: { projectId: string; error: string }) => void) => () => void;
 
   onMenu: (event: string, cb: (arg?: unknown) => void) => () => void;
+
+  installUpdate: () => Promise<void>;
+  onUpdateReady: (cb: () => void) => () => void;
 };
 
 declare global {

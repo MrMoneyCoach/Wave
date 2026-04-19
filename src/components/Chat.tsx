@@ -5,10 +5,23 @@ import { SLASH_COMMANDS, matchCommand } from "../slashCommands";
 
 type Props = {
   project: Project;
+  voiceEnabled: boolean;
   onUpdateProject: (p: Project) => void;
+  onVoiceCommand: (register: (text: string) => void) => void;
+  onSpeak: (text: string) => void;
+  onThinking: (thinking: boolean) => void;
+  onStopSpeaking: () => void;
 };
 
-export function Chat({ project, onUpdateProject }: Props) {
+export function Chat({
+  project,
+  voiceEnabled,
+  onUpdateProject,
+  onVoiceCommand,
+  onSpeak,
+  onThinking,
+  onStopSpeaking,
+}: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<SessionStatus>("idle");
@@ -29,7 +42,9 @@ export function Chat({ project, onUpdateProject }: Props) {
         setMessages(msgs.map((m) => (m.pending ? { ...m, pending: false } : m)));
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [project.id]);
 
   // Persist on change.
@@ -50,7 +65,9 @@ export function Chat({ project, onUpdateProject }: Props) {
       }),
       window.alfred.onToolUse(({ projectId, id, name, input }) => {
         if (projectId !== projectRef.current.id) return;
-        setMessages((prev) => appendBlock(prev, { kind: "tool_use", id, name, input, status: "running" }));
+        setMessages((prev) =>
+          appendBlock(prev, { kind: "tool_use", id, name, input, status: "running" }),
+        );
       }),
       window.alfred.onToolResult(({ projectId, toolUseId, isError }) => {
         if (projectId !== projectRef.current.id) return;
@@ -72,13 +89,25 @@ export function Chat({ project, onUpdateProject }: Props) {
       window.alfred.onDone(({ projectId }) => {
         if (projectId !== projectRef.current.id) return;
         setStatus("idle");
-        setMessages((prev) =>
-          prev.map((m) => (m.pending ? { ...m, pending: false } : m)),
-        );
+        onThinking(false);
+        setMessages((prev) => {
+          const updated = prev.map((m) => (m.pending ? { ...m, pending: false } : m));
+          const last = updated[updated.length - 1];
+          if (last && last.role === "assistant") {
+            const texts = last.blocks
+              .filter((b): b is Extract<MessageBlock, { kind: "text" }> => b.kind === "text")
+              .map((b) => b.text)
+              .join(" ")
+              .trim();
+            if (texts) onSpeak(texts);
+          }
+          return updated;
+        });
       }),
       window.alfred.onError(({ projectId, error }) => {
         if (projectId !== projectRef.current.id) return;
         setStatus("idle");
+        onThinking(false);
         setMessages((prev) => [
           ...prev.map((m) => ({ ...m, pending: false })),
           {
@@ -91,16 +120,27 @@ export function Chat({ project, onUpdateProject }: Props) {
       }),
     ];
     return () => off.forEach((u) => u());
-  }, []);
+  }, [onSpeak, onThinking]);
 
   // Menu events.
   useEffect(() => {
     const off = [
       window.alfred.onMenu("new-conversation", () => resetConversation()),
-      window.alfred.onMenu("stop", () => stop()),
+      window.alfred.onMenu("stop", () => {
+        stop();
+        onStopSpeaking();
+      }),
     ];
     return () => off.forEach((u) => u());
   }, []);
+
+  // Voice command handler: when the wake word triggers, send as a message.
+  useEffect(() => {
+    onVoiceCommand((text: string) => {
+      if (!text.trim()) return;
+      send(text);
+    });
+  }, [onVoiceCommand, voiceEnabled, project.id, project.path, permissionMode]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -133,10 +173,16 @@ export function Chat({ project, onUpdateProject }: Props) {
     setInput("");
     setPaletteOpen(false);
     setStatus("working");
+    onThinking(true);
 
     setMessages((prev) => [
       ...prev,
-      { id: uuid(), role: "user", createdAt: Date.now(), blocks: [{ kind: "text", text: displayText }] },
+      {
+        id: uuid(),
+        role: "user",
+        createdAt: Date.now(),
+        blocks: [{ kind: "text", text: displayText }],
+      },
       { id: uuid(), role: "assistant", createdAt: Date.now(), blocks: [], pending: true },
     ]);
 
@@ -145,12 +191,14 @@ export function Chat({ project, onUpdateProject }: Props) {
 
   function stop() {
     window.alfred.stopMessage(project.id);
+    onThinking(false);
   }
 
   async function resetConversation() {
     await window.alfred.resetChat(project.id);
     setMessages([]);
     setStatus("idle");
+    onThinking(false);
   }
 
   function togglePermissionMode() {
@@ -191,7 +239,7 @@ export function Chat({ project, onUpdateProject }: Props) {
             title={
               permissionMode === "safe"
                 ? "Claude asks before risky actions"
-                : "Claude acts without asking (faster, use carefully)"
+                : "Claude acts without asking"
             }
             className={`mode-${permissionMode}`}
           >
@@ -236,7 +284,9 @@ export function Chat({ project, onUpdateProject }: Props) {
           ref={taRef}
           placeholder={
             project.path
-              ? "Message Alfred…  (press / for commands)"
+              ? voiceEnabled
+                ? 'Say "Alfred…" or type  (/ for commands)'
+                : "Message Alfred…  (/ for commands)"
               : "Set a folder to start chatting"
           }
           value={input}
@@ -255,7 +305,9 @@ export function Chat({ project, onUpdateProject }: Props) {
           rows={3}
         />
         {status === "working" ? (
-          <button className="send stop" onClick={stop}>Stop</button>
+          <button className="send stop" onClick={stop}>
+            Stop
+          </button>
         ) : (
           <button className="send" onClick={() => send()} disabled={!project.path || !input.trim()}>
             Send
@@ -275,12 +327,15 @@ function EmptyState({ project, onPick }: { project: Project; onPick: (q: string)
       </div>
     );
   }
-  const suggestions = [
-    "/status",
-    "/next",
-    "What does this project do?",
-    "Summarize what I worked on recently",
-  ];
+  const suggestions =
+    project.id === "__commander__"
+      ? [
+          "What's happening across all my projects?",
+          "Which projects have uncommitted changes?",
+          "Search the web for Swift UI best practices",
+          "Summarise what I worked on this week",
+        ]
+      : ["/status", "/next", "What does this project do?", "Summarise recent work"];
   return (
     <div className="empty">
       <div className="empty-title">What should we do in {project.name}?</div>
@@ -298,10 +353,7 @@ function EmptyState({ project, onPick }: { project: Project; onPick: (q: string)
 function appendBlock(prev: ChatMessage[], block: MessageBlock): ChatMessage[] {
   const last = prev[prev.length - 1];
   if (last && last.role === "assistant" && last.pending) {
-    return [
-      ...prev.slice(0, -1),
-      { ...last, blocks: [...last.blocks, block] },
-    ];
+    return [...prev.slice(0, -1), { ...last, blocks: [...last.blocks, block] }];
   }
   return [
     ...prev,
@@ -320,10 +372,7 @@ function appendText(prev: ChatMessage[], text: string): ChatMessage[] {
       ];
       return [...prev.slice(0, -1), { ...last, blocks: updatedBlocks }];
     }
-    return [
-      ...prev.slice(0, -1),
-      { ...last, blocks: [...last.blocks, { kind: "text", text }] },
-    ];
+    return [...prev.slice(0, -1), { ...last, blocks: [...last.blocks, { kind: "text", text }] }];
   }
   return [
     ...prev,

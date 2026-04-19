@@ -339,3 +339,154 @@ code {
 }
 .composer .send:disabled { background: var(--bg-3); color: var(--fg-dim); }
 .composer .send.stop { background: var(--danger); color: #fff; }
+
+/* ---------- Commander row ---------- */
+.commander { padding: 0 8px 8px; }
+.commander-btn {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2a2115, #1d1912);
+  border: 1px solid var(--accent-dim);
+  color: var(--fg);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+.commander-btn.active { background: linear-gradient(135deg, #3a2d18, #2a2115); }
+.commander-btn:hover { border-color: var(--accent); }
+.commander-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+.commander-name { font-weight: 600; flex: 1; }
+.commander-sub { font-size: 10.5px; color: var(--fg-dim); }
+
+/* ---------- Update banner ---------- */
+.banner.update {
+  background: #16331a;
+  border-bottom-color: var(--success);
+  color: var(--fg);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.banner .link-btn {
+  background: var(--success);
+  color: #0a0a0a;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* ---------- Avatar ---------- */
+.avatar {
+  position: fixed;
+  right: 20px;
+  bottom: 110px;
+  z-index: 20;
+  display: flex; flex-direction: column; align-items: center;
+  user-select: none;
+  pointer-events: none;
+}
+.avatar-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
+.avatar-label {
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 10.5px;
+  color: var(--fg-dim);
+  pointer-events: none;
+}
+.avatar-interim {
+  position: absolute;
+  right: 88px;
+  bottom: 20px;
+  max-width: 280px;
+  background: var(--bg-2);
+  color: var(--fg);
+  padding: 8px 12px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-style: italic;
+  opacity: 0.92;
+  pointer-events: none;
+  white-space: normal;
+}
+
+/* Rings */
+.avatar .ring { stroke: var(--accent-dim); opacity: 0.35; transform-origin: 50% 50%; }
+.avatar .ring-2 { opacity: 0; }
+.avatar-off .ring { stroke: #555; }
+
+.avatar-listening .ring {
+  animation: pulse 1.6s ease-out infinite;
+}
+.avatar-listening .ring-2 {
+  animation: pulse 1.6s ease-out infinite;
+  animation-delay: 0.8s;
+  opacity: 1;
+}
+.avatar-heard .ring {
+  animation: flash 0.6s ease-out;
+}
+
+.avatar-thinking .ring {
+  stroke: var(--accent);
+  opacity: 0.5;
+  stroke-dasharray: 60 40;
+  animation: spin 1.4s linear infinite;
+  transform-origin: 50% 50%;
+}
+.avatar-thinking .spin circle {
+  transform-origin: 50px 50px;
+  animation: spinCore 1.4s linear infinite;
+}
+
+.avatar-speaking .ring {
+  stroke: var(--accent);
+  opacity: 0.6;
+  animation: speakPulse 0.35s ease-in-out infinite;
+}
+
+/* Idle breathing */
+.avatar .core { transform-origin: 50% 50%; animation: breathe 3s ease-in-out infinite; }
+.avatar-thinking .core,
+.avatar-speaking .core,
+.avatar-heard .core { animation: none; }
+
+@keyframes pulse {
+  0%   { r: 26; opacity: 0.55; }
+  100% { r: 46; opacity: 0; }
+}
+@keyframes flash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes spinCore {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes speakPulse {
+  0%, 100% { r: 42; opacity: 0.4; }
+  50%      { r: 46; opacity: 0.7; }
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
