@@ -18,6 +18,7 @@ export class ClaudeSession extends EventEmitter {
     public readonly projectId: string,
     public readonly cwd: string,
     public permissionMode: PermissionMode = "safe",
+    public mcpConfigPath: string | null = null,
   ) {
     super();
   }
@@ -63,6 +64,22 @@ export class ClaudeSession extends EventEmitter {
     }
     if (this.permissionMode === "autonomous") {
       args.push("--dangerously-skip-permissions");
+    }
+    if (this.mcpConfigPath) {
+      args.push("--mcp-config", this.mcpConfigPath);
+      // Pre-allow Alfred's own tools so voice commands don't silently hang
+      // on a CLI permission prompt the user can't see.
+      args.push(
+        "--allowedTools",
+        [
+          "mcp__alfred__open_url",
+          "mcp__alfred__open_site_search",
+          "mcp__alfred__find_files",
+          "mcp__alfred__reveal_file",
+          "mcp__alfred__open_file",
+          "mcp__alfred__open_app",
+        ].join(","),
+      );
     }
 
     const env = {

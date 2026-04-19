@@ -6,6 +6,7 @@ import { ClaudeSession, PermissionMode } from "./claude";
 import { loadProjects, saveProjects, Project } from "./projects";
 import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
+import { ensureMcpConfig } from "./mcp";
 
 const isDev = !app.isPackaged;
 
@@ -253,7 +254,7 @@ ipcMain.handle(
     }
     let session = sessions.get(projectId);
     if (!session) {
-      session = new ClaudeSession(projectId, cwd, permissionMode);
+      session = new ClaudeSession(projectId, cwd, permissionMode, ensureMcpConfig());
       wireSession(session);
       sessions.set(projectId, session);
     } else {

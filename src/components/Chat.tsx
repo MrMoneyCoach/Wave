@@ -331,9 +331,10 @@ function EmptyState({ project, onPick }: { project: Project; onPick: (q: string)
     project.id === "__commander__"
       ? [
           "What's happening across all my projects?",
+          "Search LinkedIn for Swift Engineer roles in London",
+          "Find files on my Mac about 'budget 2024'",
+          "Open GitHub notifications",
           "Which projects have uncommitted changes?",
-          "Search the web for Swift UI best practices",
-          "Summarise what I worked on this week",
         ]
       : ["/status", "/next", "What does this project do?", "Summarise recent work"];
   return (

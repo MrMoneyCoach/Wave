@@ -7,12 +7,13 @@
   "author": "mrmoneycoach",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
+    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json && tsc -p mcp-server/tsconfig.json",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
     "package": "npm run build && electron-builder --mac",
     "package:dir": "npm run build && electron-builder --mac --dir"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "electron-updater": "^6.3.0",
     "highlight.js": "^11.10.0",
     "react": "^18.3.1",
@@ -42,7 +43,12 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "dist-mcp/**/*",
       "package.json"
+    ],
+    "asarUnpack": [
+      "dist-mcp/**/*",
+      "node_modules/@modelcontextprotocol/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",

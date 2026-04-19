@@ -21,3 +21,5 @@ jobs:
         run: npx vite build
       - name: Electron TypeScript check
         run: npx tsc -p electron/tsconfig.json --noEmit
+      - name: MCP server TypeScript check
+        run: npx tsc -p mcp-server/tsconfig.json --noEmit

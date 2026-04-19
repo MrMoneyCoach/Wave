@@ -8,6 +8,7 @@ A personal Mac chat app for managing your Claude Code projects. Markdown output,
 
 - **Alfred, a talking orb in the corner** — an animated avatar that listens, thinks, and speaks back
 - **Wake word: "Alfred"** — any sentence starting with "Alfred, …" becomes a command
+- **Mac-native superpowers** — open URLs, search LinkedIn/Google/GitHub in your *logged-in* browser, find files with Spotlight, launch apps
 - **Cross-project Commander** — the Alfred pinned at the top of the sidebar can work across every project ("what's happening across everything?")
 - **One chat per project** — Wave, Claude Code, Solomon, or anything you add
 - **Watches Claude work** — see files being read, edits being made, commands running, in real time
@@ -71,7 +72,15 @@ Click the orb in the bottom-right to turn voice on. Then just start a sentence w
 
 Alfred listens continuously while the orb is on. It pauses its mic while speaking so it doesn't hear itself. Turn voice off any time with `⌘⇧V` or by clicking the orb.
 
-**A note on LinkedIn, Gmail, Twitter, etc.** Right now Alfred can search the public web via Claude's built-in search tool, which is great for public job boards, articles, docs, and aggregators. Sites that require a login (LinkedIn, Gmail, private Twitter) can only be reached once we add a browser-automation MCP server with your cookies — that's a planned upgrade.
+### What Alfred can do out loud
+
+- **"Alfred, search LinkedIn for Swift Engineer roles in London"** — opens LinkedIn jobs in your default browser with your existing login.
+- **"Alfred, open the GitHub notifications page"** — any URL or site.
+- **"Alfred, find the file called budget 2024"** — Spotlight search, then offers to open or reveal it.
+- **"Alfred, open Messages"** — launches any Mac app.
+- **"Alfred, what's happening across all my projects?"** — iterates every project folder and summarises.
+
+Because site searches open in *your* browser (Safari/Chrome), every login you already have — LinkedIn, Gmail, Twitter, GitHub, Amazon — just works. No cookie handling required.
 
 ## Daily use
 
