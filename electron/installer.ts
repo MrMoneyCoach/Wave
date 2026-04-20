@@ -1,8 +1,8 @@
 /**
- * In-app installer for Claude Code. Runs `npm install -g @anthropic-ai/claude-code`
- * and then `claude login` entirely from inside the Electron main process, with
- * stdout/stderr streamed to the renderer over IPC. No Terminal window ever
- * appears.
+ * In-app installer for Claude Code. Runs `npm install` into a user-owned
+ * prefix (~/.npm-global) — avoiding EACCES on /usr/local/lib — then runs
+ * `claude login`. Everything streams to the renderer over IPC; no Terminal
+ * window ever opens.
  */
 import { spawn } from "child_process";
 import { execSync } from "child_process";
@@ -10,7 +10,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { BrowserWindow } from "electron";
-import { claudeEnv, resetClaudePath, resolveClaudePath } from "./claude-path";
+import { claudeEnv, resetClaudePath, resolveClaudePath, setOverride } from "./claude-path";
 
 type Phase = "npm" | "login" | "done" | "error";
 
@@ -42,8 +42,6 @@ function shellPath(): string {
 }
 
 function findNpm(): string | null {
-  // Check the dirs where Node's .pkg installer puts things, plus nvm, plus
-  // whatever the login shell has on PATH.
   const candidates: string[] = [];
   const add = (p: string) => {
     if (p && !candidates.includes(p)) candidates.push(p);
@@ -74,6 +72,22 @@ function findNpm(): string | null {
 
 let running = false;
 
+function prefixDir(): string {
+  return path.join(os.homedir(), ".npm-global");
+}
+
+function prefixBinDir(): string {
+  return path.join(prefixDir(), "bin");
+}
+
+function ensurePrefixDir() {
+  const dir = prefixDir();
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(prefixBinDir(), { recursive: true });
+  } catch {}
+}
+
 export async function runInstall(win: BrowserWindow | null): Promise<void> {
   if (running) return;
   running = true;
@@ -95,13 +109,27 @@ export async function runInstall(win: BrowserWindow | null): Promise<void> {
     });
     return;
   }
-  emit(win, "npm", `Using npm at ${npm}`);
-  emit(win, "npm", "Installing @anthropic-ai/claude-code (this takes ~60 seconds)…");
 
-  const env = claudeEnv();
+  ensurePrefixDir();
+  const prefix = prefixDir();
+
+  emit(win, "npm", `Using npm at ${npm}`);
+  emit(win, "npm", `Installing into ${prefix} (no admin password needed)…`);
+  emit(win, "npm", "");
+
+  // Augment PATH with the prefix bin dir so the post-install binary is
+  // immediately resolvable by every subsequent spawn (including claude login).
+  const env = {
+    ...claudeEnv(),
+    PATH: `${prefixBinDir()}:${claudeEnv().PATH || ""}`,
+  };
 
   await new Promise<void>((resolve) => {
-    const child = spawn(npm, ["install", "-g", "@anthropic-ai/claude-code"], { env });
+    const child = spawn(
+      npm,
+      ["install", "-g", "--prefix", prefix, "@anthropic-ai/claude-code"],
+      { env },
+    );
     child.stdout.on("data", (b: Buffer) => emit(win, "npm", b.toString("utf8")));
     child.stderr.on("data", (b: Buffer) => emit(win, "npm", b.toString("utf8")));
     child.on("error", (err) => {
@@ -115,7 +143,7 @@ export async function runInstall(win: BrowserWindow | null): Promise<void> {
         emit(
           win,
           "error",
-          `npm install exited with code ${code}. Common cause: the user account doesn't have permission to write to npm's global folder. Try configuring an npm prefix in your home folder.`,
+          `npm install exited with code ${code}. If you see EACCES errors above, try the Locate manually button — you may already have claude installed somewhere else.`,
         );
         emitState(win, {
           phase: "error",
@@ -128,7 +156,12 @@ export async function runInstall(win: BrowserWindow | null): Promise<void> {
         return;
       }
 
-      // Re-resolve now that the binary should exist.
+      // After a successful prefix install, the binary is at
+      // ~/.npm-global/bin/claude. Pin that via override so we never have to
+      // probe again.
+      const installedBin = path.join(prefixBinDir(), "claude");
+      if (fs.existsSync(installedBin)) setOverride(installedBin);
+
       resetClaudePath();
       const found = resolveClaudePath();
       if (!found) {
