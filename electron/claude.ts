@@ -1,5 +1,6 @@
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import { EventEmitter } from "events";
+import { resolveClaudePath, claudeEnv } from "./claude-path";
 
 export type PermissionMode = "safe" | "autonomous";
 
@@ -134,14 +135,13 @@ export class ClaudeSession extends EventEmitter {
       args.push("--allowedTools", ALFRED_TOOLS.join(","));
     }
 
-    const env = {
-      ...process.env,
-      PATH: `${process.env.PATH || ""}:/usr/local/bin:/opt/homebrew/bin`,
-    };
+    const env = claudeEnv();
+    const resolved = resolveClaudePath();
+    const cmd = resolved?.bin ?? "claude";
 
     let child: ChildProcessWithoutNullStreams;
     try {
-      child = spawn("claude", args, { cwd: this.cwd, env });
+      child = spawn(cmd, args, { cwd: this.cwd, env });
     } catch (err) {
       this.emit("error", (err as Error).message);
       this.busy = false;

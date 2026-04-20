@@ -7,6 +7,7 @@ import { loadProjects, saveProjects, Project } from "./projects";
 import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 import { ensureMcpConfig } from "./mcp";
+import { resolveClaudePath, resetClaudePath } from "./claude-path";
 
 const isDev = !app.isPackaged;
 
@@ -187,16 +188,10 @@ ipcMain.handle("projects:openFolder", (_e, p: string) => {
 });
 
 ipcMain.handle("claude:check", () => {
-  const { execSync } = require("child_process");
-  try {
-    const out = execSync("claude --version", {
-      encoding: "utf8",
-      env: { ...process.env, PATH: `${process.env.PATH}:/usr/local/bin:/opt/homebrew/bin` },
-    });
-    return { installed: true, version: out.trim() };
-  } catch {
-    return { installed: false, version: null };
-  }
+  resetClaudePath();
+  const r = resolveClaudePath();
+  if (!r) return { installed: false, version: null };
+  return { installed: true, version: r.version ?? "ready" };
 });
 
 ipcMain.handle("convo:load", (_e, projectId: string) => convo.load(projectId));
