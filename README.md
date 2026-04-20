@@ -74,29 +74,45 @@ Alfred listens continuously while the orb is on. It pauses its mic while speakin
 
 ### What Alfred can do out loud
 
-**Web & apps**
-- **"Alfred, search LinkedIn for Swift Engineer roles in London"** — opens LinkedIn jobs in your default browser with your existing login
-- **"Alfred, open the GitHub notifications page"** — any URL or site
-- **"Alfred, open Messages"** — launches any Mac app
+**LinkedIn (full filters — uses your existing login)**
+- *"Alfred, senior Swift engineer roles in London, remote, posted this week"*
+- *"Alfred, find Jane Doe at Acme on LinkedIn"*
+- *"Alfred, look up recruiters at Spotify in London"*
+- *"Alfred, open my LinkedIn messages"* / *"notifications"* / *"feed"*
+- *"Alfred, draft a LinkedIn post about X"* — Alfred writes it, opens the composer, pastes it for you to review
 
-**Files**
-- **"Alfred, find the file called budget 2024"** — Spotlight search, then offers to open or reveal it
-- **"Alfred, reveal Wave in Finder"**
+**Outlook (your mail app)**
+- *"Alfred, draft an email to Sam about Friday's lunch"*
+- *"Alfred, what's in my inbox?"*
+- *"Alfred, search my inbox for invoices"*
+
+**Word**
+- *"Alfred, make a Word doc with this text: …"*
+- *"Alfred, open that quarterly report in Word"*
+- *"Alfred, type this into the Word doc I have open"*
+
+**Excel**
+- *"Alfred, make an Excel sheet tracking my expenses for the month"*
+- *"Alfred, add a row: coffee, £3.50, today"*
+- *"Alfred, read A1 to C10 from my active workbook"*
 
 **Calendar & Reminders**
-- **"Alfred, put lunch with Sam in my calendar for Friday 1pm"**
-- **"Alfred, what's on my calendar today?"**
-- **"Alfred, remind me to call mum tomorrow at 6pm"**
-- **"Alfred, what's on my reminders?"**
+- *"Alfred, put lunch with Sam in my calendar for Friday 1pm"*
+- *"Alfred, what's on my calendar today?"*
+- *"Alfred, remind me to call mum tomorrow at 6pm"*
 
 **Notes & dictation**
-- **"Alfred, make a note of today's standup: …"**
-- **"Alfred, type this into the email I'm writing: …"** — switches back to your email app and pastes
+- *"Alfred, make a note of today's standup: …"*
+- *"Alfred, type this into the email I'm writing: …"* — Cmd+Tab's back to your app and pastes
+
+**Files**
+- *"Alfred, find the file called budget 2024"*
+- *"Alfred, reveal Wave in Finder"*
 
 **Cross-project**
-- **"Alfred, what's happening across all my projects?"** — iterates every project folder and summarises
+- *"Alfred, what's happening across all my projects?"*
 
-Because site searches open in *your* browser, every login you already have — LinkedIn, Gmail, Twitter, GitHub, Amazon — just works. No cookie handling required.
+Because every action happens in your real apps — Outlook, Word, Excel, Safari/Chrome — your existing logins and preferences just work. No cookie handling, no separate accounts.
 
 ### First-time permissions
 

@@ -330,12 +330,12 @@ function EmptyState({ project, onPick }: { project: Project; onPick: (q: string)
   const suggestions =
     project.id === "__commander__"
       ? [
-          "What's happening across all my projects?",
-          "Search LinkedIn for Swift Engineer roles in London",
+          "Senior Swift engineer roles in London, remote, posted this week",
+          "Draft an Outlook email to Sam about Friday's lunch",
+          "Make an Excel sheet tracking my expenses for the month",
           "Add a reminder to call mum tomorrow at 6pm",
-          "Put lunch with Sam in my calendar for Friday at 1pm",
           "What's on my calendar today?",
-          "Find files on my Mac about 'budget 2024'",
+          "Open my LinkedIn messages",
         ]
       : ["/status", "/next", "What does this project do?", "Summarise recent work"];
   return (

@@ -3,6 +3,50 @@ import { EventEmitter } from "events";
 
 export type PermissionMode = "safe" | "autonomous";
 
+const ALFRED_TOOLS = [
+  // Web / files / apps
+  "mcp__alfred__open_url",
+  "mcp__alfred__open_site_search",
+  "mcp__alfred__find_files",
+  "mcp__alfred__reveal_file",
+  "mcp__alfred__open_file",
+  "mcp__alfred__open_app",
+  // LinkedIn
+  "mcp__alfred__linkedin_jobs_search",
+  "mcp__alfred__linkedin_people_search",
+  "mcp__alfred__linkedin_company_search",
+  "mcp__alfred__linkedin_goto",
+  "mcp__alfred__linkedin_compose_post",
+  "mcp__alfred__linkedin_messaging",
+  // Calendar
+  "mcp__alfred__calendar_create_event",
+  "mcp__alfred__calendar_list_events",
+  // Reminders
+  "mcp__alfred__reminder_create",
+  "mcp__alfred__reminder_list",
+  // Notes
+  "mcp__alfred__note_create",
+  "mcp__alfred__note_append",
+  // Clipboard / dictation
+  "mcp__alfred__clipboard_get",
+  "mcp__alfred__clipboard_set",
+  "mcp__alfred__paste_text",
+  // Outlook
+  "mcp__alfred__outlook_compose",
+  "mcp__alfred__outlook_list_inbox",
+  "mcp__alfred__outlook_search_inbox",
+  "mcp__alfred__outlook_open",
+  // Word / Excel
+  "mcp__alfred__word_new_document",
+  "mcp__alfred__word_open",
+  "mcp__alfred__word_insert_text",
+  "mcp__alfred__excel_new_workbook",
+  "mcp__alfred__excel_open",
+  "mcp__alfred__excel_append_rows",
+  "mcp__alfred__excel_set_cell",
+  "mcp__alfred__excel_read_range",
+];
+
 /**
  * Wraps the `claude` CLI for a single project. Uses --resume across messages
  * so multi-turn conversations persist. No API cost — authed via the user's
@@ -69,26 +113,7 @@ export class ClaudeSession extends EventEmitter {
       args.push("--mcp-config", this.mcpConfigPath);
       // Pre-allow Alfred's own tools so voice commands don't silently hang
       // on a CLI permission prompt the user can't see.
-      args.push(
-        "--allowedTools",
-        [
-          "mcp__alfred__open_url",
-          "mcp__alfred__open_site_search",
-          "mcp__alfred__find_files",
-          "mcp__alfred__reveal_file",
-          "mcp__alfred__open_file",
-          "mcp__alfred__open_app",
-          "mcp__alfred__calendar_create_event",
-          "mcp__alfred__calendar_list_events",
-          "mcp__alfred__reminder_create",
-          "mcp__alfred__reminder_list",
-          "mcp__alfred__note_create",
-          "mcp__alfred__note_append",
-          "mcp__alfred__clipboard_get",
-          "mcp__alfred__clipboard_set",
-          "mcp__alfred__paste_text",
-        ].join(","),
-      );
+      args.push("--allowedTools", ALFRED_TOOLS.join(","));
     }
 
     const env = {
