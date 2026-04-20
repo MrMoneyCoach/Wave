@@ -8,6 +8,7 @@ import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 import { ensureMcpConfig } from "./mcp";
 import { resolveClaudePath, resetClaudePath, diagnose, setOverride } from "./claude-path";
+import { runInstall } from "./installer";
 
 const isDev = !app.isPackaged;
 
@@ -213,6 +214,11 @@ ipcMain.handle("claude:pickBinary", async () => {
 
 ipcMain.handle("claude:clearOverride", () => {
   setOverride(null);
+  return true;
+});
+
+ipcMain.handle("claude:install", async () => {
+  await runInstall(mainWindow);
   return true;
 });
 

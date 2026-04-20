@@ -45,6 +45,11 @@ export type AlfredApi = {
     { bin: string; installed: boolean; version: string | null } | null
   >;
   clearClaudeOverride: () => Promise<boolean>;
+  installClaude: () => Promise<boolean>;
+  onInstallerLog: (cb: (p: { phase: string; line: string }) => void) => () => void;
+  onInstallerState: (
+    cb: (p: { phase: string; running: boolean; success?: boolean; error?: string }) => void,
+  ) => () => void;
 
   loadConversation: (projectId: string) => Promise<ChatMessage[]>;
   saveConversation: (projectId: string, messages: ChatMessage[]) => Promise<boolean>;

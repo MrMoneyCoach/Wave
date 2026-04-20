@@ -44,18 +44,15 @@ Alfred is installed. But it won't work yet — it needs Claude Code to drive it.
 
 ---
 
-## Step 3 — Install Claude Code (double-click, no typing)
+## Step 3 — Install Claude Code (one click, no Terminal)
 
-1. In the repo, open the file **`scripts/mac/install-claude-code.command`**:
-   `https://github.com/MrMoneyCoach/Wave/blob/claude/alfred-project-bot-zLj9R/scripts/mac/install-claude-code.command`
-2. Click the **Raw** button (top right of the file viewer), then **right-click the page → Save As…** and save `install-claude-code.command` to your **Downloads** folder. Make sure the name ends in `.command` (not `.txt`).
-3. In Finder, double-click the file. Terminal will open automatically and run the install.
-   - If macOS blocks it, right-click the file → **Open** → **Open** once.
-4. It'll ask to open **nodejs.org** if Node isn't installed yet — you did that in Step 1, so it should skip straight past that and start installing Claude Code.
-5. When it says *"a browser will open"*, it'll open Chrome with a Claude login page. Log in with your **Claude Max** account. When Claude says *"logged in successfully"*, come back to the Terminal window — it'll say **Done!**
-6. Press **Enter** to close the Terminal window.
+1. Open Alfred from Launchpad.
+2. You'll see a banner at the top saying "Claude Code isn't installed yet". Click **Install for me**.
+3. Alfred installs Claude Code in the background (~60 seconds). You'll see a log scroll past.
+4. A browser tab opens for the Claude Max login. Sign in.
+5. Come back to Alfred. The banner disappears. You're ready.
 
-**You won't need to touch Terminal again.**
+No Terminal window opens at any point.
 
 ---
 
