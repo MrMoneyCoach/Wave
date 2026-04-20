@@ -1,11 +1,9 @@
 name: Build Alfred
 
 on:
-  # Tag push → build + publish a GitHub Release.
   push:
     tags:
       - "v*"
-  # Manual trigger from the Actions tab → build and upload as an artifact.
   workflow_dispatch:
 
 jobs:
@@ -22,12 +20,36 @@ jobs:
       - name: Install (deterministic)
         run: npm ci
 
-      - name: Build & package
+      - name: Typecheck + build renderer
+        run: |
+          npx tsc --noEmit
+          npx vite build
+
+      - name: Compile Electron + MCP
+        run: |
+          npx tsc -p electron/tsconfig.json
+          npx tsc -p mcp-server/tsconfig.json
+          node scripts/write-mcp-pkg.mjs
+
+      - name: Verify build artifacts
+        run: |
+          test -f dist/index.html
+          test -f dist-electron/main.js
+          test -f dist-mcp/index.js
+          echo "OK"
+
+      - name: Package with electron-builder
         env:
-          # Skip code signing for personal builds — the app still runs,
-          # you just right-click → Open the first time.
+          # Unsigned personal build: tell electron-builder not to look for
+          # a code-signing identity in the keychain, and never attempt to
+          # publish (no token is provided on a dispatch run).
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npm run package
+          # More verbose output if it fails — we want to see why.
+          DEBUG: "electron-builder"
+        run: npx electron-builder --mac --publish never
+
+      - name: List produced DMGs
+        run: ls -la release/
 
       - name: Upload Alfred DMG
         uses: actions/upload-artifact@v4
