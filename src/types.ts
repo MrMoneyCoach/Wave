@@ -22,12 +22,29 @@ export type ChatMessage = {
 
 export type SessionStatus = "idle" | "working";
 
+export interface ClaudeDiagnostic {
+  electronPath: string;
+  shellPath: string;
+  shellWhich: string | null;
+  override: string | null;
+  dirs: Array<{ dir: string; exists: boolean; hasClaude: boolean }>;
+  resolvedBin: string | null;
+  version: string | null;
+  shell: string;
+  home: string;
+}
+
 export type AlfredApi = {
   listProjects: () => Promise<Project[]>;
   saveProjects: (projects: Project[]) => Promise<boolean>;
   pickFolder: () => Promise<string | null>;
   openFolder: (p: string) => Promise<boolean>;
   checkClaude: () => Promise<{ installed: boolean; version: string | null }>;
+  diagnoseClaude: () => Promise<ClaudeDiagnostic>;
+  pickClaudeBinary: () => Promise<
+    { bin: string; installed: boolean; version: string | null } | null
+  >;
+  clearClaudeOverride: () => Promise<boolean>;
 
   loadConversation: (projectId: string) => Promise<ChatMessage[]>;
   saveConversation: (projectId: string, messages: ChatMessage[]) => Promise<boolean>;

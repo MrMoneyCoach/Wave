@@ -140,7 +140,13 @@ export function App() {
         onUpdate={updateProjects}
       />
       <main className="main">
-        {claudeInstalled === false && <ClaudeBanner />}
+        {claudeInstalled === false && (
+          <ClaudeBanner
+            onRecheck={() =>
+              window.alfred.checkClaude().then((r) => setClaudeInstalled(r.installed))
+            }
+          />
+        )}
         {updateReady && (
           <div className="banner update">
             <strong>Update ready.</strong>

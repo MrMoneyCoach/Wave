@@ -9,12 +9,14 @@
  * common install locations as fallback.
  *
  * The resolved absolute path is cached and used for both the startup
- * "is Claude installed?" check and every ClaudeSession spawn.
+ * "is Claude installed?" check and every ClaudeSession spawn. The user
+ * can also set a manual override path, persisted in userData.
  */
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { app } from "electron";
 
 let cached: { bin: string; path: string; version: string | null } | null = null;
 
@@ -28,6 +30,27 @@ const EXTRA_DIRS = [
   "/usr/bin",
 ];
 
+function overridePathFile(): string {
+  return path.join(app.getPath("userData"), "claude-bin.txt");
+}
+
+function readOverride(): string | null {
+  try {
+    const p = fs.readFileSync(overridePathFile(), "utf8").trim();
+    if (p && fs.existsSync(p)) return p;
+  } catch {}
+  return null;
+}
+
+export function setOverride(binPath: string | null) {
+  const file = overridePathFile();
+  try {
+    if (binPath) fs.writeFileSync(file, binPath);
+    else if (fs.existsSync(file)) fs.unlinkSync(file);
+  } catch {}
+  resetClaudePath();
+}
+
 function shellPath(): string {
   const shell = process.env.SHELL || "/bin/zsh";
   try {
@@ -39,6 +62,18 @@ function shellPath(): string {
   } catch {
     return "";
   }
+}
+
+function shellWhichClaude(): string | null {
+  const shell = process.env.SHELL || "/bin/zsh";
+  try {
+    const out = execSync(`${shell} -ilc 'command -v claude'`, {
+      encoding: "utf8",
+      timeout: 4000,
+    }).trim();
+    if (out && fs.existsSync(out)) return out;
+  } catch {}
+  return null;
 }
 
 function nvmCandidates(): string[] {
@@ -90,12 +125,21 @@ export function resolveClaudePath(): { bin: string; path: string; version: strin
 
   const { dirs, joined } = buildSearchPath();
 
-  let bin: string | null = null;
-  for (const d of dirs) {
-    const hit = findClaudeInDir(d);
-    if (hit) {
-      bin = hit;
-      break;
+  // 1. Manual override wins if present.
+  const override = readOverride();
+  let bin: string | null = override;
+
+  // 2. Ask the user's shell directly — most reliable on nvm/fnm/volta setups.
+  if (!bin) bin = shellWhichClaude();
+
+  // 3. Fall back to scanning every candidate dir.
+  if (!bin) {
+    for (const d of dirs) {
+      const hit = findClaudeInDir(d);
+      if (hit) {
+        bin = hit;
+        break;
+      }
     }
   }
 
@@ -130,4 +174,48 @@ export function claudeEnv(): NodeJS.ProcessEnv {
   const resolved = resolveClaudePath();
   const augmented = resolved?.path || buildSearchPath().joined;
   return { ...process.env, PATH: augmented };
+}
+
+export interface ClaudeDiagnostic {
+  electronPath: string;
+  shellPath: string;
+  shellWhich: string | null;
+  override: string | null;
+  dirs: Array<{ dir: string; exists: boolean; hasClaude: boolean }>;
+  resolvedBin: string | null;
+  version: string | null;
+  shell: string;
+  home: string;
+}
+
+/**
+ * Return everything we know about where claude might live. Surfaced in
+ * the UI when the banner is visible, so the user can see exactly what
+ * we checked without opening Terminal.
+ */
+export function diagnose(): ClaudeDiagnostic {
+  resetClaudePath();
+  const { dirs } = buildSearchPath();
+  const resolved = resolveClaudePath();
+  return {
+    electronPath: process.env.PATH || "",
+    shellPath: shellPath(),
+    shellWhich: shellWhichClaude(),
+    override: readOverride(),
+    dirs: dirs.map((d) => ({
+      dir: d,
+      exists: (() => {
+        try {
+          return fs.statSync(d).isDirectory();
+        } catch {
+          return false;
+        }
+      })(),
+      hasClaude: !!findClaudeInDir(d),
+    })),
+    resolvedBin: resolved?.bin ?? null,
+    version: resolved?.version ?? null,
+    shell: process.env.SHELL || "/bin/zsh",
+    home: os.homedir(),
+  };
 }

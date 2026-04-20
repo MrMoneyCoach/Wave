@@ -7,7 +7,7 @@ import { loadProjects, saveProjects, Project } from "./projects";
 import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 import { ensureMcpConfig } from "./mcp";
-import { resolveClaudePath, resetClaudePath } from "./claude-path";
+import { resolveClaudePath, resetClaudePath, diagnose, setOverride } from "./claude-path";
 
 const isDev = !app.isPackaged;
 
@@ -192,6 +192,28 @@ ipcMain.handle("claude:check", () => {
   const r = resolveClaudePath();
   if (!r) return { installed: false, version: null };
   return { installed: true, version: r.version ?? "ready" };
+});
+
+ipcMain.handle("claude:diagnose", () => diagnose());
+
+ipcMain.handle("claude:pickBinary", async () => {
+  const res = await dialog.showOpenDialog({
+    title: "Locate the claude binary",
+    message:
+      "Choose the claude CLI binary. It's usually in /usr/local/bin/claude or inside your Node version folder.",
+    properties: ["openFile", "showHiddenFiles", "treatPackageAsDirectory"],
+    defaultPath: "/usr/local/bin",
+  });
+  if (res.canceled || res.filePaths.length === 0) return null;
+  const picked = res.filePaths[0];
+  setOverride(picked);
+  const r = resolveClaudePath();
+  return { bin: picked, installed: !!r, version: r?.version ?? null };
+});
+
+ipcMain.handle("claude:clearOverride", () => {
+  setOverride(null);
+  return true;
 });
 
 ipcMain.handle("convo:load", (_e, projectId: string) => convo.load(projectId));

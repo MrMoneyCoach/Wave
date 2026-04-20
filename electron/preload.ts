@@ -20,6 +20,18 @@ export type MessageBlock =
     }
   | { kind: "tool_result"; toolUseId: string; content: string; isError?: boolean };
 
+export interface ClaudeDiagnostic {
+  electronPath: string;
+  shellPath: string;
+  shellWhich: string | null;
+  override: string | null;
+  dirs: Array<{ dir: string; exists: boolean; hasClaude: boolean }>;
+  resolvedBin: string | null;
+  version: string | null;
+  shell: string;
+  home: string;
+}
+
 export type StoredMessage = {
   id: string;
   role: "user" | "assistant";
@@ -43,6 +55,12 @@ const api = {
   openFolder: (p: string) => ipcRenderer.invoke("projects:openFolder", p),
   checkClaude: () =>
     ipcRenderer.invoke("claude:check") as Promise<{ installed: boolean; version: string | null }>,
+  diagnoseClaude: () => ipcRenderer.invoke("claude:diagnose") as Promise<ClaudeDiagnostic>,
+  pickClaudeBinary: () =>
+    ipcRenderer.invoke("claude:pickBinary") as Promise<
+      { bin: string; installed: boolean; version: string | null } | null
+    >,
+  clearClaudeOverride: () => ipcRenderer.invoke("claude:clearOverride") as Promise<boolean>,
 
   loadConversation: (projectId: string) =>
     ipcRenderer.invoke("convo:load", projectId) as Promise<StoredMessage[]>,
