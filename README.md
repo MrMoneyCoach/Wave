@@ -112,6 +112,16 @@ Alfred listens continuously while the orb is on. It pauses its mic while speakin
 - *"Alfred, find the file called budget 2024"*
 - *"Alfred, reveal Wave in Finder"*
 
+**Messages & Contacts**
+- *"Alfred, text mum I'm running late"* — looks up her number, opens Messages prefilled
+- *"Alfred, find Sam in my contacts"* — returns emails + phones
+
+**System controls**
+- *"Alfred, turn the volume down to 30"* / *"mute"*
+- *"Alfred, what's my battery?"*
+- *"Alfred, lock my Mac"*
+- *"Alfred, sleep the display"*
+
 **Chrome tab control**
 - *"Alfred, what tabs do I have open?"*
 - *"Alfred, focus the tab about budget 2024"*

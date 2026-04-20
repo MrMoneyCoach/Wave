@@ -53,6 +53,13 @@ const EXPECTED = [
   "excel_append_rows",
   "excel_set_cell",
   "excel_read_range",
+  "imessage_compose",
+  "contact_find",
+  "system_get_volume",
+  "system_set_volume",
+  "system_sleep_display",
+  "system_lock_screen",
+  "system_battery_status",
 ];
 
 const child = spawn("node", [server], { stdio: ["pipe", "pipe", "inherit"] });

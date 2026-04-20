@@ -27,6 +27,15 @@ const ALFRED_TOOLS = [
   "mcp__alfred__chrome_focus_tab",
   "mcp__alfred__chrome_close_tabs",
   "mcp__alfred__chrome_reload_active",
+  // Messages / Contacts
+  "mcp__alfred__imessage_compose",
+  "mcp__alfred__contact_find",
+  // System
+  "mcp__alfred__system_get_volume",
+  "mcp__alfred__system_set_volume",
+  "mcp__alfred__system_sleep_display",
+  "mcp__alfred__system_lock_screen",
+  "mcp__alfred__system_battery_status",
   // Calendar
   "mcp__alfred__calendar_create_event",
   "mcp__alfred__calendar_list_events",
