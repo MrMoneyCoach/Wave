@@ -58,7 +58,10 @@
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Alfred listens for the wake word \"Alfred\" to accept voice commands.",
-        "NSSpeechRecognitionUsageDescription": "Alfred transcribes your voice so it can respond to spoken commands."
+        "NSSpeechRecognitionUsageDescription": "Alfred transcribes your voice so it can respond to spoken commands.",
+        "NSAppleEventsUsageDescription": "Alfred uses AppleScript to control Calendar, Reminders, Notes, and paste text into your apps on your behalf.",
+        "NSCalendarsUsageDescription": "Alfred creates and reads events in your Mac Calendar when you ask it to.",
+        "NSRemindersUsageDescription": "Alfred creates and lists reminders in the Reminders app when you ask it to."
       },
       "target": [
         { "target": "dmg", "arch": ["arm64", "x64"] }

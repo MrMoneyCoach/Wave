@@ -78,6 +78,15 @@ export class ClaudeSession extends EventEmitter {
           "mcp__alfred__reveal_file",
           "mcp__alfred__open_file",
           "mcp__alfred__open_app",
+          "mcp__alfred__calendar_create_event",
+          "mcp__alfred__calendar_list_events",
+          "mcp__alfred__reminder_create",
+          "mcp__alfred__reminder_list",
+          "mcp__alfred__note_create",
+          "mcp__alfred__note_append",
+          "mcp__alfred__clipboard_get",
+          "mcp__alfred__clipboard_set",
+          "mcp__alfred__paste_text",
         ].join(","),
       );
     }

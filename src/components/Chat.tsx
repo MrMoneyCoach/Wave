@@ -332,9 +332,10 @@ function EmptyState({ project, onPick }: { project: Project; onPick: (q: string)
       ? [
           "What's happening across all my projects?",
           "Search LinkedIn for Swift Engineer roles in London",
+          "Add a reminder to call mum tomorrow at 6pm",
+          "Put lunch with Sam in my calendar for Friday at 1pm",
+          "What's on my calendar today?",
           "Find files on my Mac about 'budget 2024'",
-          "Open GitHub notifications",
-          "Which projects have uncommitted changes?",
         ]
       : ["/status", "/next", "What does this project do?", "Summarise recent work"];
   return (

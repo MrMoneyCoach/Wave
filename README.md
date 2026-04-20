@@ -74,13 +74,33 @@ Alfred listens continuously while the orb is on. It pauses its mic while speakin
 
 ### What Alfred can do out loud
 
-- **"Alfred, search LinkedIn for Swift Engineer roles in London"** — opens LinkedIn jobs in your default browser with your existing login.
-- **"Alfred, open the GitHub notifications page"** — any URL or site.
-- **"Alfred, find the file called budget 2024"** — Spotlight search, then offers to open or reveal it.
-- **"Alfred, open Messages"** — launches any Mac app.
-- **"Alfred, what's happening across all my projects?"** — iterates every project folder and summarises.
+**Web & apps**
+- **"Alfred, search LinkedIn for Swift Engineer roles in London"** — opens LinkedIn jobs in your default browser with your existing login
+- **"Alfred, open the GitHub notifications page"** — any URL or site
+- **"Alfred, open Messages"** — launches any Mac app
 
-Because site searches open in *your* browser (Safari/Chrome), every login you already have — LinkedIn, Gmail, Twitter, GitHub, Amazon — just works. No cookie handling required.
+**Files**
+- **"Alfred, find the file called budget 2024"** — Spotlight search, then offers to open or reveal it
+- **"Alfred, reveal Wave in Finder"**
+
+**Calendar & Reminders**
+- **"Alfred, put lunch with Sam in my calendar for Friday 1pm"**
+- **"Alfred, what's on my calendar today?"**
+- **"Alfred, remind me to call mum tomorrow at 6pm"**
+- **"Alfred, what's on my reminders?"**
+
+**Notes & dictation**
+- **"Alfred, make a note of today's standup: …"**
+- **"Alfred, type this into the email I'm writing: …"** — switches back to your email app and pastes
+
+**Cross-project**
+- **"Alfred, what's happening across all my projects?"** — iterates every project folder and summarises
+
+Because site searches open in *your* browser, every login you already have — LinkedIn, Gmail, Twitter, GitHub, Amazon — just works. No cookie handling required.
+
+### First-time permissions
+
+The first time Alfred touches Calendar, Reminders, Notes, or the paste-text tool, macOS will show a one-time permission prompt. Click **OK**. If you miss it, go to **System Settings → Privacy & Security → Automation** (or **Accessibility** for paste-text) and tick Alfred.
 
 ## Daily use
 
