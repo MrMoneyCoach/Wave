@@ -7,7 +7,8 @@
   "author": "mrmoneycoach",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json && tsc -p mcp-server/tsconfig.json",
+    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json && tsc -p mcp-server/tsconfig.json && node scripts/write-mcp-pkg.mjs",
+    "smoke": "node scripts/mcp-smoke.mjs",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
     "package": "npm run build && electron-builder --mac",
     "package:dir": "npm run build && electron-builder --mac --dir"

@@ -1,6 +1,7 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { text, ToolModule } from "./types.js";
+import { openInBrowser } from "../browser.js";
 
 const run = promisify(execFile);
 
@@ -117,13 +118,13 @@ export const web: ToolModule = {
     async open_url(args) {
       const url = String(args.url ?? "");
       if (!isSafeUrl(url)) return text("Only http/https URLs are allowed.", true);
-      await run("open", [url]);
-      return text(`Opened ${url}`);
+      await openInBrowser(url);
+      return text(`Opened ${url} in Chrome.`);
     },
     async open_site_search(args) {
       const url = buildSiteSearchUrl(String(args.site ?? "google"), String(args.query ?? ""));
-      await run("open", [url]);
-      return text(`Opened ${url}`);
+      await openInBrowser(url);
+      return text(`Opened ${url} in Chrome.`);
     },
     async find_files(args) {
       const query = String(args.query ?? "");

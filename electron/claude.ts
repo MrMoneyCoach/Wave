@@ -18,6 +18,15 @@ const ALFRED_TOOLS = [
   "mcp__alfred__linkedin_goto",
   "mcp__alfred__linkedin_compose_post",
   "mcp__alfred__linkedin_messaging",
+  "mcp__alfred__linkedin_people_by_company",
+  "mcp__alfred__linkedin_alumni_search",
+  "mcp__alfred__linkedin_open_job",
+  "mcp__alfred__linkedin_open_profile",
+  // Chrome
+  "mcp__alfred__chrome_list_tabs",
+  "mcp__alfred__chrome_focus_tab",
+  "mcp__alfred__chrome_close_tabs",
+  "mcp__alfred__chrome_reload_active",
   // Calendar
   "mcp__alfred__calendar_create_event",
   "mcp__alfred__calendar_list_events",

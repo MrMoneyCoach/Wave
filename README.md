@@ -74,12 +74,15 @@ Alfred listens continuously while the orb is on. It pauses its mic while speakin
 
 ### What Alfred can do out loud
 
-**LinkedIn (full filters — uses your existing login)**
+**LinkedIn (full filters — opens in Chrome with your existing login)**
 - *"Alfred, senior Swift engineer roles in London, remote, posted this week"*
+- *"Alfred, open job 1234567890 on LinkedIn"* — by job ID
 - *"Alfred, find Jane Doe at Acme on LinkedIn"*
-- *"Alfred, look up recruiters at Spotify in London"*
-- *"Alfred, open my LinkedIn messages"* / *"notifications"* / *"feed"*
-- *"Alfred, draft a LinkedIn post about X"* — Alfred writes it, opens the composer, pastes it for you to review
+- *"Alfred, who are the heads of engineering at Spotify?"* — people by company + title
+- *"Alfred, find Cambridge alumni working in product"* — alumni search
+- *"Alfred, open satyanadella's LinkedIn profile"* — by handle
+- *"Alfred, show me my pending LinkedIn invitations"* — any section (feed, messaging, notifications, invitations, saved jobs, job alerts, analytics…)
+- *"Alfred, draft a LinkedIn post about X"* — writes it, opens composer, pastes for review
 
 **Outlook (your mail app)**
 - *"Alfred, draft an email to Sam about Friday's lunch"*
@@ -109,10 +112,16 @@ Alfred listens continuously while the orb is on. It pauses its mic while speakin
 - *"Alfred, find the file called budget 2024"*
 - *"Alfred, reveal Wave in Finder"*
 
+**Chrome tab control**
+- *"Alfred, what tabs do I have open?"*
+- *"Alfred, focus the tab about budget 2024"*
+- *"Alfred, close every tab with youtube in it"*
+- *"Alfred, reload this tab"*
+
 **Cross-project**
 - *"Alfred, what's happening across all my projects?"*
 
-Because every action happens in your real apps — Outlook, Word, Excel, Safari/Chrome — your existing logins and preferences just work. No cookie handling, no separate accounts.
+Alfred opens URLs in **Google Chrome** by default (falls back to your system default if Chrome isn't installed). Because actions happen in your real apps — Chrome, Outlook, Word, Excel — your existing logins and preferences just work.
 
 ### First-time permissions
 

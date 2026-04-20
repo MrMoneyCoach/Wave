@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  typecheck:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,12 +14,37 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-      - run: npm install
-      - name: TypeScript check
+
+      - name: Install (deterministic)
+        run: npm ci
+
+      - name: Typecheck renderer
         run: npx tsc --noEmit
-      - name: Vite build
+
+      - name: Build renderer
         run: npx vite build
-      - name: Electron TypeScript check
+
+      - name: Typecheck Electron main
         run: npx tsc -p electron/tsconfig.json --noEmit
-      - name: MCP server TypeScript check
+
+      - name: Typecheck MCP server
         run: npx tsc -p mcp-server/tsconfig.json --noEmit
+
+      - name: Compile Electron & MCP
+        run: |
+          npx tsc -p electron/tsconfig.json
+          npx tsc -p mcp-server/tsconfig.json
+
+      - name: Smoke-test build artifacts
+        run: |
+          test -f dist/index.html || (echo "missing dist/index.html" && exit 1)
+          test -f dist-electron/main.js || (echo "missing dist-electron/main.js" && exit 1)
+          test -f dist-electron/preload.js || (echo "missing dist-electron/preload.js" && exit 1)
+          test -f dist-mcp/index.js || (echo "missing dist-mcp/index.js" && exit 1)
+          echo "All build artifacts present."
+
+      - name: Sanity-check MCP server boots
+        run: |
+          # Start the server, send a ListTools request, verify it replies
+          # with our expected tool names. Uses the stdio transport.
+          node scripts/mcp-smoke.mjs

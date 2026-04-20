@@ -20,6 +20,7 @@ import { notes } from "./tools/notes.js";
 import { clipboard } from "./tools/clipboard.js";
 import { outlook } from "./tools/outlook.js";
 import { office } from "./tools/office.js";
+import { chrome } from "./tools/chrome.js";
 
 const MODULES: ToolModule[] = [
   web,
@@ -30,6 +31,7 @@ const MODULES: ToolModule[] = [
   clipboard,
   outlook,
   office,
+  chrome,
 ];
 
 const tools = MODULES.flatMap((m) => m.tools);
