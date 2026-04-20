@@ -1,9 +1,11 @@
 name: Build Alfred
 
 on:
+  # Tag push → build + publish a GitHub Release.
   push:
     tags:
       - "v*"
+  # Manual trigger from the Actions tab → build and upload as an artifact.
   workflow_dispatch:
 
 jobs:
@@ -17,17 +19,17 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install (deterministic)
+        run: npm ci
 
       - name: Build & package
         env:
-          # Skip code signing for personal builds — the app still runs, you
-          # just need to right-click → Open the first time.
+          # Skip code signing for personal builds — the app still runs,
+          # you just right-click → Open the first time.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run package
 
-      - name: Upload .dmg artifact
+      - name: Upload Alfred DMG
         uses: actions/upload-artifact@v4
         with:
           name: Alfred-macOS

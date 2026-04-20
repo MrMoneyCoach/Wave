@@ -19,30 +19,19 @@ A personal Mac chat app for managing your Claude Code projects. Markdown output,
 - **Keyboard-first** — `⌘0` Commander, `⌘1`..`⌘9` projects, `⌘N` new, `⌘.` stop, `⌘⇧V` toggle voice
 - **Zero API spend** — drives the `claude` CLI, authed with your Max plan
 
-## Install (non-programmer version)
+## Install (no Terminal needed)
 
-### Option A: Download the prebuilt app (easiest)
+**Not a programmer?** Follow **[SETUP.md](SETUP.md)** — it walks through the whole thing with clicks and double-clicks only. Four steps, about 10 minutes.
 
-1. Push a tag like `v0.1.0` to this repo. GitHub Actions builds `Alfred.dmg` for you.
-2. Grab it from the repo's **Releases** page.
-3. Open the DMG, drag **Alfred** to Applications.
-4. First launch: right-click → **Open** (the app isn't Apple-signed; this only happens once).
+The TL;DR:
+1. Install Node.js from **https://nodejs.org** (one `.pkg` installer).
+2. GitHub builds Alfred for you — trigger the **Build Alfred** action in the Actions tab, download the DMG when it finishes, drag into Applications.
+3. Double-click **`scripts/mac/install-claude-code.command`** to install Claude Code and sign in with your Max account.
+4. Open Alfred and point each project at its folder.
 
-Before launching, install Claude Code once from Terminal (Cmd+Space → "Terminal"):
+---
 
-```bash
-# Homebrew (if you don't have it)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Node.js + Claude Code
-brew install node
-npm install -g @anthropic-ai/claude-code
-
-# Sign in with your Claude Max subscription
-claude login
-```
-
-### Option B: Build locally
+## Install (if you're comfortable with a shell)
 
 ```bash
 git clone <this repo>
