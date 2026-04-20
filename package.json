@@ -64,7 +64,7 @@
         "NSRemindersUsageDescription": "Alfred creates and lists reminders in the Reminders app when you ask it to."
       },
       "target": [
-        { "target": "dmg", "arch": ["arm64"] }
+        { "target": "dmg", "arch": ["arm64", "x64"] }
       ]
     },
     "dmg": {
