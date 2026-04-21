@@ -51,40 +51,54 @@ export function Sidebar({ projects, activeId, onSelect, onUpdate, onOpenSettings
     setDiscovering(true);
     try {
       const found = await window.alfred.discoverClaudeProjects();
-      // Filter out ones we already have (match by path).
-      const existingPaths = new Set(projects.map((p) => p.path).filter(Boolean));
-      setDiscovered(found.filter((d) => !existingPaths.has(d.path)));
+      // Filter out sessions we've already imported.
+      const existing = new Set(
+        projects.map((p) => p.lastSessionId).filter((id): id is string => !!id),
+      );
+      setDiscovered(found.filter((d) => !existing.has(d.sessionId)));
     } finally {
       setDiscovering(false);
     }
   }
 
+  function idFor(d: DiscoveredProject): string {
+    // Stable ID tied to the actual session — safe to re-import same session
+    // without duplicating.
+    return `cc-${d.sessionId}`;
+  }
+
   function importDiscovered(d: DiscoveredProject) {
-    const id = `${d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString(36)}`;
+    const id = idFor(d);
+    if (projects.some((p) => p.id === id)) {
+      onSelect(id);
+      return;
+    }
     const next: Project[] = [
       ...projects,
       {
         id,
-        name: d.name,
+        name: d.title,
         path: d.path,
         permissionMode: "safe",
-        lastSessionId: d.lastSessionId,
+        lastSessionId: d.sessionId,
       },
     ];
     onUpdate(next);
-    setDiscovered((prev) => (prev ?? []).filter((x) => x.path !== d.path));
+    setDiscovered((prev) => (prev ?? []).filter((x) => x.sessionId !== d.sessionId));
     onSelect(id);
   }
 
   function importAll(list: DiscoveredProject[]) {
-    const now = Date.now();
-    const added: Project[] = list.map((d, i) => ({
-      id: `${d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${(now + i).toString(36)}`,
-      name: d.name,
-      path: d.path,
-      permissionMode: "safe",
-      lastSessionId: d.lastSessionId,
-    }));
+    const existingIds = new Set(projects.map((p) => p.id));
+    const added: Project[] = list
+      .filter((d) => !existingIds.has(idFor(d)))
+      .map((d) => ({
+        id: idFor(d),
+        name: d.title,
+        path: d.path,
+        permissionMode: "safe" as const,
+        lastSessionId: d.sessionId,
+      }));
     onUpdate([...projects, ...added]);
     setDiscovered([]);
   }
@@ -185,44 +199,31 @@ export function Sidebar({ projects, activeId, onSelect, onUpdate, onOpenSettings
 
         {discovered !== null && (
           <div className="discovered">
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--fg-dim)",
-                padding: "4px 8px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+            <div className="discovered-head">
               <span>
                 {discovered.length === 0
-                  ? "No new Claude Code projects found."
-                  : `Found ${discovered.length} project${discovered.length === 1 ? "" : "s"}:`}
+                  ? "No new chats found."
+                  : `Found ${discovered.length} chat${discovered.length === 1 ? "" : "s"}:`}
               </span>
-              {discovered.length > 0 && (
-                <button className="link-btn" onClick={() => importAll(discovered)}>
-                  Import all
+              <div style={{ display: "flex", gap: 8 }}>
+                {discovered.length > 0 && (
+                  <button className="link-btn" onClick={() => importAll(discovered)}>
+                    Import all
+                  </button>
+                )}
+                <button className="link-btn" onClick={() => setDiscovered(null)}>
+                  Close
                 </button>
-              )}
-              <button className="link-btn" onClick={() => setDiscovered(null)}>
-                Close
-              </button>
+              </div>
             </div>
             {discovered.map((d) => (
-              <div key={d.path} className="discovered-row">
+              <div key={d.sessionId} className="discovered-row">
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="p-name">{d.name}</div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "var(--fg-dim)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {d.path} · {d.sessionCount} session{d.sessionCount === 1 ? "" : "s"}
+                  <div className="p-name" title={d.title}>
+                    {d.title}
+                  </div>
+                  <div className="discovered-meta">
+                    {d.folder} · {formatRelative(d.lastModified)}
                   </div>
                 </div>
                 <button className="link-btn" onClick={() => importDiscovered(d)}>
@@ -264,4 +265,16 @@ export function Sidebar({ projects, activeId, onSelect, onUpdate, onOpenSettings
       </div>
     </aside>
   );
+}
+
+function formatRelative(ms: number): string {
+  const diff = Date.now() - ms;
+  const min = 60 * 1000;
+  const hr = 60 * min;
+  const day = 24 * hr;
+  if (diff < min) return "just now";
+  if (diff < hr) return `${Math.round(diff / min)}m ago`;
+  if (diff < day) return `${Math.round(diff / hr)}h ago`;
+  if (diff < 30 * day) return `${Math.round(diff / day)}d ago`;
+  return new Date(ms).toLocaleDateString();
 }

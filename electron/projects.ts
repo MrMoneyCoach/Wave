@@ -50,18 +50,21 @@ function defaultProjects(): Project[] {
 }
 
 export interface DiscoveredProject {
+  /** Every chat is its own "project" — one per jsonl file. */
+  sessionId: string;
+  /** Absolute cwd the session was started in. */
   path: string;
-  name: string;
+  /** Short display title (first user message, truncated). */
+  title: string;
+  /** Folder name the session lives under, for grouping. */
+  folder: string;
   lastModified: number;
-  sessionCount: number;
-  lastSessionId: string | null;
 }
 
 /**
- * Scan ~/.claude/projects/ for Claude Code projects the user already has
- * sessions for. Each subdirectory corresponds to a cwd; the exact path
- * comes from the `cwd` field in the first jsonl line (encoded dir names
- * aren't reliably decodable when paths contain hyphens).
+ * Scan ~/.claude/projects/ and return one entry per chat (jsonl file).
+ * Each entry's title is the first user message, so users recognise their
+ * past conversations instead of seeing N anonymous folders.
  */
 export function discoverClaudeProjects(): DiscoveredProject[] {
   const dir = path.join(os.homedir(), ".claude", "projects");
@@ -78,61 +81,79 @@ export function discoverClaudeProjects(): DiscoveredProject[] {
     try {
       const stat = fs.statSync(subDir);
       if (!stat.isDirectory()) continue;
-      const files = fs
-        .readdirSync(subDir)
-        .filter((f) => f.endsWith(".jsonl"))
-        .map((f) => ({
-          name: f,
-          full: path.join(subDir, f),
-          mtime: (() => {
-            try {
-              return fs.statSync(path.join(subDir, f)).mtimeMs;
-            } catch {
-              return 0;
-            }
-          })(),
-        }))
-        .sort((a, b) => b.mtime - a.mtime);
-      if (files.length === 0) continue;
-
-      // Read first line of newest jsonl to get the real cwd.
-      const firstLine = readFirstLine(files[0].full);
-      if (!firstLine) continue;
-      let cwd = "";
-      try {
-        const obj = JSON.parse(firstLine);
-        if (typeof obj.cwd === "string") cwd = obj.cwd;
-      } catch {}
-      if (!cwd) continue;
-
-      const sessionId = path.basename(files[0].name, ".jsonl");
-      const name = path.basename(cwd) || cwd;
-      results.push({
-        path: cwd,
-        name,
-        lastModified: files[0].mtime,
-        sessionCount: files.length,
-        lastSessionId: sessionId,
-      });
+      const files = fs.readdirSync(subDir).filter((f) => f.endsWith(".jsonl"));
+      for (const f of files) {
+        const full = path.join(subDir, f);
+        let mtime = 0;
+        try {
+          mtime = fs.statSync(full).mtimeMs;
+        } catch {
+          continue;
+        }
+        const meta = readSessionMeta(full);
+        if (!meta.cwd) continue;
+        results.push({
+          sessionId: path.basename(f, ".jsonl"),
+          path: meta.cwd,
+          title: meta.firstUserText
+            ? truncate(meta.firstUserText, 70)
+            : path.basename(meta.cwd) || meta.cwd,
+          folder: path.basename(meta.cwd) || meta.cwd,
+          lastModified: mtime,
+        });
+      }
     } catch {
       // Skip unreadable subdirs silently.
     }
   }
-  // Newest first.
   results.sort((a, b) => b.lastModified - a.lastModified);
   return results;
 }
 
-function readFirstLine(file: string): string | null {
+/** Read a jsonl header line for cwd, plus the first user message text. */
+function readSessionMeta(file: string): { cwd: string; firstUserText: string | null } {
+  let cwd = "";
+  let firstUserText: string | null = null;
   try {
+    // Read a generous chunk — enough to cover the metadata line plus the
+    // first user message, without streaming the whole file.
     const fd = fs.openSync(file, "r");
-    const buf = Buffer.alloc(8192);
+    const buf = Buffer.alloc(64 * 1024);
     const bytes = fs.readSync(fd, buf, 0, buf.length, 0);
     fs.closeSync(fd);
     const text = buf.slice(0, bytes).toString("utf8");
-    const nl = text.indexOf("\n");
-    return nl > 0 ? text.slice(0, nl) : text;
+    for (const rawLine of text.split("\n")) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      let obj: any;
+      try {
+        obj = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (!cwd && typeof obj.cwd === "string") cwd = obj.cwd;
+      if (firstUserText) continue;
+      const msg = obj.message;
+      if (!msg || msg.role !== "user") continue;
+      const content = msg.content;
+      if (typeof content === "string") {
+        firstUserText = content;
+      } else if (Array.isArray(content)) {
+        const textBlock = content.find(
+          (b: any) => b && b.type === "text" && typeof b.text === "string",
+        );
+        if (textBlock) firstUserText = textBlock.text;
+      }
+      if (firstUserText) firstUserText = firstUserText.trim();
+      if (cwd && firstUserText) break;
+    }
   } catch {
-    return null;
+    // fall through
   }
+  return { cwd, firstUserText };
+}
+
+function truncate(s: string, n: number): string {
+  const cleaned = s.replace(/\s+/g, " ").trim();
+  return cleaned.length > n ? cleaned.slice(0, n - 1).trimEnd() + "…" : cleaned;
 }

@@ -11,11 +11,11 @@ export type Project = {
 };
 
 export type DiscoveredProject = {
+  sessionId: string;
   path: string;
-  name: string;
+  title: string;
+  folder: string;
   lastModified: number;
-  sessionCount: number;
-  lastSessionId: string | null;
 };
 
 export type MessageBlock =
