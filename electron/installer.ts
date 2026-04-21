@@ -35,9 +35,9 @@ function emitUrl(win: BrowserWindow | null, url: string) {
   } catch {}
 }
 
-// Pull the first http(s) URL out of a chunk of CLI output. Claude login's
-// output varies by version (sometimes "Visit: https://...", sometimes just
-// the bare URL), so we extract rather than parse.
+// Pull the first http(s) URL out of a chunk of CLI output. Claude's TUI
+// prints the OAuth URL inline; regex catches it whether there's ANSI
+// decoration around it or not (the URL itself is plain text).
 const URL_RE = /https?:\/\/[^\s"'<>]+/g;
 const openedUrls = new Set<string>();
 function extractAndOpenUrls(win: BrowserWindow | null, text: string) {
@@ -52,12 +52,20 @@ function extractAndOpenUrls(win: BrowserWindow | null, text: string) {
   }
 }
 
+// Strip ANSI escape sequences (SGR, cursor moves, OSC titles) so the log
+// panel doesn't fill with garbage when we're driving the TUI.
+const ANSI_RE = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[=>]|\r(?!\n)/g;
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_RE, "");
+}
+
 let loginProcess: ChildProcessWithoutNullStreams | null = null;
 
 export function submitLoginCode(code: string): boolean {
   if (!loginProcess || !loginProcess.stdin.writable) return false;
   try {
-    loginProcess.stdin.write(code.trim() + "\n");
+    // \r is the Enter key under a pty (which is what we're using).
+    loginProcess.stdin.write(code.trim() + "\r");
     return true;
   } catch {
     return false;
@@ -132,26 +140,25 @@ function startLogin(
   emit(
     win,
     "login",
-    "Signing you in. A browser tab will open — log in with your Claude Max account. When the browser shows an authorization code, copy it and paste it below.",
+    "Launching Claude and signing you in. A browser tab will open shortly — log in with your Claude Max account, then paste the authorization code below.",
   );
   emitState(win, { phase: "login", running: true });
   openedUrls.clear();
 
-  // claude login is an interactive CLI. When spawned without a TTY it
-  // typically suppresses its URL output and/or refuses to run, which is
-  // what leaves the user staring at an empty log with no browser opening.
-  // Wrap it in macOS's built-in `script` command to give it a real pty.
+  // `claude login` is NOT a real subcommand — OAuth login lives behind the
+  // interactive /login slash command inside claude's TUI. So we launch
+  // claude under a pty (via macOS `script`), then type /login into its
+  // stdin as if the user had. Stdin stays open so the user can paste the
+  // authorization code back through submitLoginCode().
   const isMac = process.platform === "darwin";
   let cmd: string;
   let args: string[];
   if (isMac) {
     cmd = "/usr/bin/script";
-    // script -q /dev/null <cmd> <args...> : -q suppresses startup msg,
-    // /dev/null discards the typescript file we don't need.
-    args = ["-q", "/dev/null", claudeBin, "login"];
+    args = ["-q", "/dev/null", claudeBin];
   } else {
     cmd = claudeBin;
-    args = ["login"];
+    args = [];
   }
   emit(win, "login", `> ${cmd} ${args.join(" ")}`);
 
@@ -163,49 +170,88 @@ function startLogin(
     loginProcess = login;
 
     let sawOutput = false;
-    const silentTimer = setTimeout(() => {
-      if (!sawOutput) {
-        emit(
-          win,
-          "login",
-          "(no output yet — if this hangs, claude may be waiting on something. You can close this panel and try again.)",
-        );
-      }
-    }, 5000);
-
-    const handleOutput = (b: Buffer) => {
-      sawOutput = true;
-      const text = b.toString("utf8");
-      emit(win, "login", text);
-      extractAndOpenUrls(win, text);
-    };
-    login.stdout.on("data", handleOutput);
-    login.stderr.on("data", handleOutput);
-    login.on("error", (err) => {
-      clearTimeout(silentTimer);
-      loginProcess = null;
-      emit(win, "error", `claude login failed to start: ${err.message}`);
-      emitState(win, { phase: "error", running: false, success: false, error: err.message });
-      resolve();
-    });
-    login.on("close", (loginCode) => {
-      clearTimeout(silentTimer);
-      loginProcess = null;
-      if (loginCode !== 0) {
+    let loggedIn = false;
+    let finished = false;
+    const finish = (success: boolean, errMsg?: string) => {
+      if (finished) return;
+      finished = true;
+      if (success) {
+        emit(win, "done", "Signed in. You can close this panel and start chatting.");
+        emitState(win, { phase: "done", running: false, success: true });
+      } else {
         emit(
           win,
           "error",
-          `claude login exited with code ${loginCode}. If the browser didn't open, click the URL above. If you already signed in, click Recheck on the banner.`,
+          errMsg ??
+            "Login didn't complete. If the browser didn't open, click the URL above. If you already signed in, click Recheck.",
         );
         emitState(win, {
           phase: "error",
           running: false,
           success: false,
-          error: `login exit ${loginCode}`,
+          error: errMsg ?? "login failed",
         });
+      }
+    };
+
+    // After the TUI has started, type /login. The short delay gives the
+    // app time to finish its startup render.
+    const loginTimer = setTimeout(() => {
+      try {
+        login.stdin.write("/login\r");
+      } catch {}
+    }, 1500);
+
+    const silentTimer = setTimeout(() => {
+      if (!sawOutput) {
+        emit(
+          win,
+          "login",
+          "(no output yet — claude may be slow to start. If this hangs, click Close and try again.)",
+        );
+      }
+    }, 8000);
+
+    const handleOutput = (b: Buffer) => {
+      sawOutput = true;
+      const raw = b.toString("utf8");
+      const clean = stripAnsi(raw);
+      if (clean.trim()) emit(win, "login", clean);
+      extractAndOpenUrls(win, raw);
+
+      // Detect a successful login from the TUI output, then quit cleanly.
+      if (!loggedIn && /(logged in|login successful|you are now logged in)/i.test(clean)) {
+        loggedIn = true;
+        setTimeout(() => {
+          try {
+            login.stdin.write("/quit\r");
+          } catch {}
+          setTimeout(() => {
+            try {
+              login.kill();
+            } catch {}
+          }, 1500);
+        }, 300);
+      }
+    };
+
+    login.stdout.on("data", handleOutput);
+    login.stderr.on("data", handleOutput);
+    login.on("error", (err) => {
+      clearTimeout(loginTimer);
+      clearTimeout(silentTimer);
+      loginProcess = null;
+      finish(false, `claude failed to start: ${err.message}`);
+      resolve();
+    });
+    login.on("close", (exitCode) => {
+      clearTimeout(loginTimer);
+      clearTimeout(silentTimer);
+      loginProcess = null;
+      if (loggedIn || exitCode === 0) {
+        finish(true);
       } else {
-        emit(win, "done", "All done. You can close this panel and start chatting.");
-        emitState(win, { phase: "done", running: false, success: true });
+        finish(false, `claude exited with code ${exitCode}.`);
       }
       resolve();
     });
