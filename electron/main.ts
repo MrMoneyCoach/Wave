@@ -8,7 +8,7 @@ import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 import { ensureMcpConfig } from "./mcp";
 import { resolveClaudePath, resetClaudePath, diagnose, setOverride } from "./claude-path";
-import { runInstall, runSignIn, submitLoginCode } from "./installer";
+import { runInstall, runSignIn } from "./installer";
 
 const isDev = !app.isPackaged;
 
@@ -229,10 +229,6 @@ ipcMain.handle("claude:install", async () => {
 ipcMain.handle("claude:signIn", async () => {
   await runSignIn(mainWindow);
   return true;
-});
-
-ipcMain.handle("claude:submitLoginCode", (_e, code: string) => {
-  return submitLoginCode(code);
 });
 
 ipcMain.handle("convo:load", (_e, projectId: string) => convo.load(projectId));

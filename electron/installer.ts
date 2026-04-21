@@ -1,10 +1,10 @@
 /**
  * In-app installer for Claude Code. Runs `npm install` into a user-owned
  * prefix (~/.npm-global) — avoiding EACCES on /usr/local/lib — then runs
- * `claude login`. Everything streams to the renderer over IPC; no Terminal
- * window ever opens.
+ * `claude auth login --claudeai` to start the OAuth flow. Everything
+ * streams to the renderer over IPC; no Terminal window ever opens.
  */
-import { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import { spawn, ChildProcess } from "child_process";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
@@ -35,9 +35,9 @@ function emitUrl(win: BrowserWindow | null, url: string) {
   } catch {}
 }
 
-// Pull the first http(s) URL out of a chunk of CLI output. Claude's TUI
-// prints the OAuth URL inline; regex catches it whether there's ANSI
-// decoration around it or not (the URL itself is plain text).
+// Pull http(s) URLs out of a chunk of CLI output. `claude auth login`
+// prints the OAuth URL as plain text ("If the browser didn't open, visit:
+// https://claude.com/cai/oauth/authorize?...").
 const URL_RE = /https?:\/\/[^\s"'<>]+/g;
 const openedUrls = new Set<string>();
 function extractAndOpenUrls(win: BrowserWindow | null, text: string) {
@@ -52,25 +52,7 @@ function extractAndOpenUrls(win: BrowserWindow | null, text: string) {
   }
 }
 
-// Strip ANSI escape sequences (SGR, cursor moves, OSC titles) so the log
-// panel doesn't fill with garbage when we're driving the TUI.
-const ANSI_RE = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[=>]|\r(?!\n)/g;
-function stripAnsi(s: string): string {
-  return s.replace(ANSI_RE, "");
-}
-
-let loginProcess: ChildProcessWithoutNullStreams | null = null;
-
-export function submitLoginCode(code: string): boolean {
-  if (!loginProcess || !loginProcess.stdin.writable) return false;
-  try {
-    // \r is the Enter key under a pty (which is what we're using).
-    loginProcess.stdin.write(code.trim() + "\r");
-    return true;
-  } catch {
-    return false;
-  }
-}
+let loginProcess: ChildProcess | null = null;
 
 function shellPath(): string {
   const shell = process.env.SHELL || "/bin/zsh";
@@ -131,6 +113,30 @@ function ensurePrefixDir() {
   } catch {}
 }
 
+/** Check whether claude already has a valid OAuth token. */
+function isAlreadyLoggedIn(claudeBin: string, env: NodeJS.ProcessEnv): boolean {
+  try {
+    const out = execSync(`"${claudeBin}" auth status --json`, {
+      env,
+      encoding: "utf8",
+      timeout: 5000,
+    });
+    return /"loggedIn"\s*:\s*true/.test(out);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Run `claude auth login --claudeai`. The CLI:
+ *   - prints "Opening browser to sign in…" followed by an OAuth URL,
+ *   - attempts to open the browser itself,
+ *   - polls Anthropic for auth completion (it does NOT read stdin),
+ *   - exits 0 on success.
+ * We parse the URL ourselves and also call shell.openExternal so
+ * browser-opening works even from a GUI-launched Electron process
+ * where the CLI's own `open` invocation may not.
+ */
 function startLogin(
   win: BrowserWindow | null,
   claudeBin: string,
@@ -140,37 +146,29 @@ function startLogin(
   emit(
     win,
     "login",
-    "Launching Claude and signing you in. A browser tab will open shortly — log in with your Claude Max account, then paste the authorization code below.",
+    "Signing you in. A browser tab will open — log in with your Claude Max account. When you're done, this panel will close automatically.",
   );
   emitState(win, { phase: "login", running: true });
   openedUrls.clear();
 
-  // `claude login` is NOT a real subcommand — OAuth login lives behind the
-  // interactive /login slash command inside claude's TUI. So we launch
-  // claude under a pty (via macOS `script`), then type /login into its
-  // stdin as if the user had. Stdin stays open so the user can paste the
-  // authorization code back through submitLoginCode().
-  const isMac = process.platform === "darwin";
-  let cmd: string;
-  let args: string[];
-  if (isMac) {
-    cmd = "/usr/bin/script";
-    args = ["-q", "/dev/null", claudeBin];
-  } else {
-    cmd = claudeBin;
-    args = [];
+  // Short-circuit if already authenticated.
+  if (isAlreadyLoggedIn(claudeBin, env)) {
+    emit(win, "done", "Already signed in.");
+    emitState(win, { phase: "done", running: false, success: true });
+    return Promise.resolve();
   }
-  emit(win, "login", `> ${cmd} ${args.join(" ")}`);
+
+  const args = ["auth", "login", "--claudeai"];
+  emit(win, "login", `> ${claudeBin} ${args.join(" ")}`);
 
   return new Promise<void>((resolve) => {
-    const login = spawn(cmd, args, {
+    const login = spawn(claudeBin, args, {
       env,
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
     loginProcess = login;
 
     let sawOutput = false;
-    let loggedIn = false;
     let finished = false;
     const finish = (success: boolean, errMsg?: string) => {
       if (finished) return;
@@ -194,64 +192,45 @@ function startLogin(
       }
     };
 
-    // After the TUI has started, type /login. The short delay gives the
-    // app time to finish its startup render.
-    const loginTimer = setTimeout(() => {
-      try {
-        login.stdin.write("/login\r");
-      } catch {}
-    }, 1500);
-
     const silentTimer = setTimeout(() => {
       if (!sawOutput) {
         emit(
           win,
           "login",
-          "(no output yet — claude may be slow to start. If this hangs, click Close and try again.)",
+          "(no output yet — this usually means the browser is opening. Hang tight.)",
         );
       }
-    }, 8000);
+    }, 6000);
 
     const handleOutput = (b: Buffer) => {
       sawOutput = true;
-      const raw = b.toString("utf8");
-      const clean = stripAnsi(raw);
-      if (clean.trim()) emit(win, "login", clean);
-      extractAndOpenUrls(win, raw);
-
-      // Detect a successful login from the TUI output, then quit cleanly.
-      if (!loggedIn && /(logged in|login successful|you are now logged in)/i.test(clean)) {
-        loggedIn = true;
-        setTimeout(() => {
-          try {
-            login.stdin.write("/quit\r");
-          } catch {}
-          setTimeout(() => {
-            try {
-              login.kill();
-            } catch {}
-          }, 1500);
-        }, 300);
-      }
+      const text = b.toString("utf8");
+      if (text.trim()) emit(win, "login", text);
+      extractAndOpenUrls(win, text);
     };
 
-    login.stdout.on("data", handleOutput);
-    login.stderr.on("data", handleOutput);
+    login.stdout?.on("data", handleOutput);
+    login.stderr?.on("data", handleOutput);
     login.on("error", (err) => {
-      clearTimeout(loginTimer);
       clearTimeout(silentTimer);
       loginProcess = null;
       finish(false, `claude failed to start: ${err.message}`);
       resolve();
     });
     login.on("close", (exitCode) => {
-      clearTimeout(loginTimer);
       clearTimeout(silentTimer);
       loginProcess = null;
-      if (loggedIn || exitCode === 0) {
+      // Belt-and-braces: confirm auth status rather than trusting exit code alone.
+      const ok = exitCode === 0 && isAlreadyLoggedIn(claudeBin, env);
+      if (ok) {
         finish(true);
       } else {
-        finish(false, `claude exited with code ${exitCode}.`);
+        finish(
+          false,
+          exitCode === 0
+            ? "claude exited 0 but auth status still shows logged out. Please try again."
+            : `claude exited with code ${exitCode}.`,
+        );
       }
       resolve();
     });

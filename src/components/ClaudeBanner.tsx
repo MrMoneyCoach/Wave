@@ -19,8 +19,6 @@ export function ClaudeBanner({
   const [installPhase, setInstallPhase] = useState<string>("");
   const [installDone, setInstallDone] = useState<boolean>(false);
   const [loginUrl, setLoginUrl] = useState<string | null>(null);
-  const [authCode, setAuthCode] = useState<string>("");
-  const [codeSubmitting, setCodeSubmitting] = useState(false);
   const logRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
@@ -49,18 +47,6 @@ export function ClaudeBanner({
     };
   }, [onRecheck]);
 
-  const submitCode = async () => {
-    const code = authCode.trim();
-    if (!code) return;
-    setCodeSubmitting(true);
-    try {
-      await window.alfred.submitLoginCode(code);
-      setAuthCode("");
-    } finally {
-      setCodeSubmitting(false);
-    }
-  };
-
   const runDiagnose = async () => {
     setBusy(true);
     try {
@@ -86,7 +72,6 @@ export function ClaudeBanner({
     setInstalling(true);
     setInstallDone(false);
     setLoginUrl(null);
-    setAuthCode("");
     if (mode === "signin") {
       await window.alfred.signInToClaude();
     } else {
@@ -104,8 +89,8 @@ export function ClaudeBanner({
       </strong>
       <span>
         {mode === "signin" ? (
-          <>Click <b>Sign in</b> below — a browser tab will open for the Claude Max login. After
-          signing in, paste the authorization code the browser shows you.</>
+          <>Click <b>Sign in</b> below — a browser tab will open for the Claude Max login. When you
+          finish signing in, this panel will close automatically.</>
         ) : (
           <>
             Alfred needs the <code>claude</code> command to work. Click <b>Install for me</b> below
@@ -151,9 +136,9 @@ export function ClaudeBanner({
               }}
             >
               <div style={{ marginBottom: 6 }}>
-                <b>1. Sign in.</b> If a browser tab didn't open automatically, click here:
+                If a browser tab didn't open automatically, click this link:
               </div>
-              <div style={{ marginBottom: 10, wordBreak: "break-all" }}>
+              <div style={{ wordBreak: "break-all" }}>
                 <a
                   href={loginUrl}
                   target="_blank"
@@ -162,34 +147,6 @@ export function ClaudeBanner({
                 >
                   {loginUrl}
                 </a>
-              </div>
-              <div style={{ marginBottom: 6 }}>
-                <b>2. Paste the authorization code</b> the browser shows after you sign in:
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <input
-                  type="text"
-                  value={authCode}
-                  onChange={(e) => setAuthCode(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") submitCode();
-                  }}
-                  placeholder="Paste code here and press Enter"
-                  disabled={codeSubmitting}
-                  style={{
-                    flex: 1,
-                    padding: "6px 8px",
-                    borderRadius: 4,
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    background: "rgba(0,0,0,0.3)",
-                    color: "inherit",
-                    fontFamily: "ui-monospace, monospace",
-                    fontSize: 12,
-                  }}
-                />
-                <button onClick={submitCode} disabled={codeSubmitting || !authCode.trim()}>
-                  {codeSubmitting ? "Submitting…" : "Submit"}
-                </button>
               </div>
             </div>
           )}

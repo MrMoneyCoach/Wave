@@ -63,8 +63,6 @@ const api = {
   clearClaudeOverride: () => ipcRenderer.invoke("claude:clearOverride") as Promise<boolean>,
   installClaude: () => ipcRenderer.invoke("claude:install") as Promise<boolean>,
   signInToClaude: () => ipcRenderer.invoke("claude:signIn") as Promise<boolean>,
-  submitLoginCode: (code: string) =>
-    ipcRenderer.invoke("claude:submitLoginCode", code) as Promise<boolean>,
   onInstallerLog: (cb: (p: { phase: string; line: string }) => void) =>
     on<{ phase: string; line: string }>("installer:log", cb),
   onInstallerState: (
