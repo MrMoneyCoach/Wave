@@ -62,11 +62,15 @@ const api = {
     >,
   clearClaudeOverride: () => ipcRenderer.invoke("claude:clearOverride") as Promise<boolean>,
   installClaude: () => ipcRenderer.invoke("claude:install") as Promise<boolean>,
+  submitLoginCode: (code: string) =>
+    ipcRenderer.invoke("claude:submitLoginCode", code) as Promise<boolean>,
   onInstallerLog: (cb: (p: { phase: string; line: string }) => void) =>
     on<{ phase: string; line: string }>("installer:log", cb),
   onInstallerState: (
     cb: (p: { phase: string; running: boolean; success?: boolean; error?: string }) => void,
   ) => on<{ phase: string; running: boolean; success?: boolean; error?: string }>("installer:state", cb),
+  onInstallerUrl: (cb: (p: { url: string }) => void) =>
+    on<{ url: string }>("installer:url", cb),
 
   loadConversation: (projectId: string) =>
     ipcRenderer.invoke("convo:load", projectId) as Promise<StoredMessage[]>,

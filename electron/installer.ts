@@ -4,12 +4,12 @@
  * `claude login`. Everything streams to the renderer over IPC; no Terminal
  * window ever opens.
  */
-import { spawn } from "child_process";
+import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { BrowserWindow } from "electron";
+import { BrowserWindow, shell } from "electron";
 import { claudeEnv, resetClaudePath, resolveClaudePath, setOverride } from "./claude-path";
 
 type Phase = "npm" | "login" | "done" | "error";
@@ -27,6 +27,41 @@ function emitState(
   try {
     win?.webContents.send("installer:state", state);
   } catch {}
+}
+
+function emitUrl(win: BrowserWindow | null, url: string) {
+  try {
+    win?.webContents.send("installer:url", { url });
+  } catch {}
+}
+
+// Pull the first http(s) URL out of a chunk of CLI output. Claude login's
+// output varies by version (sometimes "Visit: https://...", sometimes just
+// the bare URL), so we extract rather than parse.
+const URL_RE = /https?:\/\/[^\s"'<>]+/g;
+const openedUrls = new Set<string>();
+function extractAndOpenUrls(win: BrowserWindow | null, text: string) {
+  const matches = text.match(URL_RE);
+  if (!matches) return;
+  for (const raw of matches) {
+    const url = raw.replace(/[.,);\]]+$/, "");
+    if (openedUrls.has(url)) continue;
+    openedUrls.add(url);
+    emitUrl(win, url);
+    shell.openExternal(url).catch(() => {});
+  }
+}
+
+let loginProcess: ChildProcessWithoutNullStreams | null = null;
+
+export function submitLoginCode(code: string): boolean {
+  if (!loginProcess || !loginProcess.stdin.writable) return false;
+  try {
+    loginProcess.stdin.write(code.trim() + "\n");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function shellPath(): string {
@@ -186,25 +221,38 @@ export async function runInstall(win: BrowserWindow | null): Promise<void> {
       emit(
         win,
         "login",
-        "Now signing you in. A browser tab will open — log in with your Claude Max account, then come back here.",
+        "Now signing you in. A browser tab will open — log in with your Claude Max account. When the browser shows an authorization code, copy it and paste it below.",
       );
       emitState(win, { phase: "login", running: true });
+      openedUrls.clear();
 
-      const login = spawn(found.bin, ["login"], { env });
-      login.stdout.on("data", (b: Buffer) => emit(win, "login", b.toString("utf8")));
-      login.stderr.on("data", (b: Buffer) => emit(win, "login", b.toString("utf8")));
+      const login = spawn(found.bin, ["login"], {
+        env,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      loginProcess = login;
+
+      const handleOutput = (b: Buffer) => {
+        const text = b.toString("utf8");
+        emit(win, "login", text);
+        extractAndOpenUrls(win, text);
+      };
+      login.stdout.on("data", handleOutput);
+      login.stderr.on("data", handleOutput);
       login.on("error", (err) => {
+        loginProcess = null;
         emit(win, "error", `claude login failed to start: ${err.message}`);
         emitState(win, { phase: "error", running: false, success: false, error: err.message });
         running = false;
         resolve();
       });
       login.on("close", (loginCode) => {
+        loginProcess = null;
         if (loginCode !== 0) {
           emit(
             win,
             "error",
-            `claude login exited with code ${loginCode}. You may need to finish signing in in your browser and then click Recheck.`,
+            `claude login exited with code ${loginCode}. If the browser didn't open, click the URL above. If you already signed in, click Recheck on the banner.`,
           );
           emitState(win, {
             phase: "error",

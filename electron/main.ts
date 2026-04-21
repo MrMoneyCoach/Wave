@@ -8,7 +8,7 @@ import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 import { ensureMcpConfig } from "./mcp";
 import { resolveClaudePath, resetClaudePath, diagnose, setOverride } from "./claude-path";
-import { runInstall } from "./installer";
+import { runInstall, submitLoginCode } from "./installer";
 
 const isDev = !app.isPackaged;
 
@@ -220,6 +220,10 @@ ipcMain.handle("claude:clearOverride", () => {
 ipcMain.handle("claude:install", async () => {
   await runInstall(mainWindow);
   return true;
+});
+
+ipcMain.handle("claude:submitLoginCode", (_e, code: string) => {
+  return submitLoginCode(code);
 });
 
 ipcMain.handle("convo:load", (_e, projectId: string) => convo.load(projectId));

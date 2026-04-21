@@ -8,6 +8,9 @@ export function ClaudeBanner({ onRecheck }: { onRecheck: () => void }) {
   const [installLog, setInstallLog] = useState<string>("");
   const [installPhase, setInstallPhase] = useState<string>("");
   const [installDone, setInstallDone] = useState<boolean>(false);
+  const [loginUrl, setLoginUrl] = useState<string | null>(null);
+  const [authCode, setAuthCode] = useState<string>("");
+  const [codeSubmitting, setCodeSubmitting] = useState(false);
   const logRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
@@ -26,11 +29,27 @@ export function ClaudeBanner({ onRecheck }: { onRecheck: () => void }) {
         onRecheck();
       }
     });
+    const offUrl = window.alfred.onInstallerUrl(({ url }) => {
+      setLoginUrl(url);
+    });
     return () => {
       offLog();
       offState();
+      offUrl();
     };
   }, [onRecheck]);
+
+  const submitCode = async () => {
+    const code = authCode.trim();
+    if (!code) return;
+    setCodeSubmitting(true);
+    try {
+      await window.alfred.submitLoginCode(code);
+      setAuthCode("");
+    } finally {
+      setCodeSubmitting(false);
+    }
+  };
 
   const runDiagnose = async () => {
     setBusy(true);
@@ -56,6 +75,8 @@ export function ClaudeBanner({ onRecheck }: { onRecheck: () => void }) {
     setInstallLog("");
     setInstalling(true);
     setInstallDone(false);
+    setLoginUrl(null);
+    setAuthCode("");
     await window.alfred.installClaude();
   };
 
@@ -83,6 +104,60 @@ export function ClaudeBanner({ onRecheck }: { onRecheck: () => void }) {
       </div>
       {(installing || installLog) && (
         <div style={{ marginTop: 10 }}>
+          {installPhase === "login" && loginUrl && !installDone && (
+            <div
+              style={{
+                marginBottom: 10,
+                padding: 10,
+                background: "rgba(59,130,246,0.12)",
+                border: "1px solid rgba(59,130,246,0.4)",
+                borderRadius: 6,
+                fontSize: 12,
+              }}
+            >
+              <div style={{ marginBottom: 6 }}>
+                <b>1. Sign in.</b> If a browser tab didn't open automatically, click here:
+              </div>
+              <div style={{ marginBottom: 10, wordBreak: "break-all" }}>
+                <a
+                  href={loginUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "#60a5fa", textDecoration: "underline" }}
+                >
+                  {loginUrl}
+                </a>
+              </div>
+              <div style={{ marginBottom: 6 }}>
+                <b>2. Paste the authorization code</b> the browser shows after you sign in:
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="text"
+                  value={authCode}
+                  onChange={(e) => setAuthCode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitCode();
+                  }}
+                  placeholder="Paste code here and press Enter"
+                  disabled={codeSubmitting}
+                  style={{
+                    flex: 1,
+                    padding: "6px 8px",
+                    borderRadius: 4,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    background: "rgba(0,0,0,0.3)",
+                    color: "inherit",
+                    fontFamily: "ui-monospace, monospace",
+                    fontSize: 12,
+                  }}
+                />
+                <button onClick={submitCode} disabled={codeSubmitting || !authCode.trim()}>
+                  {codeSubmitting ? "Submitting…" : "Submit"}
+                </button>
+              </div>
+            </div>
+          )}
           <pre
             ref={logRef}
             style={{
