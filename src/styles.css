@@ -1,4 +1,5 @@
-:root {
+:root,
+html[data-theme="dark"] {
   --bg: #1a1a1a;
   --bg-2: #222;
   --bg-3: #2a2a2a;
@@ -14,6 +15,23 @@
   --danger: #d96a5a;
   --success: #6aaf6f;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+
+html[data-theme="light"] {
+  --bg: #f7f7f6;
+  --bg-2: #ffffff;
+  --bg-3: #ececea;
+  --bg-4: #dedcd7;
+  --fg: #1d1d1f;
+  --fg-dim: #5a5a5f;
+  --fg-dimmer: #8a8a90;
+  --accent: #a87826;
+  --accent-dim: #c9a065;
+  --border: #d6d4cf;
+  --user: #dce6f5;
+  --assistant: #f1efeb;
+  --danger: #b4392c;
+  --success: #2e7a34;
 }
 
 * { box-sizing: border-box; }
@@ -55,7 +73,7 @@ code {
 /* ---------- Sidebar ---------- */
 .sidebar {
   width: 240px;
-  background: #161616;
+  background: var(--bg-2);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -381,10 +399,11 @@ code {
 }
 
 /* ---------- Avatar ---------- */
+/* Bottom-left of the main pane (sidebar is 240px, so offset past it). */
 .avatar {
   position: fixed;
-  right: 20px;
-  bottom: 110px;
+  left: 260px;
+  bottom: 20px;
   z-index: 20;
   display: flex; flex-direction: column; align-items: center;
   user-select: none;
@@ -410,7 +429,7 @@ code {
 }
 .avatar-interim {
   position: absolute;
-  right: 88px;
+  left: 88px;
   bottom: 20px;
   max-width: 280px;
   background: var(--bg-2);
@@ -489,4 +508,95 @@ code {
 @keyframes breathe {
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.04); }
+}
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 40px;
+}
+.modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px 24px;
+  min-width: 520px;
+  max-width: 720px;
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  gap: 14px;
+}
+.setting-row > label {
+  min-width: 120px;
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg > button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 14px;
+}
+.seg > button.active {
+  background: var(--accent-dim);
+  color: var(--bg);
+}
+
+/* ---------- Discovered projects ---------- */
+.discovered {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 6px 8px 10px;
+  background: var(--bg-2);
+  max-height: 260px;
+  overflow: auto;
+}
+.discovered-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.resume-hint {
+  max-width: 620px;
+  width: 100%;
+  margin: -4px auto 8px;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--accent-dim);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--fg-dim);
 }

@@ -7,6 +7,15 @@ export type Project = {
   name: string;
   path: string;
   permissionMode?: PermissionMode;
+  lastSessionId?: string | null;
+};
+
+export type DiscoveredProject = {
+  path: string;
+  name: string;
+  lastModified: number;
+  sessionCount: number;
+  lastSessionId: string | null;
 };
 
 export type MessageBlock =
@@ -53,6 +62,11 @@ const api = {
   saveProjects: (projects: Project[]) => ipcRenderer.invoke("projects:save", projects),
   pickFolder: () => ipcRenderer.invoke("projects:pickFolder") as Promise<string | null>,
   openFolder: (p: string) => ipcRenderer.invoke("projects:openFolder", p),
+  discoverClaudeProjects: () =>
+    ipcRenderer.invoke("projects:discoverClaude") as Promise<DiscoveredProject[]>,
+  readMemory: () => ipcRenderer.invoke("memory:read") as Promise<string>,
+  writeMemory: (content: string) =>
+    ipcRenderer.invoke("memory:write", content) as Promise<boolean>,
   checkClaude: () =>
     ipcRenderer.invoke("claude:check") as Promise<{ installed: boolean; version: string | null }>,
   diagnoseClaude: () => ipcRenderer.invoke("claude:diagnose") as Promise<ClaudeDiagnostic>,

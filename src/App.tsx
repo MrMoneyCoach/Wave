@@ -3,10 +3,28 @@ import { Sidebar } from "./components/Sidebar";
 import { Chat } from "./components/Chat";
 import { ClaudeBanner } from "./components/ClaudeBanner";
 import { Avatar, AvatarState } from "./components/Avatar";
+import { Settings } from "./components/Settings";
 import type { Project } from "./types";
-import { VoiceListener, isVoiceSupported, speak, cancelSpeech } from "./voice";
+import {
+  VoiceListener,
+  isVoiceSupported,
+  speak,
+  cancelSpeech,
+  setPreferredVoice,
+} from "./voice";
 
 const COMMANDER_ID = "__commander__";
+
+type Theme = "dark" | "light";
+
+function readStored<T extends string>(key: string, fallback: T): T {
+  try {
+    const v = localStorage.getItem(key);
+    return (v as T) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -14,12 +32,39 @@ export function App() {
   const [claudeInstalled, setClaudeInstalled] = useState<boolean | null>(null);
   const [signInRequested, setSignInRequested] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => readStored<Theme>("alfred-theme", "dark"));
+  const [voiceName, setVoiceName] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("alfred-voice");
+    } catch {
+      return null;
+    }
+  });
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // Voice state
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [avatarState, setAvatarState] = useState<AvatarState>("idle");
   const [interim, setInterim] = useState<string>("");
   const listenerRef = useRef<VoiceListener | null>(null);
+
+  // Apply theme class to <html>.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("alfred-theme", theme);
+    } catch {}
+  }, [theme]);
+
+  // Propagate voice choice to the speak() helper + persist.
+  useEffect(() => {
+    setPreferredVoice(voiceName);
+    try {
+      if (voiceName) localStorage.setItem("alfred-voice", voiceName);
+      else localStorage.removeItem("alfred-voice");
+    } catch {}
+  }, [voiceName]);
 
   const projectsRef = useRef(projects);
   const activeIdRef = useRef(activeId);
@@ -78,10 +123,13 @@ export function App() {
       return;
     }
     if (!isVoiceSupported()) {
-      alert("Voice isn't supported in this build.");
+      setVoiceError(
+        "Voice recognition isn't available in this build of Alfred. Chromium requires a speech-API key that packaged Electron apps don't ship with. Typing still works.",
+      );
       setVoiceEnabled(false);
       return;
     }
+    setVoiceError(null);
     const listener = new VoiceListener({
       onCommand: (text) => {
         voiceCommandRef.current?.(text);
@@ -96,7 +144,9 @@ export function App() {
         });
       },
       onInterim: (t) => setInterim(t),
-      onError: (e) => console.warn(e),
+      onError: (e) => {
+        setVoiceError(e);
+      },
     });
     listener.start();
     listenerRef.current = listener;
@@ -143,6 +193,7 @@ export function App() {
         activeId={activeId}
         onSelect={setActiveId}
         onUpdate={updateProjects}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       <main className="main">
         {(claudeInstalled === false || signInRequested) && (
@@ -198,6 +249,16 @@ export function App() {
           onToggleVoice={() => setVoiceEnabled((v) => !v)}
         />
       </main>
+
+      <Settings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        theme={theme}
+        onThemeChange={setTheme}
+        voiceName={voiceName}
+        onVoiceChange={(n) => setVoiceName(n || null)}
+        voiceError={voiceError}
+      />
     </div>
   );
 }

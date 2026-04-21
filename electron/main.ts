@@ -3,12 +3,13 @@ import * as path from "path";
 import * as fs from "fs";
 import { autoUpdater } from "electron-updater";
 import { ClaudeSession, PermissionMode } from "./claude";
-import { loadProjects, saveProjects, Project } from "./projects";
+import { loadProjects, saveProjects, Project, discoverClaudeProjects } from "./projects";
 import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 import { ensureMcpConfig } from "./mcp";
 import { resolveClaudePath, resetClaudePath, diagnose, setOverride } from "./claude-path";
 import { runInstall, runSignIn } from "./installer";
+import * as memory from "./memory";
 
 const isDev = !app.isPackaged;
 
@@ -187,6 +188,14 @@ ipcMain.handle("projects:pickFolder", async () => {
   return res.filePaths[0];
 });
 
+ipcMain.handle("projects:discoverClaude", () => discoverClaudeProjects());
+
+ipcMain.handle("memory:read", () => memory.readMemory());
+ipcMain.handle("memory:write", (_e, content: string) => {
+  memory.writeMemory(content);
+  return true;
+});
+
 ipcMain.handle("projects:openFolder", (_e, p: string) => {
   if (p && fs.existsSync(p)) shell.openPath(p);
   return true;
@@ -247,6 +256,15 @@ function wireSession(session: ClaudeSession) {
   const send = (channel: string, payload: unknown) => {
     mainWindow?.webContents.send(channel, payload);
   };
+  session.on("session", (sessionId: string) => {
+    // Persist so the next app launch can --resume this conversation.
+    const all = loadProjects();
+    const idx = all.findIndex((p) => p.id === session.projectId);
+    if (idx >= 0 && all[idx].lastSessionId !== sessionId) {
+      all[idx] = { ...all[idx], lastSessionId: sessionId };
+      saveProjects(all);
+    }
+  });
   session.on("text", (text: string) =>
     send("chat:text", { projectId: session.projectId, text }),
   );
@@ -286,7 +304,14 @@ ipcMain.handle(
     }
     let session = sessions.get(projectId);
     if (!session) {
-      session = new ClaudeSession(projectId, cwd, permissionMode, ensureMcpConfig());
+      const stored = loadProjects().find((p) => p.id === projectId);
+      session = new ClaudeSession(
+        projectId,
+        cwd,
+        permissionMode,
+        ensureMcpConfig(),
+        stored?.lastSessionId ?? null,
+      );
       wireSession(session);
       sessions.set(projectId, session);
     } else {
@@ -309,6 +334,13 @@ ipcMain.handle("chat:reset", (_e, projectId: string) => {
     sessions.delete(projectId);
   }
   convo.clear(projectId);
+  // Forget the stored session ID so the next message starts fresh.
+  const all = loadProjects();
+  const idx = all.findIndex((p) => p.id === projectId);
+  if (idx >= 0 && all[idx].lastSessionId) {
+    all[idx] = { ...all[idx], lastSessionId: null };
+    saveProjects(all);
+  }
   return true;
 });
 

@@ -82,8 +82,10 @@ export class ClaudeSession extends EventEmitter {
     public readonly cwd: string,
     public permissionMode: PermissionMode = "safe",
     public mcpConfigPath: string | null = null,
+    initialSessionId: string | null = null,
   ) {
     super();
+    this.sessionId = initialSessionId;
   }
 
   send(message: string) {
@@ -196,8 +198,9 @@ export class ClaudeSession extends EventEmitter {
       return;
     }
 
-    if (obj.session_id && !this.sessionId) {
+    if (obj.session_id && obj.session_id !== this.sessionId) {
       this.sessionId = obj.session_id;
+      this.emit("session", this.sessionId);
     }
 
     if (obj.type === "assistant" && obj.message?.content) {

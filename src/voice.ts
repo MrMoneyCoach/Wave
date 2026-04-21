@@ -153,32 +153,25 @@ export class VoiceListener {
 
 /* -------------------- Text-to-Speech -------------------- */
 
-let cachedVoice: SpeechSynthesisVoice | null = null;
-function pickVoice(): SpeechSynthesisVoice | null {
-  if (cachedVoice) return cachedVoice;
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) return null;
-  // Prefer a pleasant English voice; Mac usually has Daniel / Samantha / Alex.
-  const preferred = [
-    "Daniel",
-    "Daniel (Enhanced)",
-    "Oliver",
-    "Serena",
-    "Samantha",
-    "Alex",
-    "Google UK English Male",
-  ];
-  for (const name of preferred) {
-    const v = voices.find((vv) => vv.name === name);
-    if (v) return (cachedVoice = v);
-  }
-  const english = voices.find((v) => v.lang.startsWith("en"));
-  return (cachedVoice = english ?? voices[0]);
+let preferredVoiceName: string | null = null;
+export function setPreferredVoice(name: string | null) {
+  preferredVoiceName = name;
 }
 
-// Pre-warm voices on some platforms.
-if (typeof window !== "undefined" && window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = () => { cachedVoice = null; };
+function pickVoice(): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis?.getVoices() ?? [];
+  if (voices.length === 0) return null;
+  if (preferredVoiceName) {
+    const chosen = voices.find((v) => v.name === preferredVoiceName);
+    if (chosen) return chosen;
+  }
+  const fallback = ["Daniel", "Oliver", "Serena", "Samantha", "Alex", "Google UK English Male"];
+  for (const name of fallback) {
+    const v = voices.find((vv) => vv.name === name);
+    if (v) return v;
+  }
+  const english = voices.find((v) => v.lang.startsWith("en"));
+  return english ?? voices[0];
 }
 
 export function speak(

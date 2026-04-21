@@ -5,6 +5,15 @@ export type Project = {
   name: string;
   path: string;
   permissionMode?: PermissionMode;
+  lastSessionId?: string | null;
+};
+
+export type DiscoveredProject = {
+  path: string;
+  name: string;
+  lastModified: number;
+  sessionCount: number;
+  lastSessionId: string | null;
 };
 
 export type MessageBlock =
@@ -39,6 +48,9 @@ export type AlfredApi = {
   saveProjects: (projects: Project[]) => Promise<boolean>;
   pickFolder: () => Promise<string | null>;
   openFolder: (p: string) => Promise<boolean>;
+  discoverClaudeProjects: () => Promise<DiscoveredProject[]>;
+  readMemory: () => Promise<string>;
+  writeMemory: (content: string) => Promise<boolean>;
   checkClaude: () => Promise<{ installed: boolean; version: string | null }>;
   diagnoseClaude: () => Promise<ClaudeDiagnostic>;
   pickClaudeBinary: () => Promise<

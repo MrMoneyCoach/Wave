@@ -254,6 +254,12 @@ export function Chat({
 
       <div className="messages" ref={scrollRef}>
         {messages.length === 0 && <EmptyState project={project} onPick={(q) => send(q)} />}
+        {messages.length === 0 && project.lastSessionId && project.path && (
+          <div className="resume-hint">
+            Resuming your previous Claude Code session here — just send a message and it'll pick up
+            where you left off.
+          </div>
+        )}
         {messages.map((m) => (
           <Message key={m.id} message={m} />
         ))}
