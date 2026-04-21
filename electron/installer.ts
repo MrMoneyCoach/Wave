@@ -137,14 +137,44 @@ function startLogin(
   emitState(win, { phase: "login", running: true });
   openedUrls.clear();
 
+  // claude login is an interactive CLI. When spawned without a TTY it
+  // typically suppresses its URL output and/or refuses to run, which is
+  // what leaves the user staring at an empty log with no browser opening.
+  // Wrap it in macOS's built-in `script` command to give it a real pty.
+  const isMac = process.platform === "darwin";
+  let cmd: string;
+  let args: string[];
+  if (isMac) {
+    cmd = "/usr/bin/script";
+    // script -q /dev/null <cmd> <args...> : -q suppresses startup msg,
+    // /dev/null discards the typescript file we don't need.
+    args = ["-q", "/dev/null", claudeBin, "login"];
+  } else {
+    cmd = claudeBin;
+    args = ["login"];
+  }
+  emit(win, "login", `> ${cmd} ${args.join(" ")}`);
+
   return new Promise<void>((resolve) => {
-    const login = spawn(claudeBin, ["login"], {
+    const login = spawn(cmd, args, {
       env,
       stdio: ["pipe", "pipe", "pipe"],
     });
     loginProcess = login;
 
+    let sawOutput = false;
+    const silentTimer = setTimeout(() => {
+      if (!sawOutput) {
+        emit(
+          win,
+          "login",
+          "(no output yet — if this hangs, claude may be waiting on something. You can close this panel and try again.)",
+        );
+      }
+    }, 5000);
+
     const handleOutput = (b: Buffer) => {
+      sawOutput = true;
       const text = b.toString("utf8");
       emit(win, "login", text);
       extractAndOpenUrls(win, text);
@@ -152,12 +182,14 @@ function startLogin(
     login.stdout.on("data", handleOutput);
     login.stderr.on("data", handleOutput);
     login.on("error", (err) => {
+      clearTimeout(silentTimer);
       loginProcess = null;
       emit(win, "error", `claude login failed to start: ${err.message}`);
       emitState(win, { phase: "error", running: false, success: false, error: err.message });
       resolve();
     });
     login.on("close", (loginCode) => {
+      clearTimeout(silentTimer);
       loginProcess = null;
       if (loginCode !== 0) {
         emit(
