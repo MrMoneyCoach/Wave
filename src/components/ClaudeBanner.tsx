@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { ClaudeDiagnostic } from "../types";
 
-export function ClaudeBanner({ onRecheck }: { onRecheck: () => void }) {
+type BannerMode = "install" | "signin";
+
+export function ClaudeBanner({
+  onRecheck,
+  mode = "install",
+  onDismiss,
+}: {
+  onRecheck: () => void;
+  mode?: BannerMode;
+  onDismiss?: () => void;
+}) {
   const [diag, setDiag] = useState<ClaudeDiagnostic | null>(null);
   const [busy, setBusy] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -77,30 +87,55 @@ export function ClaudeBanner({ onRecheck }: { onRecheck: () => void }) {
     setInstallDone(false);
     setLoginUrl(null);
     setAuthCode("");
-    await window.alfred.installClaude();
+    if (mode === "signin") {
+      await window.alfred.signInToClaude();
+    } else {
+      await window.alfred.installClaude();
+    }
   };
+
+  const primaryLabel = mode === "signin" ? "Sign in to Claude" : "Install for me";
+  const busyLabel = mode === "signin" ? `Signing in… (${installPhase})` : `Installing… (${installPhase})`;
 
   return (
     <div className="banner">
-      <strong>Claude Code isn't installed yet.</strong>
+      <strong>
+        {mode === "signin" ? "Sign in to Claude" : "Claude Code isn't installed yet."}
+      </strong>
       <span>
-        Alfred needs the <code>claude</code> command to work. Click <b>Install for me</b> below and
-        Alfred will install it and sign you in — no Terminal. A browser tab will open for the Claude
-        Max login once the install finishes.
+        {mode === "signin" ? (
+          <>Click <b>Sign in</b> below — a browser tab will open for the Claude Max login. After
+          signing in, paste the authorization code the browser shows you.</>
+        ) : (
+          <>
+            Alfred needs the <code>claude</code> command to work. Click <b>Install for me</b> below
+            and Alfred will install it and sign you in — no Terminal. A browser tab will open for
+            the Claude Max login once the install finishes.
+          </>
+        )}
       </span>
       <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
         <button onClick={install} disabled={busy || installing} style={{ fontWeight: 600 }}>
-          {installing ? `Installing… (${installPhase})` : "Install for me"}
+          {installing ? busyLabel : primaryLabel}
         </button>
         <button onClick={onRecheck} disabled={busy || installing}>
           Recheck
         </button>
-        <button onClick={runDiagnose} disabled={busy || installing}>
-          Diagnose
-        </button>
-        <button onClick={pickBinary} disabled={busy || installing}>
-          Locate manually…
-        </button>
+        {mode === "install" && (
+          <>
+            <button onClick={runDiagnose} disabled={busy || installing}>
+              Diagnose
+            </button>
+            <button onClick={pickBinary} disabled={busy || installing}>
+              Locate manually…
+            </button>
+          </>
+        )}
+        {mode === "signin" && onDismiss && (
+          <button onClick={onDismiss} disabled={installing}>
+            Close
+          </button>
+        )}
       </div>
       {(installing || installLog) && (
         <div style={{ marginTop: 10 }}>

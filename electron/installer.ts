@@ -123,9 +123,117 @@ function ensurePrefixDir() {
   } catch {}
 }
 
+function startLogin(
+  win: BrowserWindow | null,
+  claudeBin: string,
+  env: NodeJS.ProcessEnv,
+): Promise<void> {
+  emit(win, "login", "");
+  emit(
+    win,
+    "login",
+    "Signing you in. A browser tab will open — log in with your Claude Max account. When the browser shows an authorization code, copy it and paste it below.",
+  );
+  emitState(win, { phase: "login", running: true });
+  openedUrls.clear();
+
+  return new Promise<void>((resolve) => {
+    const login = spawn(claudeBin, ["login"], {
+      env,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    loginProcess = login;
+
+    const handleOutput = (b: Buffer) => {
+      const text = b.toString("utf8");
+      emit(win, "login", text);
+      extractAndOpenUrls(win, text);
+    };
+    login.stdout.on("data", handleOutput);
+    login.stderr.on("data", handleOutput);
+    login.on("error", (err) => {
+      loginProcess = null;
+      emit(win, "error", `claude login failed to start: ${err.message}`);
+      emitState(win, { phase: "error", running: false, success: false, error: err.message });
+      resolve();
+    });
+    login.on("close", (loginCode) => {
+      loginProcess = null;
+      if (loginCode !== 0) {
+        emit(
+          win,
+          "error",
+          `claude login exited with code ${loginCode}. If the browser didn't open, click the URL above. If you already signed in, click Recheck on the banner.`,
+        );
+        emitState(win, {
+          phase: "error",
+          running: false,
+          success: false,
+          error: `login exit ${loginCode}`,
+        });
+      } else {
+        emit(win, "done", "All done. You can close this panel and start chatting.");
+        emitState(win, { phase: "done", running: false, success: true });
+      }
+      resolve();
+    });
+  });
+}
+
+/**
+ * Run just the login flow. Used when claude is already installed but the
+ * user needs to (re-)authenticate. Triggered by the Alfred → Sign in to
+ * Claude… menu item.
+ */
+export async function runSignIn(win: BrowserWindow | null): Promise<void> {
+  if (running) return;
+  const found = resolveClaudePath();
+  if (!found) {
+    emit(
+      win,
+      "error",
+      "claude isn't installed yet. Click 'Install for me' on the banner instead.",
+    );
+    emitState(win, {
+      phase: "error",
+      running: false,
+      success: false,
+      error: "claude binary missing",
+    });
+    return;
+  }
+  running = true;
+  const env = {
+    ...claudeEnv(),
+    PATH: `${prefixBinDir()}:${claudeEnv().PATH || ""}`,
+  };
+  try {
+    await startLogin(win, found.bin, env);
+  } finally {
+    running = false;
+  }
+}
+
 export async function runInstall(win: BrowserWindow | null): Promise<void> {
   if (running) return;
   running = true;
+
+  // If claude is already installed, skip npm entirely and just re-run login.
+  const existing = resolveClaudePath();
+  if (existing) {
+    const env = {
+      ...claudeEnv(),
+      PATH: `${prefixBinDir()}:${claudeEnv().PATH || ""}`,
+    };
+    emit(win, "npm", `claude already installed at ${existing.bin} — skipping install.`);
+    try {
+      await startLogin(win, existing.bin, env);
+    } finally {
+      running = false;
+    }
+    return;
+  }
+
   emitState(win, { phase: "npm", running: true });
 
   const npm = findNpm();
@@ -173,7 +281,7 @@ export async function runInstall(win: BrowserWindow | null): Promise<void> {
       running = false;
       resolve();
     });
-    child.on("close", (code) => {
+    child.on("close", async (code) => {
       if (code !== 0) {
         emit(
           win,
@@ -217,56 +325,9 @@ export async function runInstall(win: BrowserWindow | null): Promise<void> {
       }
 
       emit(win, "npm", `claude installed at ${found.bin}`);
-      emit(win, "login", "");
-      emit(
-        win,
-        "login",
-        "Now signing you in. A browser tab will open — log in with your Claude Max account. When the browser shows an authorization code, copy it and paste it below.",
-      );
-      emitState(win, { phase: "login", running: true });
-      openedUrls.clear();
-
-      const login = spawn(found.bin, ["login"], {
-        env,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      loginProcess = login;
-
-      const handleOutput = (b: Buffer) => {
-        const text = b.toString("utf8");
-        emit(win, "login", text);
-        extractAndOpenUrls(win, text);
-      };
-      login.stdout.on("data", handleOutput);
-      login.stderr.on("data", handleOutput);
-      login.on("error", (err) => {
-        loginProcess = null;
-        emit(win, "error", `claude login failed to start: ${err.message}`);
-        emitState(win, { phase: "error", running: false, success: false, error: err.message });
-        running = false;
-        resolve();
-      });
-      login.on("close", (loginCode) => {
-        loginProcess = null;
-        if (loginCode !== 0) {
-          emit(
-            win,
-            "error",
-            `claude login exited with code ${loginCode}. If the browser didn't open, click the URL above. If you already signed in, click Recheck on the banner.`,
-          );
-          emitState(win, {
-            phase: "error",
-            running: false,
-            success: false,
-            error: `login exit ${loginCode}`,
-          });
-        } else {
-          emit(win, "done", "All done. You can close this panel and start chatting.");
-          emitState(win, { phase: "done", running: false, success: true });
-        }
-        running = false;
-        resolve();
-      });
+      await startLogin(win, found.bin, env);
+      running = false;
+      resolve();
     });
   });
 }

@@ -8,7 +8,7 @@ import * as convo from "./conversations";
 import { ensureCommanderProject, refreshCommanderContext, COMMANDER_ID } from "./commander";
 import { ensureMcpConfig } from "./mcp";
 import { resolveClaudePath, resetClaudePath, diagnose, setOverride } from "./claude-path";
-import { runInstall, submitLoginCode } from "./installer";
+import { runInstall, runSignIn, submitLoginCode } from "./installer";
 
 const isDev = !app.isPackaged;
 
@@ -66,6 +66,10 @@ function buildMenu() {
             {
               label: "Check for Updates…",
               click: () => autoUpdater.checkForUpdates().catch(() => {}),
+            },
+            {
+              label: "Sign in to Claude…",
+              click: () => mainWindow?.webContents.send("menu:sign-in"),
             },
             { type: "separator" as const },
             { role: "services" as const },
@@ -219,6 +223,11 @@ ipcMain.handle("claude:clearOverride", () => {
 
 ipcMain.handle("claude:install", async () => {
   await runInstall(mainWindow);
+  return true;
+});
+
+ipcMain.handle("claude:signIn", async () => {
+  await runSignIn(mainWindow);
   return true;
 });
 

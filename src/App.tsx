@@ -12,6 +12,7 @@ export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [claudeInstalled, setClaudeInstalled] = useState<boolean | null>(null);
+  const [signInRequested, setSignInRequested] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
 
   // Voice state
@@ -59,6 +60,10 @@ export function App() {
         setActiveId(list[(cur - 1 + list.length) % list.length].id);
       }),
       window.alfred.onMenu("toggle-voice", () => setVoiceEnabled((v) => !v)),
+      window.alfred.onMenu("sign-in", () => {
+        setSignInRequested(true);
+        window.alfred.signInToClaude();
+      }),
     ];
     return () => off.forEach((u) => u());
   }, []);
@@ -140,11 +145,16 @@ export function App() {
         onUpdate={updateProjects}
       />
       <main className="main">
-        {claudeInstalled === false && (
+        {(claudeInstalled === false || signInRequested) && (
           <ClaudeBanner
+            mode={claudeInstalled === false ? "install" : "signin"}
             onRecheck={() =>
-              window.alfred.checkClaude().then((r) => setClaudeInstalled(r.installed))
+              window.alfred.checkClaude().then((r) => {
+                setClaudeInstalled(r.installed);
+                if (r.installed) setSignInRequested(false);
+              })
             }
+            onDismiss={() => setSignInRequested(false)}
           />
         )}
         {updateReady && (

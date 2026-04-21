@@ -46,6 +46,7 @@ export type AlfredApi = {
   >;
   clearClaudeOverride: () => Promise<boolean>;
   installClaude: () => Promise<boolean>;
+  signInToClaude: () => Promise<boolean>;
   submitLoginCode: (code: string) => Promise<boolean>;
   onInstallerLog: (cb: (p: { phase: string; line: string }) => void) => () => void;
   onInstallerState: (
