@@ -19,8 +19,11 @@ Build branded scorecard quizzes, score every respondent, deliver a personalised 
 - Dashboard with quizzes list
 - Quiz builder
   - Title, intro, CTA label
-  - Single choice / multiple choice / scale (0–10) questions
+  - Single choice / multiple choice / scale (0–10) / free text questions
   - Per-answer scoring
+  - Free-text questions support optional character-length thresholds
+    (e.g. ≥140 chars → 10 pts, ≥200 chars → 20 pts). Leave thresholds
+    empty to capture text without scoring.
   - Outcome bands (min–max percentage, title, description)
   - **Upload questions from an Excel spreadsheet**
   - Publish / unpublish
@@ -49,6 +52,14 @@ Valid `Type` values:
 - `single` — one answer per question
 - `multi` — pick any that apply
 - `scale` — respondents pick 0–10 (no options needed)
+- `text` — free-text response. Use a `Min Chars` column to add length-based thresholds; the highest threshold the answer meets wins. With no thresholds, the text is captured but not scored.
+
+Free-text thresholds in Excel:
+
+| Question                                       | Type | Option        | Score | Min Chars |
+| ---------------------------------------------- | ---- | ------------- | ----- | --------- |
+| Describe your current go-to-market in detail.  | text | Basic detail  | 10    | 140       |
+| Describe your current go-to-market in detail.  | text | Great detail  | 20    | 200       |
 
 Optionally add an **Outcomes** sheet:
 
@@ -122,6 +133,7 @@ flowscore/
 - **single** — score of the chosen option; max is the highest-scored option
 - **multi** — sum of chosen options; max is either the highest option or the sum of all positive options (whichever is larger)
 - **scale** — raw 0–10 value; max 10
+- **text** — highest threshold the answer meets (by character count); max is the highest threshold score. No thresholds = not scored (max 0)
 
 Percent = `score / maxScore * 100`. Outcome bands are matched against the percent.
 

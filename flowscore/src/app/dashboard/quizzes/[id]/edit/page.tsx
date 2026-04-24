@@ -31,12 +31,18 @@ export default async function EditQuizPage({ params }: { params: { id: string } 
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,
-      type: (q.type === "multi" || q.type === "scale" ? q.type : "single") as
+      type: (["multi", "scale", "text"].includes(q.type) ? q.type : "single") as
         | "single"
         | "multi"
-        | "scale",
+        | "scale"
+        | "text",
       required: q.required,
-      options: q.options.map((o) => ({ id: o.id, text: o.text, score: o.score })),
+      options: q.options.map((o) => ({
+        id: o.id,
+        text: o.text,
+        score: o.score,
+        minChars: o.minChars,
+      })),
     })),
     outcomes: quiz.outcomes.map((o) => ({
       id: o.id,

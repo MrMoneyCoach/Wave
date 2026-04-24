@@ -45,7 +45,12 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   ];
 
   const rows = submissions.map((s) => {
-    let answers: { questionId: string; optionIds: string[]; scaleValue?: number }[] = [];
+    let answers: {
+      questionId: string;
+      optionIds: string[];
+      scaleValue?: number;
+      text?: string;
+    }[] = [];
     try {
       answers = JSON.parse(s.answers);
     } catch {
@@ -64,6 +69,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
         const a = byQuestion.get(q.id);
         if (!a) return "";
         if (q.type === "scale") return a.scaleValue?.toString() ?? "";
+        if (q.type === "text") return a.text ?? "";
         return a.optionIds.map((id) => optionMap.get(id) ?? "").join("; ");
       }),
     ];

@@ -27,7 +27,7 @@ export default async function QuizPublicPage({ params }: { params: { slug: strin
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,
-      type: q.type as "single" | "multi" | "scale",
+      type: q.type as "single" | "multi" | "scale" | "text",
       required: q.required,
       options: q.options.map((o) => ({ id: o.id, text: o.text })),
     })),

@@ -4,11 +4,11 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-type Option = { id?: string; text: string; score: number };
+type Option = { id?: string; text: string; score: number; minChars?: number | null };
 type Question = {
   id?: string;
   text: string;
-  type: "single" | "multi" | "scale";
+  type: "single" | "multi" | "scale" | "text";
   required: boolean;
   options: Option[];
 };
@@ -290,14 +290,22 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
               Build a <strong>Questions</strong> sheet with these columns (one row per option):
             </p>
             <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">
-{`Question                          | Type    | Option               | Score
-Are you tracking your KPIs weekly?| single  | Yes, every week      | 10
-Are you tracking your KPIs weekly?| single  | Roughly monthly      | 5
-Are you tracking your KPIs weekly?| single  | Not really           | 0`}
+{`Question                          | Type    | Option           | Score | Min Chars
+Are you tracking your KPIs weekly?| single  | Yes, every week  | 10    |
+Are you tracking your KPIs weekly?| single  | Roughly monthly  | 5     |
+Are you tracking your KPIs weekly?| single  | Not really       | 0     |
+Describe your growth strategy.    | text    | Basic detail     | 10    | 140
+Describe your growth strategy.    | text    | Great detail     | 20    | 200`}
             </pre>
             <p>
-              Rows that share the same question text are grouped into one question. Add an{" "}
-              <strong>Outcomes</strong> sheet with columns{" "}
+              Rows that share the same question text are grouped into one question.{" "}
+              <code>Type</code> can be <code>single</code>, <code>multi</code>,{" "}
+              <code>scale</code>, or <code>text</code>. For <code>text</code> questions,
+              use the <code>Min Chars</code> column to award points by answer length
+              (leave blank for no scoring).
+            </p>
+            <p>
+              Add an <strong>Outcomes</strong> sheet with columns{" "}
               <code>Min Score</code>, <code>Max Score</code>, <code>Title</code>,{" "}
               <code>Description</code> to define result bands.
             </p>
@@ -359,6 +367,7 @@ Are you tracking your KPIs weekly?| single  | Not really           | 0`}
                       <option value="single">Single choice</option>
                       <option value="multi">Multiple choice</option>
                       <option value="scale">Scale (0–10)</option>
+                      <option value="text">Free text</option>
                     </select>
                   </label>
                   <label className="flex items-center gap-2">
@@ -373,7 +382,86 @@ Are you tracking your KPIs weekly?| single  | Not really           | 0`}
                   </label>
                 </div>
 
-                {q.type !== "scale" ? (
+                {q.type === "scale" ? (
+                  <p className="text-sm text-slate-600">
+                    Respondents pick a value 0–10. The raw value is added to the score
+                    (max 10 points per scale question).
+                  </p>
+                ) : q.type === "text" ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-slate-600">
+                      Respondents type a free-text answer. Optionally score by length — add
+                      thresholds below. The highest threshold the answer meets wins; leave
+                      this empty to capture the text without scoring.
+                    </p>
+                    {q.options.length > 0 && (
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-xs font-medium text-slate-500">
+                        <span>Min characters</span>
+                        <span>Points awarded</span>
+                        <span />
+                      </div>
+                    )}
+                    {q.options.map((o, oi) => (
+                      <div key={oi} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          className="input"
+                          placeholder="e.g. 140"
+                          value={o.minChars ?? ""}
+                          onChange={(e) =>
+                            updateQuestion(i, (qq) => {
+                              const opts = [...qq.options];
+                              const n = e.target.value === "" ? null : Number(e.target.value);
+                              opts[oi] = {
+                                ...opts[oi],
+                                minChars: n === null || Number.isNaN(n) ? null : Math.max(0, Math.round(n)),
+                              };
+                              return { ...qq, options: opts };
+                            })
+                          }
+                        />
+                        <input
+                          type="number"
+                          className="input"
+                          placeholder="e.g. 10"
+                          value={o.score}
+                          onChange={(e) =>
+                            updateQuestion(i, (qq) => {
+                              const opts = [...qq.options];
+                              opts[oi] = { ...opts[oi], score: Number(e.target.value) || 0 };
+                              return { ...qq, options: opts };
+                            })
+                          }
+                        />
+                        <button
+                          className="btn-secondary text-xs"
+                          type="button"
+                          onClick={() =>
+                            updateQuestion(i, (qq) => ({
+                              ...qq,
+                              options: qq.options.filter((_, j) => j !== oi),
+                            }))
+                          }
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="btn-secondary text-xs"
+                      type="button"
+                      onClick={() =>
+                        updateQuestion(i, (qq) => ({
+                          ...qq,
+                          options: [...qq.options, { text: "", score: 0, minChars: 0 }],
+                        }))
+                      }
+                    >
+                      + Threshold
+                    </button>
+                  </div>
+                ) : (
                   <div className="space-y-2">
                     {q.options.map((o, oi) => (
                       <div key={oi} className="flex items-center gap-2">
@@ -428,11 +516,6 @@ Are you tracking your KPIs weekly?| single  | Not really           | 0`}
                       + Option
                     </button>
                   </div>
-                ) : (
-                  <p className="text-sm text-slate-600">
-                    Respondents pick a value 0–10. The raw value is added to the score
-                    (max 10 points per scale question).
-                  </p>
                 )}
               </div>
             ))}

@@ -9,6 +9,7 @@ const schema = z.object({
       questionId: z.string(),
       optionIds: z.array(z.string()).default([]),
       scaleValue: z.number().optional(),
+      text: z.string().max(10000).optional(),
     }),
   ),
   email: z.string().email().nullable().optional(),
@@ -37,7 +38,7 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   const scoringQuestions = quiz.questions.map((q) => ({
     id: q.id,
     type: q.type,
-    options: q.options.map((o) => ({ id: o.id, score: o.score })),
+    options: q.options.map((o) => ({ id: o.id, score: o.score, minChars: o.minChars })),
   }));
 
   const { score, maxScore, percent } = computeScore(scoringQuestions, parsed.data.answers);

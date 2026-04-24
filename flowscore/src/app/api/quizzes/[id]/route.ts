@@ -3,14 +3,19 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 
+const optionSchema = z.object({
+  id: z.string().optional(),
+  text: z.string(),
+  score: z.number(),
+  minChars: z.number().int().nullable().optional(),
+});
+
 const questionSchema = z.object({
   id: z.string().optional(),
   text: z.string().min(1),
-  type: z.enum(["single", "multi", "scale"]),
+  type: z.enum(["single", "multi", "scale", "text"]),
   required: z.boolean().default(true),
-  options: z
-    .array(z.object({ id: z.string().optional(), text: z.string(), score: z.number() }))
-    .default([]),
+  options: z.array(optionSchema).default([]),
 });
 
 const outcomeSchema = z.object({
@@ -95,6 +100,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
               order: j,
               text: o.text,
               score: o.score,
+              minChars: o.minChars ?? null,
             })),
           },
         },

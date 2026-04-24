@@ -7,7 +7,7 @@ type Option = { id: string; text: string };
 type Question = {
   id: string;
   text: string;
-  type: "single" | "multi" | "scale";
+  type: "single" | "multi" | "scale" | "text";
   required: boolean;
   options: Option[];
 };
@@ -27,6 +27,7 @@ type Answer = {
   questionId: string;
   optionIds: string[];
   scaleValue?: number;
+  text?: string;
 };
 
 export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
@@ -54,6 +55,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
     if (!question.required) return true;
     if (!existingAnswer) return false;
     if (question.type === "scale") return typeof existingAnswer.scaleValue === "number";
+    if (question.type === "text") return (existingAnswer.text ?? "").trim().length > 0;
     return existingAnswer.optionIds.length > 0;
   }
 
@@ -180,7 +182,25 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
           <h2 className="text-2xl font-semibold">{question.text}</h2>
 
           <div className="mt-6 space-y-2">
-            {question.type === "scale" ? (
+            {question.type === "text" ? (
+              <div>
+                <textarea
+                  className="input min-h-[160px]"
+                  value={existingAnswer?.text ?? ""}
+                  onChange={(e) =>
+                    setAnswer({
+                      questionId: question.id,
+                      optionIds: [],
+                      text: e.target.value,
+                    })
+                  }
+                  placeholder="Type your answer…"
+                />
+                <p className="mt-2 text-right text-xs text-slate-500">
+                  {(existingAnswer?.text ?? "").length} characters
+                </p>
+              </div>
+            ) : question.type === "scale" ? (
               <div className="flex flex-wrap gap-2">
                 {Array.from({ length: 11 }).map((_, v) => {
                   const active = existingAnswer?.scaleValue === v;

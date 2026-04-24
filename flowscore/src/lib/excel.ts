@@ -2,9 +2,9 @@ import * as XLSX from "xlsx";
 
 export type ParsedQuestion = {
   text: string;
-  type: "single" | "multi" | "scale";
+  type: "single" | "multi" | "scale" | "text";
   required: boolean;
-  options: { text: string; score: number }[];
+  options: { text: string; score: number; minChars?: number | null }[];
 };
 
 export type ParsedOutcome = {
@@ -47,10 +47,12 @@ function pick(row: Record<string, unknown>, names: string[]): string {
   return "";
 }
 
-function coerceType(raw: string): "single" | "multi" | "scale" {
+function coerceType(raw: string): "single" | "multi" | "scale" | "text" {
   const v = raw.toLowerCase().trim();
   if (v === "multi" || v === "multiple" || v === "checkbox") return "multi";
   if (v === "scale" || v === "rating" || v === "number") return "scale";
+  if (v === "text" || v === "freetext" || v === "free_text" || v === "long_text" || v === "textarea")
+    return "text";
   return "single";
 }
 
@@ -103,6 +105,7 @@ export function parseWorkbook(buffer: ArrayBuffer): ParseResult {
       const scoreRaw = pick(row, ["Score", "Points", "Weight"]);
       const typeRaw = pick(row, ["Type", "QuestionType"]);
       const requiredRaw = pick(row, ["Required", "Mandatory"]);
+      const minCharsRaw = pick(row, ["Min Chars", "MinChars", "Threshold", "Characters", "Min Length"]);
 
       let q = byText.get(qText);
       if (!q) {
@@ -118,13 +121,25 @@ export function parseWorkbook(buffer: ArrayBuffer): ParseResult {
         q.type = coerceType(typeRaw);
       }
 
-      if (optionText) {
+      const hasMinChars = minCharsRaw !== "";
+      if (q.type === "text") {
+        if (hasMinChars) {
+          const minChars = Math.max(0, Math.round(num(minCharsRaw)));
+          q.options.push({
+            text: optionText || `≥${minChars} chars`,
+            score: num(scoreRaw),
+            minChars,
+          });
+        }
+      } else if (optionText) {
         q.options.push({ text: optionText, score: num(scoreRaw) });
       }
     }
 
     for (const q of questions) {
-      if (q.options.length === 0 && q.type !== "scale") {
+      if (q.type === "text") continue;
+      if (q.type === "scale") continue;
+      if (q.options.length === 0) {
         warnings.push(`Question "${q.text}" has no options.`);
       }
     }
