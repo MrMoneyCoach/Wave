@@ -29,8 +29,12 @@ Build branded scorecard quizzes, score every respondent, deliver a personalised 
   - Publish / unpublish
 - Public quiz player at `/q/<slug>`
   - Typeform-style one-question-per-screen flow, keyboard-first
-  - **Pre-quiz lead capture** (first name + email required; last name, phone, company, job title optional) — runs before the first question on every quiz so you never lose a respondent's contact details mid-flow
+  - **Pre-quiz lead capture** (first name + email required; last name, phone, company, job title optional) + mandatory GDPR consent checkbox
+  - **Abandoned-lead protection** — a Submission is created the moment the respondent finishes the capture form, so you keep the lead even if they don't finish the quiz
+  - Progress saved on every question advance (so dashboard detail shows what's been answered so far + running score)
   - Personalised results page with score dial and outcome
+  - **Emailed PDF result** — on the result page, respondent re-confirms email + phone + contact-consent to receive a PDF by email (Resend) or download
+  - Optional **Book-a-call CTA** at the bottom of the result page, per-quiz configurable
 - Leads table + CSV export (answers included)
 - Analytics (submissions over 30 days, average score, email-capture rate, outcome distribution)
 
@@ -143,6 +147,8 @@ Percent = `score / maxScore * 100`. Outcome bands are matched against the percen
 2. In Vercel → your project → **Settings → Environment Variables**, set:
    - `DATABASE_URL` — the **pooled** Postgres connection string
    - `SESSION_SECRET` — long random string (`openssl rand -hex 32`)
+   - `RESEND_API_KEY` *(optional)* — from [resend.com](https://resend.com). If set, result PDFs are emailed to respondents. Without it, PDFs are download-only.
+   - `RESEND_FROM` *(optional, when using Resend)* — `Name <sender@your-verified-domain.com>`. Without it, Resend's sandbox `onboarding@resend.dev` is used (testing only).
 3. Set **Root Directory** to `flowscore` (Settings → General).
 4. Redeploy. The build runs `prisma db push` automatically, so tables are created on the first deploy.
 

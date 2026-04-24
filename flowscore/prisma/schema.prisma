@@ -26,6 +26,9 @@ model Quiz {
   ctaLabel      String       @default("Start")
   collectEmail  Boolean      @default(true)
   published     Boolean      @default(false)
+  bookingUrl    String?
+  bookingLabel  String?
+  ownerName     String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   questions     Question[]
@@ -78,9 +81,12 @@ model Submission {
   score      Float
   maxScore   Float
   percent    Float
-  outcomeId    String?
-  answers      String
-  createdAt    DateTime  @default(now())
-  completedAt  DateTime?
-  consentedAt  DateTime?
+  outcomeId         String?
+  answers           String
+  createdAt         DateTime  @default(now())
+  completedAt       DateTime?
+  consentedAt       DateTime?
+  marketingConsent  Boolean   @default(false)
+  verifiedPhone     String?
+  pdfSentAt         DateTime?
 }

@@ -5,6 +5,27 @@ import { requireUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
+function LinkCell({
+  id,
+  quizId,
+  children,
+}: {
+  id: string;
+  quizId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <td className="whitespace-nowrap p-0">
+      <Link
+        href={`/dashboard/quizzes/${quizId}/leads/${id}`}
+        className="block w-full px-4 py-3 hover:text-slate-900"
+      >
+        {children}
+      </Link>
+    </td>
+  );
+}
+
 export default async function LeadsPage({ params }: { params: { id: string } }) {
   const user = await requireUser();
   const quiz = await prisma.quiz.findUnique({ where: { id: params.id } });
@@ -74,11 +95,11 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
                   [s.firstName, s.lastName].filter(Boolean).join(" ") || s.name || "—";
                 const isComplete = !!s.completedAt;
                 return (
-                  <tr key={s.id}>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <tr key={s.id} className="hover:bg-slate-50">
+                    <LinkCell id={s.id} quizId={quiz.id}>
                       {s.createdAt.toLocaleString()}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    </LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           isComplete
@@ -88,16 +109,21 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
                       >
                         {isComplete ? "Completed" : "In progress"}
                       </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">{display}</td>
-                    <td className="whitespace-nowrap px-4 py-3">{s.email || "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-3">{s.phone || "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-3">{s.company || "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-3">{s.jobTitle || "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-3 font-medium">
-                      {isComplete ? `${s.percent.toFixed(1)}%` : "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">{outcome?.title || "—"}</td>
+                    </LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>{display}</LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>{s.email || "—"}</LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>{s.phone || "—"}</LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>{s.company || "—"}</LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>{s.jobTitle || "—"}</LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>
+                      <span className="font-medium">
+                        {s.percent.toFixed(1)}%
+                      </span>
+                      {!isComplete && (
+                        <span className="ml-1 text-xs text-slate-400">so far</span>
+                      )}
+                    </LinkCell>
+                    <LinkCell id={s.id} quizId={quiz.id}>{outcome?.title || "—"}</LinkCell>
                   </tr>
                 );
               })}

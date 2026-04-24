@@ -90,6 +90,13 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
       setError("Please answer this question to continue.");
       return;
     }
+    if (submissionId) {
+      void fetch(`/api/q/${quiz.slug}/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId, answers }),
+      });
+    }
     if (current + 1 < total) {
       setCurrent(current + 1);
     } else {

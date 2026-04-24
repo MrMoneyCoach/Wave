@@ -28,6 +28,9 @@ export default async function EditQuizPage({ params }: { params: { id: string } 
     ctaLabel: quiz.ctaLabel,
     collectEmail: quiz.collectEmail,
     published: quiz.published,
+    bookingUrl: quiz.bookingUrl ?? "",
+    bookingLabel: quiz.bookingLabel ?? "",
+    ownerName: quiz.ownerName ?? "",
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,

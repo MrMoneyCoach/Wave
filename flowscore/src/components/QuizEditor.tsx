@@ -27,6 +27,9 @@ type Quiz = {
   ctaLabel: string;
   collectEmail: boolean;
   published: boolean;
+  bookingUrl: string;
+  bookingLabel: string;
+  ownerName: string;
   questions: Question[];
   outcomes: Outcome[];
 };
@@ -250,8 +253,45 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
           Every respondent fills in a short contact form before the first question
           (name, email, phone, company, job title). First name and email are required;
-          the rest are optional.
+          the rest are optional. GDPR consent is mandatory.
         </p>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="label">Your name (shown on reports)</label>
+            <input
+              className="input"
+              value={quiz.ownerName}
+              onChange={(e) => update("ownerName", e.target.value)}
+              placeholder="e.g. Scott"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
+          <div>
+            <label className="label">Booking URL (optional)</label>
+            <input
+              type="url"
+              className="input"
+              value={quiz.bookingUrl}
+              onChange={(e) => update("bookingUrl", e.target.value)}
+              placeholder="https://calendly.com/your-link"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Shown as a CTA at the bottom of the results page.
+            </p>
+          </div>
+          <div>
+            <label className="label">Booking CTA label</label>
+            <input
+              className="input"
+              value={quiz.bookingLabel}
+              onChange={(e) => update("bookingLabel", e.target.value)}
+              placeholder="Book a call with Scott"
+            />
+          </div>
+        </div>
       </section>
 
       <section className="mt-6">
