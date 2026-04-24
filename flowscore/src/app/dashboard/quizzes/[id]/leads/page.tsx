@@ -16,6 +16,9 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
     take: 500,
   });
 
+  const completed = submissions.filter((s) => !!s.completedAt).length;
+  const inProgress = submissions.length - completed;
+
   const outcomeMap = new Map(
     (await prisma.outcome.findMany({ where: { quizId: quiz.id } })).map((o) => [o.id, o]),
   );
@@ -31,7 +34,9 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
             ← Back to quiz
           </Link>
           <h1 className="mt-1 text-2xl font-bold">{quiz.title} — Leads</h1>
-          <p className="text-sm text-slate-500">{submissions.length} submissions</p>
+          <p className="text-sm text-slate-500">
+            {completed} completed · {inProgress} in progress · {submissions.length} total
+          </p>
         </div>
         <a
           href={`/api/quizzes/${quiz.id}/leads-export`}
@@ -52,6 +57,7 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
                 <th className="whitespace-nowrap px-4 py-3">Date</th>
+                <th className="whitespace-nowrap px-4 py-3">Status</th>
                 <th className="whitespace-nowrap px-4 py-3">Name</th>
                 <th className="whitespace-nowrap px-4 py-3">Email</th>
                 <th className="whitespace-nowrap px-4 py-3">Phone</th>
@@ -66,10 +72,22 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
                 const outcome = s.outcomeId ? outcomeMap.get(s.outcomeId) : null;
                 const display =
                   [s.firstName, s.lastName].filter(Boolean).join(" ") || s.name || "—";
+                const isComplete = !!s.completedAt;
                 return (
                   <tr key={s.id}>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-600">
                       {s.createdAt.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          isComplete
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {isComplete ? "Completed" : "In progress"}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">{display}</td>
                     <td className="whitespace-nowrap px-4 py-3">{s.email || "—"}</td>
@@ -77,7 +95,7 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
                     <td className="whitespace-nowrap px-4 py-3">{s.company || "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3">{s.jobTitle || "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 font-medium">
-                      {s.percent.toFixed(1)}%
+                      {isComplete ? `${s.percent.toFixed(1)}%` : "—"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">{outcome?.title || "—"}</td>
                   </tr>

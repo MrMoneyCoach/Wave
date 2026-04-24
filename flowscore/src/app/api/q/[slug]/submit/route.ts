@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { computeScore } from "@/lib/scoring";
 
 const schema = z.object({
+  submissionId: z.string().min(1),
   answers: z.array(
     z.object({
       questionId: z.string(),
@@ -12,21 +13,15 @@ const schema = z.object({
       text: z.string().max(10000).optional(),
     }),
   ),
-  firstName: z.string().min(1, "First name is required").max(200),
-  lastName: z.string().max(200).optional().default(""),
-  email: z.string().email("Please enter a valid email"),
-  phone: z.string().max(50).optional().default(""),
-  company: z.string().max(200).optional().default(""),
-  jobTitle: z.string().max(200).optional().default(""),
 });
 
 export async function POST(req: Request, { params }: { params: { slug: string } }) {
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    const firstIssue = parsed.error.issues[0];
-    const message = firstIssue
-      ? `${firstIssue.path.join(".") || "field"}: ${firstIssue.message}`
+    const issue = parsed.error.issues[0];
+    const message = issue
+      ? `${issue.path.join(".") || "field"}: ${issue.message}`
       : "Invalid submission";
     return NextResponse.json({ error: message }, { status: 400 });
   }
@@ -37,6 +32,16 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   });
   if (!quiz || !quiz.published) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
+
+  const submission = await prisma.submission.findUnique({
+    where: { id: parsed.data.submissionId },
+  });
+  if (!submission || submission.quizId !== quiz.id) {
+    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  }
+  if (submission.completedAt) {
+    return NextResponse.json({ submissionId: submission.id });
   }
 
   const scoringQuestions = quiz.questions.map((q) => ({
@@ -51,24 +56,15 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
     (o) => percent >= o.minScore && percent <= o.maxScore,
   );
 
-  const { firstName, lastName, email, phone, company, jobTitle } = parsed.data;
-  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-
-  const submission = await prisma.submission.create({
+  await prisma.submission.update({
+    where: { id: submission.id },
     data: {
-      quizId: quiz.id,
-      email,
-      name: fullName || null,
-      firstName,
-      lastName: lastName || null,
-      phone: phone || null,
-      company: company || null,
-      jobTitle: jobTitle || null,
       score,
       maxScore,
       percent,
       outcomeId: outcome?.id ?? null,
       answers: JSON.stringify(parsed.data.answers),
+      completedAt: new Date(),
     },
   });
 

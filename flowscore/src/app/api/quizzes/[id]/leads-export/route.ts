@@ -34,7 +34,10 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   for (const q of quiz.questions) for (const o of q.options) optionMap.set(o.id, o.text);
 
   const headers = [
-    "Submitted at",
+    "Started at",
+    "Completed at",
+    "Status",
+    "Consented at",
     "First name",
     "Last name",
     "Email",
@@ -63,15 +66,18 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     const byQuestion = new Map(answers.map((a) => [a.questionId, a]));
     return [
       s.createdAt.toISOString(),
+      s.completedAt ? s.completedAt.toISOString() : "",
+      s.completedAt ? "Completed" : "In progress",
+      s.consentedAt ? s.consentedAt.toISOString() : "",
       s.firstName ?? "",
       s.lastName ?? "",
       s.email ?? "",
       s.phone ?? "",
       s.company ?? "",
       s.jobTitle ?? "",
-      s.score.toFixed(2),
-      s.maxScore.toFixed(2),
-      s.percent.toFixed(1),
+      s.completedAt ? s.score.toFixed(2) : "",
+      s.completedAt ? s.maxScore.toFixed(2) : "",
+      s.completedAt ? s.percent.toFixed(1) : "",
       s.outcomeId ? outcomeMap.get(s.outcomeId)?.title ?? "" : "",
       ...questionOrder.map((q) => {
         const a = byQuestion.get(q.id);

@@ -18,9 +18,12 @@ export default async function AnalyticsPage({ params }: { params: { id: string }
   });
 
   const total = submissions.length;
+  const completedSubs = submissions.filter((s) => !!s.completedAt);
+  const completed = completedSubs.length;
+  const completionRate = total === 0 ? 0 : Math.round((completed / total) * 100);
   const uniqueEmails = new Set(submissions.map((s) => s.email).filter(Boolean)).size;
   const avg =
-    total === 0 ? 0 : submissions.reduce((a, s) => a + s.percent, 0) / total;
+    completed === 0 ? 0 : completedSubs.reduce((a, s) => a + s.percent, 0) / completed;
 
   const companyCounts = new Map<string, number>();
   for (const s of submissions) {
@@ -61,10 +64,19 @@ export default async function AnalyticsPage({ params }: { params: { id: string }
       </Link>
       <h1 className="mt-1 text-2xl font-bold">{quiz.title} — Analytics</h1>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Stat label="Submissions" value={total.toString()} />
-        <Stat label="Avg score" value={`${avg.toFixed(1)}%`} />
-        <Stat label="Unique leads" value={uniqueEmails.toString()} />
+      <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <Stat label="Leads" value={total.toString()} />
+        <Stat
+          label="Completion rate"
+          value={total === 0 ? "—" : `${completionRate}%`}
+          sub={`${completed} / ${total}`}
+        />
+        <Stat
+          label="Avg score"
+          value={completed === 0 ? "—" : `${avg.toFixed(1)}%`}
+          sub="completed only"
+        />
+        <Stat label="Unique emails" value={uniqueEmails.toString()} />
       </div>
 
       <section className="card mt-6">
@@ -132,11 +144,20 @@ export default async function AnalyticsPage({ params }: { params: { id: string }
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
   return (
     <div className="card">
       <p className="text-sm text-slate-500">{label}</p>
       <p className="mt-1 text-3xl font-bold">{value}</p>
+      {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
     </div>
   );
 }

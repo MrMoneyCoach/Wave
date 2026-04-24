@@ -78,7 +78,9 @@ model Submission {
   score      Float
   maxScore   Float
   percent    Float
-  outcomeId  String?
-  answers    String
-  createdAt  DateTime @default(now())
+  outcomeId    String?
+  answers      String
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+  consentedAt  DateTime?
 }

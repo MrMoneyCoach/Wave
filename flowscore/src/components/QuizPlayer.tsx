@@ -52,6 +52,9 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
     company: "",
     jobTitle: "",
   });
+  const [consent, setConsent] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const total = quiz.questions.length;
@@ -100,7 +103,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
     else setStage("capture");
   }
 
-  function startQuiz() {
+  async function startQuiz() {
     setError(null);
     if (!lead.firstName.trim()) {
       setError("Please enter your first name.");
@@ -110,24 +113,52 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
       setError("Please enter a valid email.");
       return;
     }
-    setStage("questions");
-    setCurrent(0);
-  }
-
-  async function submit() {
-    setStage("submitting");
-    const res = await fetch(`/api/q/${quiz.slug}/submit`, {
+    if (!consent) {
+      setError("Please tick the consent box to continue.");
+      return;
+    }
+    if (submissionId) {
+      setStage("questions");
+      setCurrent(0);
+      return;
+    }
+    setStarting(true);
+    const res = await fetch(`/api/q/${quiz.slug}/lead`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        answers,
         firstName: lead.firstName.trim(),
         lastName: lead.lastName.trim(),
         email: lead.email.trim(),
         phone: lead.phone.trim(),
         company: lead.company.trim(),
         jobTitle: lead.jobTitle.trim(),
+        consent: true,
       }),
+    });
+    setStarting(false);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setError(j.error || "Could not start the quiz");
+      return;
+    }
+    const data = await res.json();
+    setSubmissionId(data.submissionId);
+    setStage("questions");
+    setCurrent(0);
+  }
+
+  async function submit() {
+    if (!submissionId) {
+      setError("Please complete the contact form first.");
+      setStage("capture");
+      return;
+    }
+    setStage("submitting");
+    const res = await fetch(`/api/q/${quiz.slug}/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ submissionId, answers }),
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -219,12 +250,25 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
 
   return (
     <main className="relative min-h-screen bg-white">
-      <div className="fixed left-0 right-0 top-0 z-40 h-[3px] bg-slate-100">
+      <div className="fixed left-0 right-0 top-0 z-40 h-1 bg-slate-100">
         <div
           className="h-full bg-brand-600 transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
+
+      {stage === "questions" && total > 0 && (
+        <div className="fixed right-4 top-4 z-40 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
+          <span>
+            Question <span className="text-slate-900">{current + 1}</span>{" "}
+            <span className="text-slate-400">of {total}</span>
+          </span>
+          <span className="h-3 w-px bg-slate-200" aria-hidden />
+          <span className="text-slate-500">
+            {Math.round(((current + 1) / total) * 100)}%
+          </span>
+        </div>
+      )}
 
       <div
         key={`${stage}-${current}`}
@@ -277,9 +321,12 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
           {stage === "capture" && (
             <CaptureScreen
               lead={lead}
+              consent={consent}
               onChange={(patch) => setLead((l) => ({ ...l, ...patch }))}
+              onConsent={setConsent}
               onBack={() => setStage("intro")}
               onStart={startQuiz}
+              starting={starting}
               error={error}
             />
           )}
@@ -364,7 +411,6 @@ function QuestionScreen({
   onPrev,
   error,
   isLast,
-  collectEmail,
 }: {
   index: number;
   total: number;
@@ -572,15 +618,21 @@ function TextAnswer({
 
 function CaptureScreen({
   lead,
+  consent,
   onChange,
+  onConsent,
   onBack,
   onStart,
+  starting,
   error,
 }: {
   lead: Lead;
+  consent: boolean;
   onChange: (patch: Partial<Lead>) => void;
+  onConsent: (v: boolean) => void;
   onBack: () => void;
   onStart: () => void;
+  starting: boolean;
   error: string | null;
 }) {
   return (
@@ -654,6 +706,23 @@ function CaptureScreen({
           className="md:col-span-2"
         />
 
+        <div className="md:col-span-2">
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              checked={consent}
+              onChange={(e) => onConsent(e.target.checked)}
+              required
+            />
+            <span>
+              I agree that my answers and contact details may be processed to
+              generate my personalised result and to be contacted about it.{" "}
+              <span className="text-brand-600">(required)</span>
+            </span>
+          </label>
+        </div>
+
         {error && (
           <div className="md:col-span-2 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
@@ -663,9 +732,10 @@ function CaptureScreen({
         <div className="mt-2 flex items-center gap-4 md:col-span-2">
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-medium text-white transition hover:bg-brand-700"
+            disabled={starting}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Start the quiz
+            {starting ? "Starting…" : "Start the quiz"}
             <span aria-hidden>→</span>
           </button>
           <span className="text-sm text-slate-500">
@@ -681,7 +751,8 @@ function CaptureScreen({
         </div>
       </form>
       <p className="mt-6 text-xs text-slate-400">
-        Your details are only shared with the quiz owner — never sold on.
+        Your details are only shared with the quiz owner. You can request removal at
+        any time.
       </p>
     </div>
   );
