@@ -105,8 +105,19 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
     });
     setSaving(false);
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setStatus(`Could not save: ${j.error ?? res.statusText}`);
+      let detail = res.statusText || "";
+      try {
+        const text = await res.text();
+        try {
+          const j = JSON.parse(text);
+          detail = j.error || text;
+        } catch {
+          detail = text.slice(0, 200) || detail;
+        }
+      } catch {
+        /* ignore */
+      }
+      setStatus(`Could not save (HTTP ${res.status}): ${detail || "no response body"}`);
       return;
     }
     if (opts.publish !== undefined) update("published", opts.publish);

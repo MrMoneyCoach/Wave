@@ -66,59 +66,72 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const body = await req.json().catch(() => null);
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid quiz", details: parsed.error.flatten() }, { status: 400 });
+    const issues = parsed.error.issues
+      .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+      .slice(0, 5)
+      .join("; ");
+    return NextResponse.json(
+      { error: `Invalid quiz — ${issues}`, details: parsed.error.flatten() },
+      { status: 400 },
+    );
   }
 
   const data = parsed.data;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.quiz.update({
-      where: { id: params.id },
-      data: {
-        title: data.title,
-        intro: data.intro,
-        ctaLabel: data.ctaLabel,
-        collectEmail: data.collectEmail,
-        published: data.published,
-      },
-    });
-
-    await tx.answerOption.deleteMany({ where: { question: { quizId: params.id } } });
-    await tx.question.deleteMany({ where: { quizId: params.id } });
-    await tx.outcome.deleteMany({ where: { quizId: params.id } });
-
-    for (const [i, q] of data.questions.entries()) {
-      await tx.question.create({
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.quiz.update({
+        where: { id: params.id },
         data: {
-          quizId: params.id,
-          order: i,
-          text: q.text,
-          type: q.type,
-          required: q.required,
-          options: {
-            create: q.options.map((o, j) => ({
-              order: j,
-              text: o.text,
-              score: o.score,
-              minChars: o.minChars ?? null,
-            })),
+          title: data.title,
+          intro: data.intro,
+          ctaLabel: data.ctaLabel,
+          collectEmail: data.collectEmail,
+          published: data.published,
+        },
+      });
+
+      await tx.answerOption.deleteMany({ where: { question: { quizId: params.id } } });
+      await tx.question.deleteMany({ where: { quizId: params.id } });
+      await tx.outcome.deleteMany({ where: { quizId: params.id } });
+
+      for (const [i, q] of data.questions.entries()) {
+        await tx.question.create({
+          data: {
+            quizId: params.id,
+            order: i,
+            text: q.text,
+            type: q.type,
+            required: q.required,
+            options: {
+              create: q.options.map((o, j) => ({
+                order: j,
+                text: o.text,
+                score: o.score,
+                minChars: o.minChars ?? null,
+              })),
+            },
           },
-        },
-      });
-    }
+        });
+      }
 
-    for (const o of data.outcomes) {
-      await tx.outcome.create({
-        data: {
-          quizId: params.id,
-          minScore: o.minScore,
-          maxScore: o.maxScore,
-          title: o.title,
-          description: o.description,
-        },
-      });
-    }
-  });
+      for (const o of data.outcomes) {
+        await tx.outcome.create({
+          data: {
+            quizId: params.id,
+            minScore: o.minScore,
+            maxScore: o.maxScore,
+            title: o.title,
+            description: o.description,
+          },
+        });
+      }
+    });
+  } catch (err) {
+    console.error("Save quiz failed", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: `Save failed: ${message}` }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
