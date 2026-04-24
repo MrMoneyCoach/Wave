@@ -61,7 +61,8 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
   });
 
   const buffer = await generatePdfBuffer(pdfData);
-  return new NextResponse(buffer, {
+  const body = new Uint8Array(buffer);
+  return new NextResponse(body, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${quiz.slug}-result.pdf"`,
