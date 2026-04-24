@@ -8,7 +8,7 @@ Build branded scorecard quizzes, score every respondent, deliver a personalised 
 
 - **Next.js 14** (App Router) + **TypeScript**
 - **Tailwind CSS** for styling
-- **Prisma** + **SQLite** (swap the datasource for Postgres when you're ready for prod)
+- **Prisma** + **PostgreSQL** (Neon / Supabase / Vercel Postgres)
 - **bcryptjs** + HMAC-signed cookie session (no external auth service)
 - **SheetJS (xlsx)** for Excel uploads
 
@@ -58,15 +58,17 @@ Optionally add an **Outcomes** sheet:
 | 34        | 66        | On your way    | You've started — focus next on… |
 | 67        | 100       | Ready to scale | You're in strong shape…         |
 
-## Getting started
+## Getting started (local)
 
 ```bash
 cd flowscore
 cp .env.example .env
-# Edit .env — set SESSION_SECRET to a long random string
+# Edit .env:
+#   DATABASE_URL   — a Postgres connection string (Neon free tier is quickest)
+#   SESSION_SECRET — openssl rand -hex 32
 
 npm install
-npx prisma db push          # creates prisma/dev.db
+npx prisma db push          # creates tables in your Postgres
 npm run db:seed             # optional demo data: demo@flowscore.local / password123
 npm run dev
 ```
@@ -123,17 +125,16 @@ flowscore/
 
 Percent = `score / maxScore * 100`. Outcome bands are matched against the percent.
 
-## Deploying to Postgres
+## Deploying to Vercel
 
-1. Edit `prisma/schema.prisma`:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-2. Set `DATABASE_URL` to your Postgres connection string.
-3. `npx prisma migrate deploy`.
+1. Create a free Postgres database (Neon is one click from the Vercel marketplace).
+2. In Vercel → your project → **Settings → Environment Variables**, set:
+   - `DATABASE_URL` — the **pooled** Postgres connection string
+   - `SESSION_SECRET` — long random string (`openssl rand -hex 32`)
+3. Set **Root Directory** to `flowscore` (Settings → General).
+4. Redeploy. The build runs `prisma db push` automatically, so tables are created on the first deploy.
+
+For production at scale, replace `prisma db push` in `package.json` with proper migrations (`prisma migrate dev` locally to create them, `prisma migrate deploy` in the build).
 
 ## Explicitly deferred
 
