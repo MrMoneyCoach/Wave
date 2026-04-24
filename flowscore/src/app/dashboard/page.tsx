@@ -16,20 +16,32 @@ export default async function DashboardHome() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Your quizzes</h1>
-        <Link href="/dashboard/quizzes/new" className="btn-primary">+ New quiz</Link>
+        <div className="flex gap-2">
+          <Link href="/dashboard/templates" className="btn-secondary">
+            Browse templates
+          </Link>
+          <Link href="/dashboard/quizzes/new" className="btn-primary">
+            + New quiz
+          </Link>
+        </div>
       </div>
 
       {quizzes.length === 0 ? (
         <div className="card mt-8 text-center">
           <h2 className="text-lg font-semibold">No quizzes yet</h2>
           <p className="mt-2 text-slate-600">
-            Create your first scorecard — type questions in, or upload an Excel file.
+            Pick a starting point — start from a template, or build one from scratch.
           </p>
-          <Link href="/dashboard/quizzes/new" className="btn-primary mt-4 inline-block">
-            Create your first quiz
-          </Link>
+          <div className="mt-4 flex justify-center gap-2">
+            <Link href="/dashboard/templates" className="btn-primary">
+              Browse templates
+            </Link>
+            <Link href="/dashboard/quizzes/new" className="btn-secondary">
+              Start from blank
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
