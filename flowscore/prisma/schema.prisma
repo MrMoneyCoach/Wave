@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  quizzes      Quiz[]
+}
+
+model Quiz {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug          String       @unique
+  title         String
+  intro         String       @default("")
+  ctaLabel      String       @default("Start")
+  collectEmail  Boolean      @default(true)
+  published     Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  questions     Question[]
+  outcomes      Outcome[]
+  submissions   Submission[]
+}
+
+model Question {
+  id        String          @id @default(cuid())
+  quizId    String
+  quiz      Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order     Int
+  text      String
+  type      String          @default("single")
+  required  Boolean         @default(true)
+  options   AnswerOption[]
+}
+
+model AnswerOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String
+  score      Float    @default(0)
+}
+
+model Outcome {
+  id          String @id @default(cuid())
+  quizId      String
+  quiz        Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  minScore    Float
+  maxScore    Float
+  title       String
+  description String @default("")
+}
+
+model Submission {
+  id         String   @id @default(cuid())
+  quizId     String
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  email      String?
+  name       String?
+  score      Float
+  maxScore   Float
+  percent    Float
+  outcomeId  String?
+  answers    String
+  createdAt  DateTime @default(now())
+}
