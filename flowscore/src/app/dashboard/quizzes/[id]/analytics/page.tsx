@@ -18,9 +18,20 @@ export default async function AnalyticsPage({ params }: { params: { id: string }
   });
 
   const total = submissions.length;
-  const withEmail = submissions.filter((s) => !!s.email).length;
+  const uniqueEmails = new Set(submissions.map((s) => s.email).filter(Boolean)).size;
   const avg =
     total === 0 ? 0 : submissions.reduce((a, s) => a + s.percent, 0) / total;
+
+  const companyCounts = new Map<string, number>();
+  for (const s of submissions) {
+    if (!s.company) continue;
+    const key = s.company.trim();
+    if (!key) continue;
+    companyCounts.set(key, (companyCounts.get(key) ?? 0) + 1);
+  }
+  const topCompanies = [...companyCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   const last30 = new Array(30).fill(0).map((_, i) => {
     const day = new Date();
@@ -53,10 +64,7 @@ export default async function AnalyticsPage({ params }: { params: { id: string }
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <Stat label="Submissions" value={total.toString()} />
         <Stat label="Avg score" value={`${avg.toFixed(1)}%`} />
-        <Stat
-          label="Email capture rate"
-          value={total === 0 ? "—" : `${Math.round((withEmail / total) * 100)}%`}
-        />
+        <Stat label="Unique leads" value={uniqueEmails.toString()} />
       </div>
 
       <section className="card mt-6">
@@ -72,6 +80,24 @@ export default async function AnalyticsPage({ params }: { params: { id: string }
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="card mt-6">
+        <h2 className="text-lg font-semibold">Top companies</h2>
+        {topCompanies.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">
+            Companies will show up here once respondents fill in the company field.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-slate-100 text-sm">
+            {topCompanies.map(([name, count]) => (
+              <li key={name} className="flex items-center justify-between py-2">
+                <span className="font-medium text-slate-800">{name}</span>
+                <span className="text-slate-500">{count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="card mt-6">

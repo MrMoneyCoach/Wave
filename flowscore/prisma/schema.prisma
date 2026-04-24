@@ -70,6 +70,11 @@ model Submission {
   quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   email      String?
   name       String?
+  firstName  String?
+  lastName   String?
+  phone      String?
+  company    String?
+  jobTitle   String?
   score      Float
   maxScore   Float
   percent    Float

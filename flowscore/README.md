@@ -28,8 +28,8 @@ Build branded scorecard quizzes, score every respondent, deliver a personalised 
   - **Upload questions from an Excel spreadsheet**
   - Publish / unpublish
 - Public quiz player at `/q/<slug>`
-  - Question-by-question flow with progress bar
-  - Optional email capture before results
+  - Typeform-style one-question-per-screen flow, keyboard-first
+  - **Pre-quiz lead capture** (first name + email required; last name, phone, company, job title optional) — runs before the first question on every quiz so you never lose a respondent's contact details mid-flow
   - Personalised results page with score dial and outcome
 - Leads table + CSV export (answers included)
 - Analytics (submissions over 30 days, average score, email-capture rate, outcome distribution)

@@ -30,13 +30,28 @@ type Answer = {
   text?: string;
 };
 
+type Lead = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company: string;
+  jobTitle: string;
+};
+
 export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("intro");
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [lead, setLead] = useState<Lead>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    company: "",
+    jobTitle: "",
+  });
   const [error, setError] = useState<string | null>(null);
 
   const total = quiz.questions.length;
@@ -45,9 +60,9 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
 
   const progress = useMemo(() => {
     if (stage === "intro") return 0;
-    if (stage === "capture") return 100;
+    if (stage === "capture") return 5;
     if (stage === "submitting") return 100;
-    return total > 0 ? ((current + 1) / total) * 100 : 0;
+    return total > 0 ? 10 + ((current + 1) / total) * 85 : 0;
   }, [stage, current, total]);
 
   function setAnswer(next: Answer) {
@@ -74,8 +89,6 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
     }
     if (current + 1 < total) {
       setCurrent(current + 1);
-    } else if (quiz.collectEmail) {
-      setStage("capture");
     } else {
       submit();
     }
@@ -84,24 +97,42 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
   function prev() {
     setError(null);
     if (current > 0) setCurrent(current - 1);
-    else setStage("intro");
+    else setStage("capture");
+  }
+
+  function startQuiz() {
+    setError(null);
+    if (!lead.firstName.trim()) {
+      setError("Please enter your first name.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(lead.email)) {
+      setError("Please enter a valid email.");
+      return;
+    }
+    setStage("questions");
+    setCurrent(0);
   }
 
   async function submit() {
-    if (quiz.collectEmail && !email) {
-      setError("Please enter your email.");
-      return;
-    }
     setStage("submitting");
     const res = await fetch(`/api/q/${quiz.slug}/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers, email: email || null, name: name || null }),
+      body: JSON.stringify({
+        answers,
+        firstName: lead.firstName.trim(),
+        lastName: lead.lastName.trim(),
+        email: lead.email.trim(),
+        phone: lead.phone.trim(),
+        company: lead.company.trim(),
+        jobTitle: lead.jobTitle.trim(),
+      }),
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       setError(j.error || "Could not submit");
-      setStage("capture");
+      setStage("questions");
       return;
     }
     const data = await res.json();
@@ -117,7 +148,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
       if (stage === "intro") {
         if (e.key === "Enter") {
           e.preventDefault();
-          if (total > 0) setStage("questions");
+          if (total > 0) setStage("capture");
         }
         return;
       }
@@ -125,7 +156,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
       if (stage === "capture") {
         if (e.key === "Enter" && !e.shiftKey && !editable) {
           e.preventDefault();
-          submit();
+          startQuiz();
         }
         return;
       }
@@ -184,7 +215,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, current, question, existingAnswer, email, total]);
+  }, [stage, current, question, existingAnswer, lead, total]);
 
   return (
     <main className="relative min-h-screen bg-white">
@@ -206,7 +237,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
               intro={quiz.intro}
               total={total}
               ctaLabel={quiz.ctaLabel || "Start"}
-              onStart={() => setStage("questions")}
+              onStart={() => setStage("capture")}
             />
           )}
 
@@ -240,18 +271,15 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
               onPrev={prev}
               error={error}
               isLast={current + 1 === total}
-              collectEmail={quiz.collectEmail}
             />
           )}
 
           {stage === "capture" && (
             <CaptureScreen
-              name={name}
-              email={email}
-              onName={setName}
-              onEmail={setEmail}
-              onBack={() => setStage("questions")}
-              onSubmit={submit}
+              lead={lead}
+              onChange={(patch) => setLead((l) => ({ ...l, ...patch }))}
+              onBack={() => setStage("intro")}
+              onStart={startQuiz}
               error={error}
             />
           )}
@@ -349,7 +377,6 @@ function QuestionScreen({
   onPrev: () => void;
   error: string | null;
   isLast: boolean;
-  collectEmail: boolean;
 }) {
   return (
     <div>
@@ -399,8 +426,8 @@ function QuestionScreen({
           onClick={onNext}
           className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-medium text-white transition hover:bg-brand-700"
         >
-          {isLast && !collectEmail ? "Finish" : "OK"}
-          <span aria-hidden>✓</span>
+          {isLast ? "See my result" : "OK"}
+          <span aria-hidden>{isLast ? "→" : "✓"}</span>
         </button>
         <span className="text-sm text-slate-500">
           press{" "}
@@ -544,88 +571,159 @@ function TextAnswer({
 }
 
 function CaptureScreen({
-  name,
-  email,
-  onName,
-  onEmail,
+  lead,
+  onChange,
   onBack,
-  onSubmit,
+  onStart,
   error,
 }: {
-  name: string;
-  email: string;
-  onName: (v: string) => void;
-  onEmail: (v: string) => void;
+  lead: Lead;
+  onChange: (patch: Partial<Lead>) => void;
   onBack: () => void;
-  onSubmit: () => void;
+  onStart: () => void;
   error: string | null;
 }) {
   return (
     <div>
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-brand-600">
-        <span>One last thing</span>
+        <span>Before we begin</span>
         <span aria-hidden>→</span>
       </div>
       <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
-        Where should we send your result?
+        Tell us a little about you
       </h2>
       <p className="mt-4 text-slate-600">
-        Drop your details — your personalised score is on the next screen.
+        We use this to send you your personalised result. Only first name and email are
+        required.
       </p>
 
-      <div className="mt-10 space-y-6">
-        <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Name
-          </label>
-          <input
-            value={name}
-            onChange={(e) => onName(e.target.value)}
-            className="mt-2 w-full border-0 border-b-2 border-slate-200 bg-transparent px-0 py-2 text-xl text-slate-900 outline-none placeholder:text-slate-300 focus:border-brand-600"
-            placeholder="Jane Doe"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Email
-          </label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => onEmail(e.target.value)}
-            className="mt-2 w-full border-0 border-b-2 border-slate-200 bg-transparent px-0 py-2 text-xl text-slate-900 outline-none placeholder:text-slate-300 focus:border-brand-600"
-            placeholder="jane@example.com"
-          />
-        </div>
-      </div>
+      <form
+        className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onStart();
+        }}
+      >
+        <LeadField
+          label="First name"
+          required
+          autoFocus
+          value={lead.firstName}
+          onChange={(v) => onChange({ firstName: v })}
+          placeholder="Jane"
+          autoComplete="given-name"
+        />
+        <LeadField
+          label="Last name"
+          value={lead.lastName}
+          onChange={(v) => onChange({ lastName: v })}
+          placeholder="Doe"
+          autoComplete="family-name"
+        />
+        <LeadField
+          label="Email"
+          required
+          type="email"
+          value={lead.email}
+          onChange={(v) => onChange({ email: v })}
+          placeholder="jane@example.com"
+          autoComplete="email"
+          className="md:col-span-2"
+        />
+        <LeadField
+          label="Phone"
+          type="tel"
+          value={lead.phone}
+          onChange={(v) => onChange({ phone: v })}
+          placeholder="Optional"
+          autoComplete="tel"
+        />
+        <LeadField
+          label="Company"
+          value={lead.company}
+          onChange={(v) => onChange({ company: v })}
+          placeholder="Optional"
+          autoComplete="organization"
+        />
+        <LeadField
+          label="Job title"
+          value={lead.jobTitle}
+          onChange={(v) => onChange({ jobTitle: v })}
+          placeholder="Optional"
+          autoComplete="organization-title"
+          className="md:col-span-2"
+        />
 
-      {error && (
-        <div className="mt-6 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+        {error && (
+          <div className="md:col-span-2 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
-      <div className="mt-10 flex items-center gap-4">
-        <button
-          type="button"
-          onClick={onSubmit}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-medium text-white transition hover:bg-brand-700"
-        >
-          Get my result
-          <span aria-hidden>→</span>
-        </button>
-        <span className="text-sm text-slate-500">
-          press <kbd>Enter ↵</kbd>
-        </span>
-        <button
-          type="button"
-          onClick={onBack}
-          className="ml-auto text-sm text-slate-500 hover:text-slate-700"
-        >
-          ← back
-        </button>
-      </div>
+        <div className="mt-2 flex items-center gap-4 md:col-span-2">
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-medium text-white transition hover:bg-brand-700"
+          >
+            Start the quiz
+            <span aria-hidden>→</span>
+          </button>
+          <span className="text-sm text-slate-500">
+            press <kbd>Enter ↵</kbd>
+          </span>
+          <button
+            type="button"
+            onClick={onBack}
+            className="ml-auto text-sm text-slate-500 hover:text-slate-700"
+          >
+            ← back
+          </button>
+        </div>
+      </form>
+      <p className="mt-6 text-xs text-slate-400">
+        Your details are only shared with the quiz owner — never sold on.
+      </p>
+    </div>
+  );
+}
+
+function LeadField({
+  label,
+  value,
+  onChange,
+  required,
+  type = "text",
+  placeholder,
+  autoComplete,
+  autoFocus,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  type?: string;
+  placeholder?: string;
+  autoComplete?: string;
+  autoFocus?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+        {required && <span className="ml-1 text-brand-600">*</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        required={required}
+        autoFocus={autoFocus}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-2 w-full border-0 border-b-2 border-slate-200 bg-transparent px-0 py-2 text-lg text-slate-900 outline-none placeholder:text-slate-300 focus:border-brand-600 md:text-xl"
+      />
     </div>
   );
 }

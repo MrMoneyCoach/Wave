@@ -239,26 +239,19 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
             placeholder="Shown before the first question."
           />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="label">Start button label</label>
-            <input
-              className="input"
-              value={quiz.ctaLabel}
-              onChange={(e) => update("ctaLabel", e.target.value)}
-            />
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={quiz.collectEmail}
-                onChange={(e) => update("collectEmail", e.target.checked)}
-              />
-              Require email before results
-            </label>
-          </div>
+        <div>
+          <label className="label">Start button label</label>
+          <input
+            className="input"
+            value={quiz.ctaLabel}
+            onChange={(e) => update("ctaLabel", e.target.value)}
+          />
         </div>
+        <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          Every respondent fills in a short contact form before the first question
+          (name, email, phone, company, job title). First name and email are required;
+          the rest are optional.
+        </p>
       </section>
 
       <section className="mt-6">

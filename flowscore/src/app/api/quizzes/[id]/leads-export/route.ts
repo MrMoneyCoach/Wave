@@ -35,8 +35,12 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
   const headers = [
     "Submitted at",
-    "Name",
+    "First name",
+    "Last name",
     "Email",
+    "Phone",
+    "Company",
+    "Job title",
     "Score",
     "Max",
     "Percent",
@@ -59,8 +63,12 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     const byQuestion = new Map(answers.map((a) => [a.questionId, a]));
     return [
       s.createdAt.toISOString(),
-      s.name ?? "",
+      s.firstName ?? "",
+      s.lastName ?? "",
       s.email ?? "",
+      s.phone ?? "",
+      s.company ?? "",
+      s.jobTitle ?? "",
       s.score.toFixed(2),
       s.maxScore.toFixed(2),
       s.percent.toFixed(1),

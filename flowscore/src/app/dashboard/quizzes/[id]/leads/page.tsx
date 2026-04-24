@@ -47,29 +47,39 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
           No submissions yet. Share your quiz link to start collecting leads.
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Score</th>
-                <th className="px-4 py-3">Outcome</th>
+                <th className="whitespace-nowrap px-4 py-3">Date</th>
+                <th className="whitespace-nowrap px-4 py-3">Name</th>
+                <th className="whitespace-nowrap px-4 py-3">Email</th>
+                <th className="whitespace-nowrap px-4 py-3">Phone</th>
+                <th className="whitespace-nowrap px-4 py-3">Company</th>
+                <th className="whitespace-nowrap px-4 py-3">Job title</th>
+                <th className="whitespace-nowrap px-4 py-3">Score</th>
+                <th className="whitespace-nowrap px-4 py-3">Outcome</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {submissions.map((s) => {
                 const outcome = s.outcomeId ? outcomeMap.get(s.outcomeId) : null;
+                const display =
+                  [s.firstName, s.lastName].filter(Boolean).join(" ") || s.name || "—";
                 return (
                   <tr key={s.id}>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
                       {s.createdAt.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3">{s.name || "—"}</td>
-                    <td className="px-4 py-3">{s.email || "—"}</td>
-                    <td className="px-4 py-3 font-medium">{s.percent.toFixed(1)}%</td>
-                    <td className="px-4 py-3">{outcome?.title || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{display}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{s.email || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{s.phone || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{s.company || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{s.jobTitle || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-medium">
+                      {s.percent.toFixed(1)}%
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">{outcome?.title || "—"}</td>
                   </tr>
                 );
               })}
