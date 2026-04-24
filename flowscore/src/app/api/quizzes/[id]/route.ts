@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
@@ -78,55 +79,61 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
   const data = parsed.data;
 
+  const questionRows = data.questions.map((q, i) => ({
+    id: randomUUID(),
+    quizId: params.id,
+    order: i,
+    text: q.text,
+    type: q.type,
+    required: q.required,
+  }));
+
+  const optionRows = data.questions.flatMap((q, qi) =>
+    q.options.map((o, j) => ({
+      id: randomUUID(),
+      questionId: questionRows[qi].id,
+      order: j,
+      text: o.text,
+      score: o.score,
+      minChars: o.minChars ?? null,
+    })),
+  );
+
+  const outcomeRows = data.outcomes.map((o) => ({
+    quizId: params.id,
+    minScore: o.minScore,
+    maxScore: o.maxScore,
+    title: o.title,
+    description: o.description,
+  }));
+
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.quiz.update({
-        where: { id: params.id },
-        data: {
-          title: data.title,
-          intro: data.intro,
-          ctaLabel: data.ctaLabel,
-          collectEmail: data.collectEmail,
-          published: data.published,
-        },
-      });
-
-      await tx.answerOption.deleteMany({ where: { question: { quizId: params.id } } });
-      await tx.question.deleteMany({ where: { quizId: params.id } });
-      await tx.outcome.deleteMany({ where: { quizId: params.id } });
-
-      for (const [i, q] of data.questions.entries()) {
-        await tx.question.create({
+    await prisma.$transaction(
+      [
+        prisma.quiz.update({
+          where: { id: params.id },
           data: {
-            quizId: params.id,
-            order: i,
-            text: q.text,
-            type: q.type,
-            required: q.required,
-            options: {
-              create: q.options.map((o, j) => ({
-                order: j,
-                text: o.text,
-                score: o.score,
-                minChars: o.minChars ?? null,
-              })),
-            },
+            title: data.title,
+            intro: data.intro,
+            ctaLabel: data.ctaLabel,
+            collectEmail: data.collectEmail,
+            published: data.published,
           },
-        });
-      }
-
-      for (const o of data.outcomes) {
-        await tx.outcome.create({
-          data: {
-            quizId: params.id,
-            minScore: o.minScore,
-            maxScore: o.maxScore,
-            title: o.title,
-            description: o.description,
-          },
-        });
-      }
-    });
+        }),
+        prisma.question.deleteMany({ where: { quizId: params.id } }),
+        prisma.outcome.deleteMany({ where: { quizId: params.id } }),
+        ...(questionRows.length
+          ? [prisma.question.createMany({ data: questionRows })]
+          : []),
+        ...(optionRows.length
+          ? [prisma.answerOption.createMany({ data: optionRows })]
+          : []),
+        ...(outcomeRows.length
+          ? [prisma.outcome.createMany({ data: outcomeRows })]
+          : []),
+      ],
+      { timeout: 20000 },
+    );
   } catch (err) {
     console.error("Save quiz failed", err);
     const message = err instanceof Error ? err.message : "Unknown error";
