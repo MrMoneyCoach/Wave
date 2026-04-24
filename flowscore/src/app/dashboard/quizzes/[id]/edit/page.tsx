@@ -20,5 +20,32 @@ export default async function EditQuizPage({ params }: { params: { id: string } 
 
   if (!quiz || quiz.userId !== user.id) return notFound();
 
-  return <QuizEditor initial={quiz} />;
+  const initial = {
+    id: quiz.id,
+    slug: quiz.slug,
+    title: quiz.title,
+    intro: quiz.intro,
+    ctaLabel: quiz.ctaLabel,
+    collectEmail: quiz.collectEmail,
+    published: quiz.published,
+    questions: quiz.questions.map((q) => ({
+      id: q.id,
+      text: q.text,
+      type: (q.type === "multi" || q.type === "scale" ? q.type : "single") as
+        | "single"
+        | "multi"
+        | "scale",
+      required: q.required,
+      options: q.options.map((o) => ({ id: o.id, text: o.text, score: o.score })),
+    })),
+    outcomes: quiz.outcomes.map((o) => ({
+      id: o.id,
+      minScore: o.minScore,
+      maxScore: o.maxScore,
+      title: o.title,
+      description: o.description,
+    })),
+  };
+
+  return <QuizEditor initial={initial} />;
 }
