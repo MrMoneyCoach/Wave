@@ -108,32 +108,29 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }));
 
   try {
-    await prisma.$transaction(
-      [
-        prisma.quiz.update({
-          where: { id: params.id },
-          data: {
-            title: data.title,
-            intro: data.intro,
-            ctaLabel: data.ctaLabel,
-            collectEmail: data.collectEmail,
-            published: data.published,
-          },
-        }),
-        prisma.question.deleteMany({ where: { quizId: params.id } }),
-        prisma.outcome.deleteMany({ where: { quizId: params.id } }),
-        ...(questionRows.length
-          ? [prisma.question.createMany({ data: questionRows })]
-          : []),
-        ...(optionRows.length
-          ? [prisma.answerOption.createMany({ data: optionRows })]
-          : []),
-        ...(outcomeRows.length
-          ? [prisma.outcome.createMany({ data: outcomeRows })]
-          : []),
-      ],
-      { timeout: 20000 },
-    );
+    await prisma.$transaction([
+      prisma.quiz.update({
+        where: { id: params.id },
+        data: {
+          title: data.title,
+          intro: data.intro,
+          ctaLabel: data.ctaLabel,
+          collectEmail: data.collectEmail,
+          published: data.published,
+        },
+      }),
+      prisma.question.deleteMany({ where: { quizId: params.id } }),
+      prisma.outcome.deleteMany({ where: { quizId: params.id } }),
+      ...(questionRows.length
+        ? [prisma.question.createMany({ data: questionRows })]
+        : []),
+      ...(optionRows.length
+        ? [prisma.answerOption.createMany({ data: optionRows })]
+        : []),
+      ...(outcomeRows.length
+        ? [prisma.outcome.createMany({ data: outcomeRows })]
+        : []),
+    ]);
   } catch (err) {
     console.error("Save quiz failed", err);
     const message = err instanceof Error ? err.message : "Unknown error";
