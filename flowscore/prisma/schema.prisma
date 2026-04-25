@@ -29,6 +29,7 @@ model Quiz {
   bookingUrl    String?
   bookingLabel  String?
   ownerName     String?
+  theme         String       @default("minimal")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   questions     Question[]

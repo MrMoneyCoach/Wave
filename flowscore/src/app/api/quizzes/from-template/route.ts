@@ -55,6 +55,7 @@ export async function POST(req: Request) {
           title: template.name,
           intro: template.intro,
           ctaLabel: template.ctaLabel,
+          theme: template.theme ?? "minimal",
         },
       }),
       ...(questionRows.length

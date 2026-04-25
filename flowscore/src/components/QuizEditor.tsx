@@ -30,6 +30,7 @@ type Quiz = {
   bookingUrl: string;
   bookingLabel: string;
   ownerName: string;
+  theme: "minimal" | "card";
   questions: Question[];
   outcomes: Outcome[];
 };
@@ -265,6 +266,17 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
               onChange={(e) => update("ownerName", e.target.value)}
               placeholder="e.g. Scott"
             />
+          </div>
+          <div>
+            <label className="label">Layout theme</label>
+            <select
+              className="input"
+              value={quiz.theme}
+              onChange={(e) => update("theme", e.target.value as "minimal" | "card")}
+            >
+              <option value="minimal">Minimal — full-bleed, Typeform-style</option>
+              <option value="card">Card — contained, brand-tinted</option>
+            </select>
           </div>
         </div>
 

@@ -36,6 +36,7 @@ const updateSchema = z.object({
   bookingUrl: z.string().max(500).optional().default(""),
   bookingLabel: z.string().max(200).optional().default(""),
   ownerName: z.string().max(200).optional().default(""),
+  theme: z.enum(["minimal", "card"]).default("minimal"),
   questions: z.array(questionSchema),
   outcomes: z.array(outcomeSchema),
 });
@@ -123,6 +124,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
           bookingUrl: data.bookingUrl || null,
           bookingLabel: data.bookingLabel || null,
           ownerName: data.ownerName || null,
+          theme: data.theme,
         },
       }),
       prisma.question.deleteMany({ where: { quizId: params.id } }),

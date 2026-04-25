@@ -24,6 +24,7 @@ export default async function QuizPublicPage({ params }: { params: { slug: strin
     intro: quiz.intro,
     ctaLabel: quiz.ctaLabel,
     collectEmail: quiz.collectEmail,
+    theme: (quiz.theme === "card" ? "card" : "minimal") as "minimal" | "card",
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,

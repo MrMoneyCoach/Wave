@@ -18,6 +18,7 @@ type Quiz = {
   intro: string;
   ctaLabel: string;
   collectEmail: boolean;
+  theme?: "minimal" | "card";
   questions: Question[];
 };
 
@@ -255,8 +256,15 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, current, question, existingAnswer, lead, total]);
 
+  const theme = quiz.theme ?? "minimal";
+  const isCard = theme === "card";
+
   return (
-    <main className="relative min-h-screen bg-white">
+    <main
+      className={`relative min-h-screen ${
+        isCard ? "bg-gradient-to-b from-brand-50 via-white to-brand-50/30" : "bg-white"
+      }`}
+    >
       <div className="fixed left-0 right-0 top-0 z-40 h-1 bg-slate-100">
         <div
           className="h-full bg-brand-600 transition-all duration-500"
@@ -281,7 +289,13 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
         key={`${stage}-${current}`}
         className="fade-in flex min-h-screen items-center px-6 py-20 md:px-12"
       >
-        <div className="mx-auto w-full max-w-2xl">
+        <div
+          className={`mx-auto w-full max-w-2xl ${
+            isCard
+              ? "rounded-3xl border border-slate-200 bg-white p-8 shadow-xl md:p-12"
+              : ""
+          }`}
+        >
           {stage === "intro" && (
             <IntroScreen
               title={quiz.title}
@@ -298,6 +312,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
               total={total}
               question={question}
               answer={existingAnswer}
+              theme={theme}
               onSelectOption={(opt) => {
                 if (question.type === "multi") {
                   const cur = existingAnswer?.optionIds ?? [];
@@ -411,6 +426,7 @@ function QuestionScreen({
   total,
   question,
   answer,
+  theme,
   onSelectOption,
   onSelectScale,
   onText,
@@ -423,6 +439,7 @@ function QuestionScreen({
   total: number;
   question: Question;
   answer?: Answer;
+  theme: "minimal" | "card";
   onSelectOption: (opt: Option) => void;
   onSelectScale: (v: number) => void;
   onText: (t: string) => void;
@@ -431,13 +448,17 @@ function QuestionScreen({
   error: string | null;
   isLast: boolean;
 }) {
+  const titleSize =
+    theme === "card"
+      ? "text-2xl md:text-3xl"
+      : "text-3xl md:text-4xl";
   return (
     <div>
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-brand-600">
         <span>{index + 1}</span>
         <span aria-hidden>→</span>
       </div>
-      <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
+      <h2 className={`${titleSize} font-semibold leading-tight tracking-tight text-slate-900`}>
         {question.text}
         {!question.required && (
           <span className="ml-2 align-middle text-sm font-normal text-slate-400">
@@ -463,6 +484,7 @@ function QuestionScreen({
             selectedIds={answer?.optionIds ?? []}
             multi={question.type === "multi"}
             onSelect={onSelectOption}
+            theme={theme}
           />
         )}
       </div>
@@ -511,14 +533,20 @@ function OptionsAnswer({
   selectedIds,
   multi,
   onSelect,
+  theme,
 }: {
   options: Option[];
   selectedIds: string[];
   multi: boolean;
   onSelect: (opt: Option) => void;
+  theme: "minimal" | "card";
 }) {
+  const containerCls =
+    theme === "card"
+      ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
+      : "flex flex-col gap-3";
   return (
-    <div className="flex flex-col gap-3">
+    <div className={containerCls}>
       {options.map((opt, i) => {
         const active = selectedIds.includes(opt.id);
         const letter = String.fromCharCode(65 + i);
@@ -555,7 +583,7 @@ function OptionsAnswer({
         );
       })}
       {multi && (
-        <p className="mt-2 text-xs text-slate-500">
+        <p className={`text-xs text-slate-500 ${theme === "card" ? "sm:col-span-2 mt-1" : "mt-2"}`}>
           Select any that apply. Press a letter to toggle.
         </p>
       )}

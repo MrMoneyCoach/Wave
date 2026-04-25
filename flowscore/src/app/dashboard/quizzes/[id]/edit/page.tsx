@@ -31,6 +31,7 @@ export default async function EditQuizPage({ params }: { params: { id: string } 
     bookingUrl: quiz.bookingUrl ?? "",
     bookingLabel: quiz.bookingLabel ?? "",
     ownerName: quiz.ownerName ?? "",
+    theme: (quiz.theme === "card" ? "card" : "minimal") as "minimal" | "card",
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,
