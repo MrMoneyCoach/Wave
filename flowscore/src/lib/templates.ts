@@ -607,8 +607,6 @@ export const TEMPLATES: Template[] = [
       },
     ],
   },
-];
-
   {
     id: "lead-generation-audit",
     name: "Lead Generation Audit",
