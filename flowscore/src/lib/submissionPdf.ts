@@ -14,6 +14,8 @@ export type BuildInput = {
   quiz: {
     title: string;
     ownerName?: string | null;
+    bookingUrl?: string | null;
+    bookingLabel?: string | null;
     questions: PrismaQuestion[];
     outcomes: { id: string; title: string; description: string }[];
   };
@@ -68,6 +70,8 @@ export function buildPdfData({ quiz, submission }: BuildInput): PdfData {
   return {
     quizTitle: quiz.title,
     ownerName: quiz.ownerName ?? null,
+    bookingUrl: quiz.bookingUrl ?? null,
+    bookingLabel: quiz.bookingLabel ?? null,
     respondent: {
       firstName: submission.firstName ?? "",
       lastName: submission.lastName ?? "",

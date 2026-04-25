@@ -45,6 +45,8 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
     quiz: {
       title: quiz.title,
       ownerName,
+      bookingUrl: quiz.bookingUrl,
+      bookingLabel: quiz.bookingLabel,
       questions: quiz.questions.map((q) => ({
         id: q.id,
         text: q.text,
