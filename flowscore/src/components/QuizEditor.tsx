@@ -67,6 +67,8 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function update<K extends keyof Quiz>(key: K, value: Quiz[K]) {
@@ -91,6 +93,17 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
       const target = idx + delta;
       if (target < 0 || target >= copy.length) return q;
       [copy[idx], copy[target]] = [copy[target], copy[idx]];
+      return { ...q, questions: copy };
+    });
+  }
+
+  function moveQuestionTo(from: number, to: number) {
+    if (from === to || from < 0 || to < 0) return;
+    setQuiz((q) => {
+      if (from >= q.questions.length || to >= q.questions.length) return q;
+      const copy = [...q.questions];
+      const [moved] = copy.splice(from, 1);
+      copy.splice(to, 0, moved);
       return { ...q, questions: copy };
     });
   }
@@ -375,8 +388,47 @@ Describe your growth strategy.    | text    | Great detail     | 20    | 200`}
         ) : (
           <div className="space-y-4">
             {quiz.questions.map((q, i) => (
-              <div key={i} className="card">
+              <div
+                key={i}
+                draggable
+                onDragStart={(e) => {
+                  setDragIdx(i);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverIdx !== i) setDragOverIdx(i);
+                }}
+                onDragLeave={() => {
+                  if (dragOverIdx === i) setDragOverIdx(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragIdx !== null) moveQuestionTo(dragIdx, i);
+                  setDragIdx(null);
+                  setDragOverIdx(null);
+                }}
+                onDragEnd={() => {
+                  setDragIdx(null);
+                  setDragOverIdx(null);
+                }}
+                className={`card transition ${
+                  dragIdx === i ? "opacity-50" : ""
+                } ${
+                  dragOverIdx === i && dragIdx !== null && dragIdx !== i
+                    ? "ring-2 ring-brand-400"
+                    : ""
+                }`}
+              >
                 <div className="mb-3 flex items-start gap-2">
+                  <span
+                    className="mt-1 cursor-grab select-none px-1 text-slate-400 hover:text-slate-600 active:cursor-grabbing"
+                    title="Drag to reorder"
+                    aria-hidden
+                  >
+                    ⋮⋮
+                  </span>
                   <span className="mt-2 text-sm font-semibold text-slate-500">{i + 1}.</span>
                   <input
                     className="input"
