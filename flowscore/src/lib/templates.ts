@@ -1261,6 +1261,321 @@ export const TEMPLATES: Template[] = [
       },
     ],
   },
+  {
+    id: "decision-making-audit",
+    name: "Decision-Making Audit",
+    category: "Personal",
+    emoji: "🧭",
+    description:
+      "Are your decisions getting better, or just faster? A 5-question check.",
+    intro:
+      "Most people don't have a decision problem — they have a process problem. This audit looks at how you actually make the calls that matter, and where the predictable mistakes come in.",
+    ctaLabel: "Audit my decisions",
+    theme: "card",
+    questions: [
+      {
+        text: "Before a meaningful decision, do you write down what you're choosing between and why?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — every important call", score: 10 },
+          { text: "Sometimes", score: 5 },
+          { text: "Rarely", score: 2 },
+          { text: "Never", score: 0 },
+        ],
+      },
+      {
+        text: "How often do you go back and review past decisions to learn from them?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "On a regular cadence", score: 10 },
+          { text: "Occasionally", score: 5 },
+          { text: "Almost never", score: 0 },
+        ],
+      },
+      {
+        text: "How comfortable are you sitting with a decision unmade for longer than feels comfortable?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "How often do you actively seek input that disagrees with you before deciding?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Routinely — on anything significant", score: 10 },
+          { text: "Sometimes", score: 5 },
+          { text: "Rarely — I trust my read", score: 1 },
+          { text: "Never", score: 0 },
+        ],
+      },
+      {
+        text: "Describe a recent decision you regret — what would you change about how you made it?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Reactive",
+        description:
+          "You decide on instinct, which gets you moving but limits how much you learn. The single highest-leverage habit: a one-line decision journal — what you chose, why, and what you expect. Six months in, the patterns become obvious.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Considered",
+        description:
+          "You've moved past pure instinct. The next leap is actively inviting disagreement before you decide — the cost is small, the upside is large.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Disciplined",
+        description:
+          "You decide deliberately and learn from outcomes. Defend the process — under pressure is exactly when you'll be tempted to skip steps, and exactly when those steps matter most.",
+      },
+    ],
+  },
+  {
+    id: "manager-readiness",
+    name: "Manager Readiness",
+    category: "Leadership",
+    emoji: "🪜",
+    description:
+      "Are you building a team you can grow with — or one you have to hold up?",
+    intro:
+      "This scorecard maps the practices that distinguish managers people thrive under from ones they merely tolerate. 5 minutes, useful answers.",
+    ctaLabel: "Score my management",
+    theme: "minimal",
+    questions: [
+      {
+        text: "Do you have regular 1:1s with every direct report, on a predictable cadence?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Weekly or fortnightly, never cancelled", score: 10 },
+          { text: "Monthly or sporadic", score: 5 },
+          { text: "Only when something needs discussing", score: 2 },
+          { text: "Not really", score: 0 },
+        ],
+      },
+      {
+        text: "How clearly does each person on your team know what success looks like for them this quarter?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "When was the last time you gave specific developmental feedback to someone who reports to you?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "This week", score: 10 },
+          { text: "This month", score: 6 },
+          { text: "This quarter", score: 3 },
+          { text: "Can't remember", score: 0 },
+        ],
+      },
+      {
+        text: "How comfortable are you having a hard conversation early — before a small issue grows?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "Where on your team do you feel under-equipped right now — and what would help?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Player-coach",
+        description:
+          "You're carrying a lot personally. The single most leveraged thing you can do this month is protect a weekly 1:1 with everyone who reports to you — that ritual creates the surface area for everything else to improve.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Solid manager",
+        description:
+          "Your team knows where they stand. The next step is feedback frequency — small, specific notes given quickly, not big set-piece reviews.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Multiplier",
+        description:
+          "You're making your team better, not just busier. The next horizon is your peers — the leadership skills that scaled a team also scale across the organisation.",
+      },
+    ],
+  },
+  {
+    id: "team-culture-audit",
+    name: "Team Culture Audit",
+    category: "Leadership",
+    emoji: "🤲",
+    description:
+      "Culture isn't your values poster — it's what people do when no one's watching.",
+    intro:
+      "This audit checks whether your team's day-to-day behaviour matches what you'd say your culture is. 5 quick, candid questions.",
+    ctaLabel: "Audit my culture",
+    theme: "card",
+    questions: [
+      {
+        text: "How safe is it for someone on your team to disagree with you in a meeting?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "When mistakes happen, what's the typical response on your team?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "We discuss what to learn and adjust", score: 10 },
+          { text: "We move on quickly", score: 5 },
+          { text: "Someone gets blamed", score: 1 },
+          { text: "It depends who made the mistake", score: 0 },
+        ],
+      },
+      {
+        text: "How clearly does the team know the top priority right now — versus all the other things in flight?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "How often do people on your team thank or acknowledge each other unprompted?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Constantly — it's part of how we work", score: 10 },
+          { text: "Now and then", score: 5 },
+          { text: "Rarely", score: 0 },
+        ],
+      },
+      {
+        text: "What's one thing about how your team works that you'd quietly like to change?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Compliance culture",
+        description:
+          "Your team is doing the work but isn't bringing its best. The single most powerful unlock: respond to the next mistake with curiosity instead of correction. Your team will learn the new rule fast.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Healthy team",
+        description:
+          "People show up well. The next move is sharper priority — when everything matters, nothing does. One agreed top priority per quarter, repeated relentlessly.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "High-trust team",
+        description:
+          "You've built rare conditions. Protect them — culture decays one tolerated behaviour at a time, and shows up most clearly in how you handle the next hard moment.",
+      },
+    ],
+  },
+  {
+    id: "communication-clarity-check",
+    name: "Communication Clarity Check",
+    category: "Leadership",
+    emoji: "📣",
+    description:
+      "Are your messages landing — or being heard, nodded at, and quietly misinterpreted?",
+    intro:
+      "Most communication problems aren't about volume — they're about clarity, timing, and channel. This scorecard helps you see where yours fall over.",
+    ctaLabel: "Check my comms",
+    theme: "minimal",
+    questions: [
+      {
+        text: "Before sending a long email or message, do you ask yourself 'what's the single thing the reader needs to do or know'?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Always", score: 10 },
+          { text: "Usually", score: 6 },
+          { text: "Sometimes", score: 3 },
+          { text: "Rarely", score: 0 },
+        ],
+      },
+      {
+        text: "How often do people come back to you needing clarification on something you'd already explained?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Rarely", score: 10 },
+          { text: "Now and then", score: 5 },
+          { text: "Most weeks", score: 2 },
+          { text: "Constantly", score: 0 },
+        ],
+      },
+      {
+        text: "How well-matched is the channel you use to the type of message (e.g. async vs synchronous)?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "When you give an update or instruction, do you check what the other person took away from it?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — most of the time", score: 10 },
+          { text: "Sometimes", score: 5 },
+          { text: "Rarely", score: 0 },
+        ],
+      },
+      {
+        text: "Describe a recent message that didn't land the way you intended — and what you'd change.",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Sender mode",
+        description:
+          "You communicate; the question is whether it lands. Start every important message with one sentence that names what you want the reader to do or know. Everything else is supporting evidence.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Clear",
+        description:
+          "Your messages mostly land. The next step is the closing of the loop — short check-back questions to confirm what the other person took away.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Surgical",
+        description:
+          "Your communication is precise. Keep it that way — when work gets busy, comms is the first thing to bloat. Less words, sharper structure.",
+      },
+    ],
+  },
 ];
 
 export function findTemplate(id: string): Template | null {
