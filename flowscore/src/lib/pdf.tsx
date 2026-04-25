@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Svg,
   Circle,
+  Path,
   Link,
   renderToBuffer,
 } from "@react-pdf/renderer";
@@ -204,23 +205,32 @@ export type PdfData = {
 function ScoreDial({ percent }: { percent: number }) {
   const clamped = Math.max(0, Math.min(100, percent));
   const r = 50;
-  const c = 2 * Math.PI * r;
-  const offset = c - (clamped / 100) * c;
+  const cx = 60;
+  const cy = 60;
+  if (clamped >= 100) {
+    return (
+      <Svg width={120} height={120} viewBox="0 0 120 120">
+        <Circle cx={cx} cy={cy} r={r} stroke={BRAND} strokeWidth={10} fill="none" />
+      </Svg>
+    );
+  }
+  const angle = (clamped / 100) * 2 * Math.PI;
+  const endX = cx + r * Math.sin(angle);
+  const endY = cy - r * Math.cos(angle);
+  const largeArc = angle > Math.PI ? 1 : 0;
+  const arcPath = `M ${cx} ${cy - r} A ${r} ${r} 0 ${largeArc} 1 ${endX.toFixed(2)} ${endY.toFixed(2)}`;
   return (
     <Svg width={120} height={120} viewBox="0 0 120 120">
-      <Circle cx={60} cy={60} r={r} stroke={SLATE_200} strokeWidth={10} fill="none" />
-      <Circle
-        cx={60}
-        cy={60}
-        r={r}
-        stroke={BRAND}
-        strokeWidth={10}
-        strokeLinecap="round"
-        fill="none"
-        strokeDasharray={`${c}`}
-        strokeDashoffset={offset}
-        transform="rotate(-90 60 60)"
-      />
+      <Circle cx={cx} cy={cy} r={r} stroke={SLATE_200} strokeWidth={10} fill="none" />
+      {clamped > 0 && (
+        <Path
+          d={arcPath}
+          stroke={BRAND}
+          strokeWidth={10}
+          strokeLinecap="round"
+          fill="none"
+        />
+      )}
     </Svg>
   );
 }
