@@ -26,6 +26,7 @@ export type Template = {
   description: string;
   intro: string;
   ctaLabel: string;
+  theme?: "minimal" | "card";
   questions: TemplateQuestion[];
   outcomes: TemplateOutcome[];
 };
@@ -603,6 +604,336 @@ export const TEMPLATES: Template[] = [
         title: "Designed",
         description:
           "Your week is engineered, not endured. The remaining gains aren't about doing more — they're about doing less of what doesn't compound. Audit your meetings; ruthlessly cut.",
+      },
+    ],
+  },
+];
+
+  {
+    id: "lead-generation-audit",
+    name: "Lead Generation Audit",
+    category: "Marketing",
+    emoji: "🧲",
+    description:
+      "Where in your funnel are leads slipping through? A 5-question diagnostic.",
+    intro:
+      "This scorecard maps your top-of-funnel against the four stages every working lead engine has — attract, capture, qualify, follow up — and tells you which is the weakest link.",
+    ctaLabel: "Score my funnel",
+    theme: "card",
+    questions: [
+      {
+        text: "Do you know roughly how many people land on your site each week?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — I check it weekly", score: 10 },
+          { text: "Roughly — I look monthly", score: 6 },
+          { text: "Vaguely", score: 2 },
+          { text: "No idea", score: 0 },
+        ],
+      },
+      {
+        text: "What percentage of visitors give you their email?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "More than 5%", score: 10 },
+          { text: "1–5%", score: 6 },
+          { text: "Less than 1%", score: 2 },
+          { text: "I don't track it", score: 0 },
+        ],
+      },
+      {
+        text: "How quickly is a brand new lead followed up?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Within an hour", score: 10 },
+          { text: "Within a day", score: 6 },
+          { text: "Within a week", score: 3 },
+          { text: "Eventually, when I get to it", score: 0 },
+        ],
+      },
+      {
+        text: "Do you separate cold leads from warm ones in any structured way?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — qualified vs unqualified, with criteria", score: 10 },
+          { text: "Loosely, by gut feel", score: 5 },
+          { text: "Not really", score: 0 },
+        ],
+      },
+      {
+        text: "Where do you think your funnel is weakest right now?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Leaky funnel",
+        description:
+          "You're losing leads at multiple stages. Pick the worst one (likely capture or follow-up) and fix only that for 30 days — don't try to fix the whole funnel at once.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Working funnel",
+        description:
+          "Your funnel converts, but the gap between 'good' and 'great' is in measurement. Add tracking on the one stage you have least visibility into.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Tuned funnel",
+        description:
+          "You've got a measurable, repeatable lead engine. The next horizon is segmentation — different paths for different lead types, not one-size-fits-all.",
+      },
+    ],
+  },
+  {
+    id: "seo-foundations-audit",
+    name: "SEO Foundations Audit",
+    category: "Web",
+    emoji: "🔍",
+    description:
+      "Are the basics that drive organic traffic actually in place? 5 quick checks.",
+    intro:
+      "Most SEO problems aren't algorithm problems — they're foundations problems. This scorecard checks the things that actually move the needle and will still matter in 5 years.",
+    ctaLabel: "Score my SEO",
+    theme: "minimal",
+    questions: [
+      {
+        text: "Does every important page have a unique, intent-matching title tag?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — written deliberately for each page", score: 10 },
+          { text: "Most pages — some duplicates", score: 5 },
+          { text: "Default titles only", score: 1 },
+          { text: "Not sure", score: 0 },
+        ],
+      },
+      {
+        text: "Have you done keyword research that maps to actual buyer intent?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — documented and used to plan content", score: 10 },
+          { text: "Loosely — I know the obvious terms", score: 5 },
+          { text: "Not really", score: 0 },
+        ],
+      },
+      {
+        text: "How many sites link back to yours?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Lots — and from relevant places", score: 10 },
+          { text: "A handful", score: 5 },
+          { text: "I don't know", score: 0 },
+        ],
+      },
+      {
+        text: "Is your site fast and mobile-friendly?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "Which one keyword would change your business if you ranked top 3 for it?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥30 chars", score: 5, minChars: 30 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Invisible",
+        description:
+          "Search engines can't tell what you're about. Start with title tags and one piece of content per buyer-intent keyword — six months of disciplined publishing changes everything.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Findable",
+        description:
+          "You're in the conversation. The next step is depth — pillar pages on your top three intents, with internal links pulling weight to them.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Authoritative",
+        description:
+          "You're in the top tier of your niche on search. Protect that position with a quarterly refresh on top performers and a steady drip of new long-tail content.",
+      },
+    ],
+  },
+  {
+    id: "sales-pipeline-health",
+    name: "Sales Pipeline Health",
+    category: "Sales",
+    emoji: "📊",
+    description:
+      "Is your pipeline a forecast you can trust, or just a list of names? 5 quick checks.",
+    intro:
+      "A healthy pipeline isn't about size — it's about predictability. This audit checks whether yours is signal or noise.",
+    ctaLabel: "Audit my pipeline",
+    theme: "card",
+    questions: [
+      {
+        text: "Does every deal in your pipeline have a clear next step with a date?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — every deal, no exceptions", score: 10 },
+          { text: "Most deals", score: 6 },
+          { text: "Some", score: 3 },
+          { text: "No — they sit there", score: 0 },
+        ],
+      },
+      {
+        text: "How accurately does your pipeline predict next quarter's revenue?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Within 10%", score: 10 },
+          { text: "Within 25%", score: 6 },
+          { text: "It's a guess", score: 2 },
+          { text: "I don't forecast from it", score: 0 },
+        ],
+      },
+      {
+        text: "How quickly do dead deals get marked as lost (not 'paused')?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Within a clear time-out window", score: 10 },
+          { text: "When I notice", score: 5 },
+          { text: "Honestly, they linger forever", score: 0 },
+        ],
+      },
+      {
+        text: "Do you review your pipeline on a regular cadence?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Weekly review with action items", score: 10 },
+          { text: "Monthly", score: 5 },
+          { text: "Whenever I remember", score: 0 },
+        ],
+      },
+      {
+        text: "Which deal in your pipeline are you least sure about — and why?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Wishful",
+        description:
+          "Your pipeline is hope dressed up as a list. Start with one rule: every deal has a next step and a date, or it's not in the pipeline. That alone makes forecasting possible.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Functional",
+        description:
+          "You can roughly see what's coming. The next leap is honest closing — kill stale deals fast, and you'll spend more time on the ones that can actually move.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Predictable",
+        description:
+          "Your pipeline is a real forecast. Protect that with consistent weekly reviews and resist the urge to inflate stages — discipline now compounds into trustworthy numbers.",
+      },
+    ],
+  },
+  {
+    id: "visual-identity-audit",
+    name: "Visual Identity Audit",
+    category: "Brand",
+    emoji: "🎨",
+    description:
+      "Is your visual identity sharp and consistent — or does it shift on every touchpoint?",
+    intro:
+      "A strong visual identity earns trust before a single word is read. This 5-question audit checks how much yours is doing for you.",
+    ctaLabel: "Audit my visuals",
+    theme: "minimal",
+    questions: [
+      {
+        text: "Do you have a documented brand guideline (colours, fonts, logo usage)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — actively used by everyone", score: 10 },
+          { text: "Yes — but rarely opened", score: 5 },
+          { text: "It's loose — I just know what 'feels right'", score: 2 },
+          { text: "No documentation at all", score: 0 },
+        ],
+      },
+      {
+        text: "How consistent is your logo across website, email, social, and decks?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "Could a stranger pick your brand out of a line-up of three competitors based purely on visuals?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Easily", score: 10 },
+          { text: "Probably", score: 6 },
+          { text: "Maybe", score: 3 },
+          { text: "Unlikely", score: 0 },
+        ],
+      },
+      {
+        text: "How current does your visual identity feel for your audience?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "What's the one visual asset (page, image, deck, etc.) you're least proud of?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥80 chars", score: 5, minChars: 80 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Inconsistent",
+        description:
+          "Your visuals send mixed signals — confusion costs you trust. Lock in three things first: a single logo file, a 3-colour palette, and one body font. That alone fixes 70% of consistency issues.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Cohesive",
+        description:
+          "You're recognisable. The next move is distinctiveness — what visual choice could only be yours? That's where memorable brands live.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Distinctive",
+        description:
+          "Your visual identity is doing real work. Protect it with a one-page brand guide and audit any new asset against it before it ships.",
       },
     ],
   },
