@@ -937,6 +937,330 @@ export const TEMPLATES: Template[] = [
       },
     ],
   },
+  {
+    id: "mobile-experience-audit",
+    name: "Mobile Experience Audit",
+    category: "Web",
+    emoji: "📱",
+    description:
+      "Most of your traffic is on a phone. Is the experience built for it, or just shrunk down?",
+    intro:
+      "This 5-question audit checks the experience real visitors have on a mobile screen — not just whether the site renders, but whether it actually works.",
+    ctaLabel: "Audit my mobile site",
+    theme: "card",
+    questions: [
+      {
+        text: "When was the last time you opened your own site on your phone, end-to-end, like a real visitor?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Within the last week", score: 10 },
+          { text: "Within the last month", score: 6 },
+          { text: "Months ago", score: 2 },
+          { text: "Honestly, I don't really do that", score: 0 },
+        ],
+      },
+      {
+        text: "How easy is it to tap your primary call-to-action without zooming?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "How long does the mobile homepage take to feel usable?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Instant — under 2 seconds", score: 10 },
+          { text: "Quick — 2–4 seconds", score: 6 },
+          { text: "Sluggish — 4+ seconds", score: 2 },
+          { text: "I have never timed it", score: 0 },
+        ],
+      },
+      {
+        text: "Are forms (signup, enquiry, checkout) easy to complete on a phone with one thumb?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — short, native keyboards, autofill", score: 10 },
+          { text: "Mostly — a few rough edges", score: 6 },
+          { text: "Painful — small fields, no autofill", score: 2 },
+          { text: "I haven't tried", score: 0 },
+        ],
+      },
+      {
+        text: "Describe the worst friction point you'd hit if you were buying from your own site on a phone.",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Desktop-first",
+        description:
+          "Your site is built for the smaller share of your audience. Spend an afternoon testing on a real phone and fix the top three friction points — that's a measurable revenue lift, not a vanity exercise.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Mobile-friendly",
+        description:
+          "Your site works on a phone, which puts you ahead. The next step is mobile-first: design and test the smallest screen first, then scale up.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Mobile-first",
+        description:
+          "You treat the phone as the primary surface. Keep the discipline — every new feature should be designed for thumbs first, mouse second.",
+      },
+    ],
+  },
+  {
+    id: "customer-retention-score",
+    name: "Customer Retention Score",
+    category: "Sales",
+    emoji: "♻️",
+    description:
+      "It's cheaper to keep a customer than to find a new one. Are you actually doing it?",
+    intro:
+      "This scorecard rates how well your business holds onto customers after the first sale — and points to the highest-leverage retention move you're missing.",
+    ctaLabel: "Score my retention",
+    theme: "minimal",
+    questions: [
+      {
+        text: "Do you know your churn rate (or repeat-purchase rate)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — I track it monthly", score: 10 },
+          { text: "Roughly", score: 5 },
+          { text: "Not really", score: 0 },
+        ],
+      },
+      {
+        text: "How structured is your post-sale onboarding for a new customer?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Documented sequence with milestones", score: 10 },
+          { text: "Loose checklist, mostly followed", score: 6 },
+          { text: "Ad-hoc — depends who's helping", score: 2 },
+          { text: "There isn't really one", score: 0 },
+        ],
+      },
+      {
+        text: "How often do you proactively check in with existing customers (not for renewal/upsell)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Quarterly or more often", score: 10 },
+          { text: "Once or twice a year", score: 5 },
+          { text: "Only when something goes wrong", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have a clear way to capture and act on customer feedback?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — surveys + interviews + a process", score: 10 },
+          { text: "Surveys only", score: 5 },
+          { text: "We listen ad-hoc when it comes up", score: 2 },
+          { text: "No real channel", score: 0 },
+        ],
+      },
+      {
+        text: "Which customer have you lost that you wish you hadn't — and why?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥120 chars", score: 5, minChars: 120 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Bucket with holes",
+        description:
+          "You're filling the bucket faster than you can plug holes. Pick one segment of customers and run a small onboarding sequence for them this quarter — measure the impact, then expand.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Holding the line",
+        description:
+          "You've reduced obvious leakage. The next leap is proactive — scheduled check-ins and a structured way to listen, so you spot risk before customers churn.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Compounding",
+        description:
+          "Retention is a real engine for you. The next horizon is expansion — turning the strongest customer relationships into referrals and case studies that compound into more wins.",
+      },
+    ],
+  },
+  {
+    id: "differentiation-check",
+    name: "Differentiation Check",
+    category: "Brand",
+    emoji: "✨",
+    description:
+      "If a prospect put you next to a competitor, would the difference be obvious?",
+    intro:
+      "Differentiation isn't about being better — it's about being unmistakably different. This check tells you whether yours holds up under scrutiny.",
+    ctaLabel: "Check my edge",
+    theme: "card",
+    questions: [
+      {
+        text: "Could you finish this sentence in one specific phrase: 'We're the only ones who…'?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — sharp, specific, true", score: 10 },
+          { text: "Yes — but it's a bit generic", score: 5 },
+          { text: "It's vague", score: 2 },
+          { text: "Honestly, no", score: 0 },
+        ],
+      },
+      {
+        text: "How different is your offer from your closest competitor's, on substance?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "How different is your messaging from your closest competitor's, side-by-side?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "Do prospects regularly ask 'how is this different from X?'",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Rarely — the difference is obvious", score: 10 },
+          { text: "Sometimes — and we have a good answer", score: 6 },
+          { text: "Often — and we struggle to answer", score: 2 },
+          { text: "Constantly", score: 0 },
+        ],
+      },
+      {
+        text: "Write the one-sentence reason a customer should pick you over the obvious alternative.",
+        type: "text",
+        required: false,
+        options: [
+          { text: "≥80 chars", score: 5, minChars: 80 },
+          { text: "≥160 chars", score: 10, minChars: 160 },
+        ],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Same as everyone",
+        description:
+          "Right now you compete on price and effort. The fastest way out is to pick one thing you do differently — even a small one — and lean into it everywhere for 90 days.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Visibly different",
+        description:
+          "Prospects can tell you apart, given enough attention. The next move is making the difference visible at first glance — your homepage hero, your one-line bio, your email signature.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Category of one",
+        description:
+          "You've earned a position no one else can copy easily. Defend it with consistency: the same words, the same promises, repeated everywhere.",
+      },
+    ],
+  },
+  {
+    id: "energy-and-focus-audit",
+    name: "Energy & Focus Audit",
+    category: "Personal",
+    emoji: "🔋",
+    description:
+      "Your output isn't capped by hours — it's capped by attention. How well do you protect yours?",
+    intro:
+      "This audit looks at the conditions you create for deep work and the small habits that drain or restore focus. Honest answers, useful result.",
+    ctaLabel: "Audit my focus",
+    theme: "minimal",
+    questions: [
+      {
+        text: "How many uninterrupted 90-minute focus blocks did you have in the last working week?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Five or more", score: 10 },
+          { text: "Two to four", score: 6 },
+          { text: "One", score: 3 },
+          { text: "Zero", score: 0 },
+        ],
+      },
+      {
+        text: "Which of these do you actually do during focus time?",
+        type: "multi",
+        required: true,
+        options: [
+          { text: "Phone in another room or do-not-disturb on", score: 3 },
+          { text: "Browser notifications off", score: 2 },
+          { text: "Slack/Teams closed", score: 3 },
+          { text: "Single tab / single window", score: 2 },
+        ],
+      },
+      {
+        text: "How clear are you on what 'most important work' looks like for you this quarter?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "How would you rate your sleep on a typical work night?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "What's the one habit you suspect would change your focus most if you started — or stopped?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥100 chars", score: 5, minChars: 100 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Scattered",
+        description:
+          "Your attention is being spent in lots of small change. The cheapest fix that works: one 90-minute focus block, same time every day, phone in another room. Six weeks of that changes the conversation.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Focused",
+        description:
+          "You can find focus when you need it. The next layer is making it the default — protecting at least one block daily without asking permission.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Compounding",
+        description:
+          "Your focus is an asset, not an accident. Don't add anything; subtract. The biggest gains from here come from cutting commitments, not stacking new habits.",
+      },
+    ],
+  },
 ];
 
 export function findTemplate(id: string): Template | null {
