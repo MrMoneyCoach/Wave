@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": null,
   "installCommand": null,
-  "outputDirectory": "asset-map",
+  "outputDirectory": "alfred",
   "cleanUrls": true,
   "trailingSlash": false
 }
