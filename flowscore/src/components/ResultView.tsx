@@ -113,11 +113,12 @@ export default function ResultView({
                 </p>
               </div>
             ) : (
-              <p className="mt-1 text-sm text-slate-600">
-                Confirm or update where to send it. Your earlier entries are pre-filled —
-                you can change them here.
-              </p>
-              <form onSubmit={sendReport} className="mt-4 space-y-4">
+              <>
+                <p className="mt-1 text-sm text-slate-600">
+                  Confirm or update where to send it. Your earlier entries are pre-filled —
+                  you can change them here.
+                </p>
+                <form onSubmit={sendReport} className="mt-4 space-y-4">
                 <div>
                   <label className="label">
                     Email <span className="text-brand-600">*</span>
@@ -170,6 +171,7 @@ export default function ResultView({
                   {busy ? "Sending…" : "Send my report"}
                 </button>
               </form>
+              </>
             )}
           </div>
 
