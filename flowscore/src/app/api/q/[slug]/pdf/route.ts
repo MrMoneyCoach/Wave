@@ -10,6 +10,8 @@ export const maxDuration = 30;
 
 const schema = z.object({
   submissionId: z.string().min(1),
+  email: z.string().email("Please enter a valid email"),
+  phone: z.string().max(50).optional().default(""),
   marketingConsent: z.literal(true, {
     errorMap: () => ({ message: "Please tick the contact-consent box" }),
   }),
@@ -63,15 +65,18 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
       { status: 400 },
     );
   }
-  if (!submission.email) {
-    return NextResponse.json(
-      {
-        error:
-          "We don't have an email on file for this submission. Please retake the quiz so we can send you the report.",
-      },
-      { status: 400 },
-    );
-  }
+  const finalEmail = parsed.data.email.trim();
+  const finalPhone = parsed.data.phone?.trim() ?? "";
+
+  // Persist any updates the user made on the result page so the PDF
+  // and our records reflect what they confirmed at the end.
+  const updatedSubmission = await prisma.submission.update({
+    where: { id: submission.id },
+    data: {
+      email: finalEmail,
+      phone: finalPhone || submission.phone,
+    },
+  });
 
   const ownerName =
     quiz.ownerName || quiz.user.name || quiz.user.email.split("@")[0];
@@ -94,7 +99,7 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
         description: o.description,
       })),
     },
-    submission,
+    submission: updatedSubmission,
   });
 
   let pdfBuffer: Buffer;
@@ -107,13 +112,13 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
 
   const senderName = ownerName || "Flowscore";
   const emailResult = await sendResultEmail({
-    to: submission.email,
+    to: finalEmail,
     subject: `Your ${quiz.title} results`,
     html: `
       <div style="font-family: Helvetica, Arial, sans-serif; color: #0f172a;">
-        <p>Hi ${submission.firstName ?? "there"},</p>
+        <p>Hi ${updatedSubmission.firstName ?? "there"},</p>
         <p>Your personalised results for <strong>${quiz.title}</strong> are attached as a PDF.</p>
-        <p>You scored <strong>${submission.percent.toFixed(1)}%</strong>${
+        <p>You scored <strong>${updatedSubmission.percent.toFixed(1)}%</strong>${
           pdfData.outcomeTitle ? ` — ${pdfData.outcomeTitle}` : ""
         }.</p>
         <p>Thanks for completing the scorecard.<br/>— ${senderName}</p>
@@ -142,5 +147,5 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
     },
   });
 
-  return NextResponse.json({ ok: true, sentTo: submission.email });
+  return NextResponse.json({ ok: true, sentTo: finalEmail });
 }

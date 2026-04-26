@@ -32,6 +32,8 @@ export default function ResultView({
   bookingLabel,
   ownerName,
 }: Props) {
+  const [email, setEmail] = useState(submission.email ?? "");
+  const [phone, setPhone] = useState(submission.phone ?? "");
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,8 @@ export default function ResultView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         submissionId: submission.id,
+        email: email.trim(),
+        phone: phone.trim(),
         marketingConsent: consent,
       }),
     });
@@ -57,7 +61,7 @@ export default function ResultView({
       setError(data.error || "We couldn't send your report");
       return;
     }
-    setSentTo(data.sentTo || submission.email);
+    setSentTo(data.sentTo || email);
   }
 
   return (
@@ -109,17 +113,35 @@ export default function ResultView({
                 </p>
               </div>
             ) : (
+              <p className="mt-1 text-sm text-slate-600">
+                Confirm or update where to send it. Your earlier entries are pre-filled —
+                you can change them here.
+              </p>
               <form onSubmit={sendReport} className="mt-4 space-y-4">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                  <p className="text-slate-600">We'll send your PDF to:</p>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {submission.email || "(no email on file)"}
-                  </p>
-                  {submission.phone && (
-                    <p className="mt-2 text-xs text-slate-500">
-                      You can also be contacted on {submission.phone}.
-                    </p>
-                  )}
+                <div>
+                  <label className="label">
+                    Email <span className="text-brand-600">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    className="input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="label">
+                    Phone <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    className="input"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+44 …"
+                  />
                 </div>
 
                 <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
@@ -144,10 +166,7 @@ export default function ResultView({
                   </div>
                 )}
 
-                <button
-                  className="btn-primary w-full"
-                  disabled={busy || !submission.email}
-                >
+                <button className="btn-primary w-full" disabled={busy}>
                   {busy ? "Sending…" : "Send my report"}
                 </button>
               </form>

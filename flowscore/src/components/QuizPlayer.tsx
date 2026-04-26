@@ -685,10 +685,10 @@ function CaptureScreen({
       </p>
 
       <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <p className="font-medium">⚠️ Please double-check your email and phone</p>
+        <p className="font-medium">⚠️ Please use a real email</p>
         <p className="mt-1">
-          Your full report will be sent to the email below — make sure it's right.
-          You won't be asked to confirm them again at the end of the quiz.
+          We'll send your full PDF report to the email you give us. You'll get a chance
+          to confirm or fix it at the end of the quiz before we send anything.
         </p>
       </div>
 
