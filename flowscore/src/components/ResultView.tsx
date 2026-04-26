@@ -32,17 +32,14 @@ export default function ResultView({
   bookingLabel,
   ownerName,
 }: Props) {
-  const [emailConfirm, setEmailConfirm] = useState("");
-  const [phoneConfirm, setPhoneConfirm] = useState("");
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<
-    | { emailed: boolean; downloadUrl: string; emailError?: string }
-    | null
-  >(null);
+  const [sentTo, setSentTo] = useState<string | null>(
+    submission.pdfSentAt && submission.email ? submission.email : null,
+  );
 
-  async function requestPdf(e: React.FormEvent) {
+  async function sendReport(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -51,22 +48,16 @@ export default function ResultView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         submissionId: submission.id,
-        emailConfirm,
-        phoneConfirm,
         marketingConsent: consent,
       }),
     });
     setBusy(false);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(data.error || "Could not send the PDF");
+      setError(data.error || "We couldn't send your report");
       return;
     }
-    setResult({
-      emailed: !!data.emailed,
-      downloadUrl: data.downloadUrl,
-      emailError: data.emailError,
-    });
+    setSentTo(data.sentTo || submission.email);
   }
 
   return (
@@ -106,69 +97,32 @@ export default function ResultView({
           )}
 
           <div className="mt-8 border-t border-slate-100 pt-8">
-            <h2 className="text-lg font-semibold">Get your results by email</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              We'll send you a PDF of your full report. Re-enter your email and phone so
-              we know we've got it right, and confirm you're happy to be contacted.
-            </p>
+            <h2 className="text-lg font-semibold">Get your full report by email</h2>
 
-            {result ? (
-              <div className="mt-5 rounded-lg border border-green-200 bg-green-50 p-4 text-sm">
-                {result.emailed ? (
-                  <p className="font-medium text-green-800">
-                    📬 Sent to {emailConfirm}. Check your inbox (and spam) in the next
-                    few minutes.
-                  </p>
-                ) : (
-                  <p className="font-medium text-green-800">
-                    ✅ Your PDF is ready. You can download it below.
-                    {result.emailError && (
-                      <span className="ml-2 block text-xs font-normal text-green-700">
-                        (email delivery isn't configured yet — {result.emailError})
-                      </span>
-                    )}
-                  </p>
-                )}
-                <a
-                  href={result.downloadUrl}
-                  target="_blank"
-                  className="btn-secondary mt-3 inline-flex"
-                >
-                  Download PDF
-                </a>
+            {sentTo ? (
+              <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm">
+                <p className="font-medium text-green-800">
+                  📬 Sent to <span className="font-semibold">{sentTo}</span>.
+                </p>
+                <p className="mt-1 text-green-700">
+                  Check your inbox (and spam folder) in the next few minutes.
+                </p>
               </div>
             ) : (
-              <form onSubmit={requestPdf} className="mt-5 space-y-4">
-                <div>
-                  <label className="label">Confirm your email</label>
-                  <input
-                    type="email"
-                    required
-                    className="input"
-                    value={emailConfirm}
-                    onChange={(e) => setEmailConfirm(e.target.value)}
-                    placeholder={submission.email ?? "you@example.com"}
-                  />
+              <form onSubmit={sendReport} className="mt-4 space-y-4">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                  <p className="text-slate-600">We'll send your PDF to:</p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {submission.email || "(no email on file)"}
+                  </p>
+                  {submission.phone && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      You can also be contacted on {submission.phone}.
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <label className="label">
-                    Confirm your phone
-                    {submission.phone && (
-                      <span className="ml-1 font-normal text-slate-400">
-                        (must match the one you gave earlier)
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    className="input"
-                    value={phoneConfirm}
-                    onChange={(e) => setPhoneConfirm(e.target.value)}
-                    placeholder="+44 7…"
-                  />
-                </div>
-                <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+
+                <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
                   <input
                     type="checkbox"
                     className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600"
@@ -183,13 +137,18 @@ export default function ResultView({
                     <span className="text-brand-600">(required)</span>
                   </span>
                 </label>
+
                 {error && (
                   <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
                     {error}
                   </div>
                 )}
-                <button className="btn-primary w-full" disabled={busy}>
-                  {busy ? "Sending…" : "Send me the PDF"}
+
+                <button
+                  className="btn-primary w-full"
+                  disabled={busy || !submission.email}
+                >
+                  {busy ? "Sending…" : "Send my report"}
                 </button>
               </form>
             )}

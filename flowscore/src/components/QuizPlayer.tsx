@@ -684,6 +684,14 @@ function CaptureScreen({
         required.
       </p>
 
+      <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="font-medium">⚠️ Please double-check your email and phone</p>
+        <p className="mt-1">
+          Your full report will be sent to the email below — make sure it's right.
+          You won't be asked to confirm them again at the end of the quiz.
+        </p>
+      </div>
+
       <form
         className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2"
         onSubmit={(e) => {
