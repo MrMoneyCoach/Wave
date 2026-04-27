@@ -74,13 +74,43 @@ export function makeId(prefix = "id") {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-3)}`;
 }
 
+// Default annual growth rates (%) by asset kind, used in projections
+// when an asset doesn't specify its own growthRate.
+export const DEFAULT_RETURNS = {
+  cash: 0.5, savings: 2.0, brokerage: 6.5, retirement: 6.5,
+  "529": 5.0, hsa: 4.0, realestate: 3.0, vehicle: -10.0,
+  business: 4.0, crypto: 0.0, "other-asset": 2.0,
+};
+
+// Voyant-style life events. Each event fires at a specific year and
+// mutates the running simulation.
+export const EVENT_KINDS = [
+  { id: "retire",          label: "Retirement",            icon: "🌴" },
+  { id: "asset-sale",      label: "Sell Asset",            icon: "💰" },
+  { id: "asset-purchase",  label: "Buy Asset",             icon: "🛒" },
+  { id: "liability-payoff",label: "Pay Off Liability",     icon: "✅" },
+  { id: "income-change",   label: "Income Change",         icon: "💼" },
+  { id: "expense-change",  label: "Expense Change",        icon: "🧾" },
+  { id: "education",       label: "Education / College",   icon: "🎓" },
+  { id: "lump-sum",        label: "Lump-Sum (in/out)",     icon: "📦" },
+];
+
+// Default household-level assumptions for projections.
+export const DEFAULT_ASSUMPTIONS = () => ({
+  startYear: new Date().getFullYear(),
+  yearsToProject: 30,
+  inflationRate: 2.5,
+  retirementWithdrawalRate: 4.0,
+  defaultReturns: { ...DEFAULT_RETURNS },
+});
+
 export const SAMPLE_HOUSEHOLD = {
   name: "The Carter Household",
   people: [
-    { id: "p_self",    name: "Alex Carter",   relationship: "Self",   age: 42, color: "#1f7ad6" },
-    { id: "p_spouse",  name: "Jamie Carter",  relationship: "Spouse", age: 40, color: "#2bbfa6" },
-    { id: "p_child1",  name: "Riley",         relationship: "Child",  age: 12, color: "#c08433" },
-    { id: "p_child2",  name: "Sam",           relationship: "Child",  age: 8,  color: "#c08433" },
+    { id: "p_self",    name: "Alex Carter",   relationship: "Self",   age: 42, retirementAge: 65, color: "#1f7ad6" },
+    { id: "p_spouse",  name: "Jamie Carter",  relationship: "Spouse", age: 40, retirementAge: 65, color: "#2bbfa6" },
+    { id: "p_child1",  name: "Riley",         relationship: "Child",  age: 12, retirementAge: null, color: "#c08433" },
+    { id: "p_child2",  name: "Sam",           relationship: "Child",  age: 8,  retirementAge: null, color: "#c08433" },
   ],
   assets: [
     { id: "a1", name: "Joint Checking",     kind: "cash",       value: 18500,  ownerIds: ["p_self","p_spouse"], institution: "Local Bank" },
@@ -110,8 +140,8 @@ export const SAMPLE_HOUSEHOLD = {
     { id: "i7", name: "Umbrella",           kind: "umbrella",  coverage: 1000000,premium: 280, frequency: "annually",insuredIds: ["p_self","p_spouse"], beneficiaryIds: [] },
   ],
   cashflows: [
-    { id: "c1",  name: "Alex Salary",       kind: "salary",     amount: 9800, frequency: "monthly", direction: "in",  ownerIds: ["p_self"]   },
-    { id: "c2",  name: "Jamie Salary",      kind: "salary",     amount: 6200, frequency: "monthly", direction: "in",  ownerIds: ["p_spouse"] },
+    { id: "c1",  name: "Alex Salary",       kind: "salary",     amount: 9800, frequency: "monthly", direction: "in",  ownerIds: ["p_self"],   inflate: true, stopAtRetirement: true },
+    { id: "c2",  name: "Jamie Salary",      kind: "salary",     amount: 6200, frequency: "monthly", direction: "in",  ownerIds: ["p_spouse"], inflate: true, stopAtRetirement: true },
     { id: "c3",  name: "Mortgage Payment",  kind: "housing",    amount: 1980, frequency: "monthly", direction: "out", ownerIds: ["p_self","p_spouse"] },
     { id: "c4",  name: "Utilities",         kind: "utilities",  amount: 320,  frequency: "monthly", direction: "out", ownerIds: ["p_self","p_spouse"] },
     { id: "c5",  name: "Groceries",         kind: "food",       amount: 1100, frequency: "monthly", direction: "out", ownerIds: ["p_self","p_spouse"] },
@@ -123,6 +153,20 @@ export const SAMPLE_HOUSEHOLD = {
     { id: "c11", name: "529 Contributions", kind: "savings-out",amount: 400,  frequency: "monthly", direction: "out", ownerIds: ["p_self","p_spouse"] },
     { id: "c12", name: "Auto Loan Pmt",     kind: "debt-pmt",   amount: 410,  frequency: "monthly", direction: "out", ownerIds: ["p_spouse"] },
     { id: "c13", name: "Student Loan Pmt",  kind: "debt-pmt",   amount: 180,  frequency: "monthly", direction: "out", ownerIds: ["p_spouse"] },
-    { id: "c14", name: "Other Expenses",    kind: "other-out",  amount: 600,  frequency: "monthly", direction: "out", ownerIds: ["p_self","p_spouse"] },
+    { id: "c14", name: "Other Expenses",    kind: "other-out",  amount: 600,  frequency: "monthly", direction: "out", ownerIds: ["p_self","p_spouse"], inflate: true },
   ],
+  assumptions: {
+    startYear: new Date().getFullYear(),
+    yearsToProject: 35,
+    inflationRate: 2.5,
+    retirementWithdrawalRate: 4.0,
+    defaultReturns: { ...DEFAULT_RETURNS },
+  },
+  events: [
+    { id: "e1", year: new Date().getFullYear() + 6,  kind: "education",
+      personId: "p_child1", school: "College", annualCost: 32000, years: 4 },
+    { id: "e2", year: new Date().getFullYear() + 10, kind: "education",
+      personId: "p_child2", school: "College", annualCost: 32000, years: 4 },
+  ],
+  goals: [],
 };
