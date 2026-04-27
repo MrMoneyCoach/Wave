@@ -76,6 +76,7 @@ function eventsList() {
         <div class="ev-label">
           <div class="ev-title">${esc(eventTitle(ev))}</div>
           <div class="ev-sub">${esc(k.label)}${ev.personId ? " · " + esc(personLabels([ev.personId])) : ""}</div>
+          ${ev.notes ? `<div class="ev-notes">📝 ${esc(ev.notes)}</div>` : ""}
         </div>
         <div class="ev-actions">
           <button class="btn ghost" data-edit-event="${esc(ev.id)}">Edit</button>
@@ -87,20 +88,20 @@ function eventsList() {
 }
 
 function eventTitle(ev) {
-  if (ev.kind === "education") return `${ev.school || "College"} · $${(ev.annualCost||0).toLocaleString()}/yr × ${ev.years||4} yrs`;
+  if (ev.kind === "education") return `${ev.school || "University"} · ${fmtUSD(ev.annualCost||0)}/yr × ${ev.years||3} yrs`;
   if (ev.kind === "asset-sale") {
     const a = state.assets.find(x => x.id === ev.assetId);
     return `Sell ${a ? a.name : "asset"}`;
   }
-  if (ev.kind === "asset-purchase") return `Buy ${ev.name || "asset"} · $${(+ev.value||0).toLocaleString()}`;
+  if (ev.kind === "asset-purchase") return `Buy ${ev.name || "asset"} · ${fmtUSD(+ev.value||0)}`;
   if (ev.kind === "liability-payoff") {
     const l = state.liabilities.find(x => x.id === ev.liabilityId);
     return `Pay off ${l ? l.name : "liability"}`;
   }
-  if (ev.kind === "lump-sum") return `Lump sum ${ev.direction || "in"} · $${(+ev.amount||0).toLocaleString()}`;
+  if (ev.kind === "lump-sum") return `Lump sum ${ev.direction || "in"} · ${fmtUSD(+ev.amount||0)}`;
   if (ev.kind === "income-change" || ev.kind === "expense-change") {
     const c = state.cashflows.find(x => x.id === ev.cashflowId);
-    return `Adjust ${c ? c.name : "cash flow"}${ev.newAmount != null ? " to $" + (+ev.newAmount).toLocaleString() : ""}`;
+    return `Adjust ${c ? c.name : "cash flow"}${ev.newAmount != null ? " to " + fmtUSD(+ev.newAmount) : ""}`;
   }
   if (ev.kind === "retire") {
     const p = state.people.find(x => x.id === ev.personId);
@@ -146,6 +147,9 @@ function eventForm(existing) {
       </div>
     </div>
     <div id="ev-fields"></div>
+    <div class="field"><label>Notes (optional)</label>
+      <textarea name="notes" rows="3" placeholder="e.g. Sell grandmother's diamonds, fund kitchen refurb">${esc(e.notes || "")}</textarea>
+    </div>
     <div class="drawer-footer">
       ${existing ? `<button class="btn danger-ghost" data-act="delete">Delete</button>` : ""}
       <div class="spacer"></div>
@@ -237,10 +241,10 @@ function eventFields(kind, e) {
   }
   if (kind === "education") {
     return `<div class="field"><label>For</label><select name="personId">${peopleOpts}</select></div>
-            <div class="field"><label>School</label><input name="school" value="${esc(e.school||"College")}"/></div>
+            <div class="field"><label>School / University</label><input name="school" value="${esc(e.school||"University")}"/></div>
             <div class="field-row">
               <div class="field"><label>Annual Cost</label><input type="number" name="annualCost" value="${esc(e.annualCost||0)}" step="100"/></div>
-              <div class="field"><label>Years</label><input type="number" name="years" value="${esc(e.years||4)}" min="1" max="10"/></div>
+              <div class="field"><label>Years</label><input type="number" name="years" value="${esc(e.years||3)}" min="1" max="10"/></div>
             </div>`;
   }
   return "";
@@ -268,8 +272,9 @@ function readEventForm(body, existing) {
   }
   else if (kind === "education") {
     out.personId = v("personId"); out.school = v("school");
-    out.annualCost = num("annualCost"); out.years = num("years") || 4;
+    out.annualCost = num("annualCost"); out.years = num("years") || 3;
   }
+  out.notes = v("notes") || "";
   return out;
 }
 

@@ -84,6 +84,12 @@ const checkedValues = (sel) =>
 const val = (n) => body().querySelector(`[name="${n}"]`).value;
 const num = (n) => parseFloat(val(n)) || 0;
 
+const notesField = (notes, placeholder = "Optional advisor notes — only visible to you") => `
+  <div class="field"><label>Notes</label>
+    <textarea name="notes" rows="3" placeholder="${escapeAttr(placeholder)}">${escape(notes || "")}</textarea>
+  </div>`;
+const readNotes = () => (body().querySelector('[name="notes"]')?.value || "").trim();
+
 // ---------- Person ----------
 export function personForm(existing, onAfter) {
   const e = existing || { name: "", relationship: "Self", age: "", retirementAge: 65 };
@@ -96,9 +102,10 @@ export function personForm(existing, onAfter) {
       <div class="field"><label>Age</label><input name="age" type="number" min="0" max="120" value="${escapeAttr(e.age)}"/></div>
     </div>
     <div class="field"><label>Retirement Age</label>
-      <input name="retirementAge" type="number" min="0" max="120" value="${escapeAttr(e.retirementAge ?? "")}" placeholder="e.g. 65 — leave blank for N/A"/>
+      <input name="retirementAge" type="number" min="0" max="120" value="${escapeAttr(e.retirementAge ?? "")}" placeholder="e.g. 67 — leave blank for N/A"/>
     </div>
     <div class="help">Used by projections to auto-stop salary income at retirement.</div>
+    ${notesField(e.notes, "e.g. medical history, employer plan details")}
     ${footer(existing?.id)}
   `);
   bindForm("people", () => ({
@@ -106,6 +113,7 @@ export function personForm(existing, onAfter) {
     relationship: val("relationship"),
     age: val("age") ? parseInt(val("age"), 10) : null,
     retirementAge: val("retirementAge") ? parseInt(val("retirementAge"), 10) : null,
+    notes: readNotes(),
   }), onAfter, existing?.id);
 }
 
@@ -125,6 +133,7 @@ export function assetForm(existing, onAfter) {
       <div class="field"><label>Growth % (override)</label><input name="growthRate" type="number" step="0.1" value="${escapeAttr(e.growthRate ?? "")}" placeholder="default by type"/></div>
     </div>
     <div class="field"><label>Owner(s)</label>${peopleCheckboxes(e.ownerIds)}</div>
+    ${notesField(e.notes, "e.g. inherited from grandmother, in trust until 25")}
     ${footer(existing?.id)}
   `);
   bindForm("assets", () => ({
@@ -132,6 +141,7 @@ export function assetForm(existing, onAfter) {
     kind: val("kind"), value: num("value"),
     institution: val("institution"), ownerIds: checkedValues('input[name="ownerIds"]'),
     growthRate: val("growthRate") === "" ? null : parseFloat(val("growthRate")),
+    notes: readNotes(),
   }), onAfter, existing?.id);
 }
 
@@ -152,6 +162,7 @@ export function liabilityForm(existing, onAfter) {
     </div>
     <div class="field"><label>Institution</label><input name="institution" value="${escapeAttr(e.institution||"")}"/></div>
     <div class="field"><label>Owner(s)</label>${peopleCheckboxes(e.ownerIds)}</div>
+    ${notesField(e.notes, "e.g. fixed-rate ends Jul 2027, ERC applies until then")}
     ${footer(existing?.id)}
   `);
   bindForm("liabilities", () => ({
@@ -159,6 +170,7 @@ export function liabilityForm(existing, onAfter) {
     kind: val("kind"), balance: num("balance"),
     rate: num("rate"), payment: num("payment"),
     institution: val("institution"), ownerIds: checkedValues('input[name="ownerIds"]'),
+    notes: readNotes(),
   }), onAfter, existing?.id);
 }
 
@@ -181,6 +193,7 @@ export function insuranceForm(existing, onAfter) {
     </div>
     <div class="field"><label>Insured</label>${peopleCheckboxes(e.insuredIds, "insuredIds")}</div>
     <div class="field"><label>Beneficiaries</label>${peopleCheckboxes(e.beneficiaryIds, "beneficiaryIds")}</div>
+    ${notesField(e.notes, "e.g. policy in trust, exclusions, deferred period")}
     ${footer(existing?.id)}
   `);
   bindForm("insurance", () => ({
@@ -189,6 +202,7 @@ export function insuranceForm(existing, onAfter) {
     premium: num("premium"), frequency: val("frequency"),
     insuredIds: checkedValues('input[name="insuredIds"]'),
     beneficiaryIds: checkedValues('input[name="beneficiaryIds"]'),
+    notes: readNotes(),
   }), onAfter, existing?.id);
 }
 
@@ -227,6 +241,7 @@ export function cashflowForm(existing, onAfter) {
       </label>
     </div>
     <div class="field"><label>Owner(s)</label>${peopleCheckboxes(e.ownerIds)}</div>
+    ${notesField(e.notes, "e.g. bonus included; review at next pay rise")}
     ${footer(existing?.id)}
   `);
   bindForm("cashflows", () => ({
@@ -238,5 +253,6 @@ export function cashflowForm(existing, onAfter) {
     endYear: val("endYear") ? parseInt(val("endYear"), 10) : null,
     inflate: body().querySelector('[name="inflate"]').checked,
     stopAtRetirement: body().querySelector('[name="stopAtRetirement"]').checked,
+    notes: readNotes(),
   }), onAfter, existing?.id);
 }

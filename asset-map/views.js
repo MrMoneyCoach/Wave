@@ -47,7 +47,7 @@ export function renderStats() {
 }
 
 // ---------- List view ----------
-function row(iconClass, icon, name, meta, owner, amount, amountClass, onEdit, onRemove) {
+function row(iconClass, icon, name, meta, owner, amount, amountClass, onEdit, onRemove, notes) {
   const tr = document.createElement("div");
   tr.className = "row";
   tr.innerHTML = `
@@ -55,6 +55,7 @@ function row(iconClass, icon, name, meta, owner, amount, amountClass, onEdit, on
     <div>
       <div class="name">${escape(name)}</div>
       <div class="meta">${escape(meta||"")}</div>
+      ${notes ? `<div class="row-notes">📝 ${escape(notes)}</div>` : ""}
     </div>
     <div class="meta">${escape(meta || "")}</div>
     <div class="owner">${escape(owner||"")}</div>
@@ -111,7 +112,7 @@ export function renderList(rerender) {
     for (const a of state.assets) {
       const k = lookup(ASSET_KINDS, a.kind);
       sec.appendChild(row("asset", k.icon, a.name, `${k.label}${a.institution?` · ${a.institution}`:""}`,
-        personLabels(a.ownerIds), fmtUSD(a.value), "pos", () => assetForm(a, rerender)));
+        personLabels(a.ownerIds), fmtUSD(a.value), "pos", () => assetForm(a, rerender), null, a.notes));
     }
     root.appendChild(sec);
   }
@@ -132,7 +133,7 @@ export function renderList(rerender) {
       const k = lookup(LIABILITY_KINDS, l.kind);
       const meta = `${k.label}${l.rate?` · ${l.rate}%`:""}${l.payment?` · ${fmtUSD(l.payment)}/mo`:""}`;
       sec.appendChild(row("liability", k.icon, l.name, meta, personLabels(l.ownerIds),
-        fmtUSD(l.balance), "neg", () => liabilityForm(l, rerender)));
+        fmtUSD(l.balance), "neg", () => liabilityForm(l, rerender), null, l.notes));
     }
     root.appendChild(sec);
   }
@@ -153,7 +154,7 @@ export function renderList(rerender) {
       const k = lookup(INSURANCE_KINDS, i.kind);
       const meta = `${k.label} · ${fmtUSD(i.premium)}/${i.frequency}`;
       sec.appendChild(row("insurance", k.icon, i.name, meta, personLabels(i.insuredIds),
-        fmtUSD(i.coverage), "neutral", () => insuranceForm(i, rerender)));
+        fmtUSD(i.coverage), "neutral", () => insuranceForm(i, rerender), null, i.notes));
     }
     root.appendChild(sec);
   }
@@ -178,7 +179,7 @@ export function renderList(rerender) {
       const cls = c.direction === "in" ? "pos" : "neg";
       const display = (c.direction === "in" ? "+" : "−") + fmtUSD(monthly).replace("-","") + "/mo";
       sec.appendChild(row("cashflow", k.icon, c.name, meta, personLabels(c.ownerIds),
-        display, cls, () => cashflowForm(c, rerender)));
+        display, cls, () => cashflowForm(c, rerender), null, c.notes));
     }
     root.appendChild(sec);
   }

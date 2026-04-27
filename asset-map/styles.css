@@ -668,6 +668,24 @@ input, select, textarea {
 .event-row .ev-title { font-weight: 600; }
 .event-row .ev-sub { font-size: 12px; color: var(--ink-3); }
 .event-row .ev-actions { display: flex; gap: 4px; }
+.event-row .ev-notes {
+  grid-column: 3;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  white-space: pre-wrap;
+}
+
+.row-notes {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--ink-2);
+  font-style: italic;
+}
 
 .proj-chart {
   width: 100%;

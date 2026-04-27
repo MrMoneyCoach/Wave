@@ -1,6 +1,6 @@
 // Settings view: household name, currency, projection assumptions, data actions.
 import { ASSET_KINDS, SUPPORTED_CURRENCIES } from "./data.js";
-import { state, save, setAssumption, reset, loadSample, importJSON } from "./state.js";
+import { state, save, setAssumption, reset, loadSample } from "./state.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
 
@@ -72,11 +72,8 @@ export function renderSettings(rerenderAll) {
         <h3>Data</h3>
         <div class="settings-actions">
           <button class="btn primary" id="s-sample">Load sample household</button>
-          <button class="btn ghost" id="s-export">Export JSON</button>
-          <button class="btn ghost" id="s-import">Import JSON</button>
           <button class="btn ghost" id="s-print">Print / PDF</button>
-          <button class="btn danger-ghost" id="s-reset">Reset all data</button>
-          <input id="s-file" type="file" accept="application/json" hidden/>
+          <button class="btn danger-ghost" id="s-reset">Reset this client's data</button>
         </div>
         <div class="help">All data is stored locally in this browser. Cloud sync arrives with the advisor account in a later release.</div>
       </div>
@@ -151,32 +148,6 @@ function bind() {
     renderSettings(onChange);
   };
   document.getElementById("s-print").onclick = () => window.print();
-
-  document.getElementById("s-export").onclick = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const safe = (state.name || "household").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-    a.href = url; a.download = `${safe}-map.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  const file = document.getElementById("s-file");
-  document.getElementById("s-import").onclick = () => file.click();
-  file.addEventListener("change", (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        importJSON(JSON.parse(r.result));
-        fire();
-        renderSettings(onChange);
-      } catch (err) { alert("Could not import file: " + err.message); }
-    };
-    r.readAsText(f);
-    e.target.value = "";
-  });
 }
 
 function fire() { if (onChange) onChange(); }
