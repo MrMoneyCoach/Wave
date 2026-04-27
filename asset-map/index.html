@@ -10,7 +10,7 @@
     <div id="app">
       <!-- Top bar -->
       <header class="topbar">
-        <div class="brand">
+        <button class="brand brand-button" id="brand-home" title="All clients">
           <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
             <circle cx="16" cy="16" r="14" fill="url(#g)"></circle>
             <path d="M9 17l5-7 4 5 5-3v8H9z" fill="#fff" opacity=".95"></path>
@@ -22,7 +22,7 @@
             </defs>
           </svg>
           <span>HouseholdMap</span>
-        </div>
+        </button>
 
         <nav class="tabs" role="tablist">
           <button class="tab active" data-view="map" role="tab">Map</button>
@@ -34,18 +34,26 @@
         </nav>
 
         <div class="topbar-actions">
-          <input id="household-name" class="household-name" type="text" aria-label="Household name" />
-          <button id="btn-sample" class="btn ghost" title="Load sample household">Sample</button>
-          <button id="btn-export" class="btn ghost" title="Export JSON">Export</button>
-          <button id="btn-import" class="btn ghost" title="Import JSON">Import</button>
+          <div class="client-switcher" id="client-switcher">
+            <button id="client-pill" class="client-pill" aria-haspopup="menu" aria-expanded="false">
+              <span class="client-pill-avatar" id="client-pill-avatar">·</span>
+              <span class="client-pill-name" id="client-pill-name">No client</span>
+              <span class="client-pill-caret">▾</span>
+            </button>
+            <div class="client-menu" id="client-menu" role="menu" hidden></div>
+          </div>
           <button id="btn-print" class="btn ghost" title="Print / PDF">Print</button>
-          <button id="btn-reset" class="btn danger-ghost" title="Clear all data">Reset</button>
           <input id="file-import" type="file" accept="application/json" hidden />
         </div>
       </header>
 
       <!-- Stats -->
       <section class="stats" id="stats"></section>
+
+      <!-- Landing view (shown when no active client) -->
+      <section id="view-landing" class="view landing">
+        <div id="landing-content"></div>
+      </section>
 
       <!-- Main content -->
       <main class="main">

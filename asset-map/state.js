@@ -2,8 +2,10 @@
 import {
   SAMPLE_HOUSEHOLD, FREQUENCIES, makeId, DEFAULT_ASSUMPTIONS, DEFAULT_RETURNS,
 } from "./data.js";
-
-const KEY = "householdmap.v1";
+import {
+  getActiveClientId, setActiveClientId, getClientData, saveClientData,
+  touchClientMeta, migrateFromLegacy, createClient,
+} from "./clients.js";
 
 const EMPTY = () => ({
   name: "My Household",
@@ -17,29 +19,60 @@ const EMPTY = () => ({
   goals: [],
 });
 
-export const state = load();
+function normalize(data) {
+  const merged = { ...EMPTY(), ...(data || {}) };
+  merged.assumptions = { ...DEFAULT_ASSUMPTIONS(), ...(data?.assumptions || {}) };
+  merged.assumptions.defaultReturns = {
+    ...DEFAULT_RETURNS, ...(data?.assumptions?.defaultReturns || {}),
+  };
+  merged.events = data?.events || [];
+  merged.goals = data?.goals || [];
+  return merged;
+}
 
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return EMPTY();
-    const data = JSON.parse(raw);
-    const merged = { ...EMPTY(), ...data };
-    // Ensure nested defaults survive older payloads.
-    merged.assumptions = { ...DEFAULT_ASSUMPTIONS(), ...(data.assumptions || {}) };
-    merged.assumptions.defaultReturns = {
-      ...DEFAULT_RETURNS, ...(data.assumptions?.defaultReturns || {}),
-    };
-    merged.events = data.events || [];
-    merged.goals = data.goals || [];
-    return merged;
-  } catch {
-    return EMPTY();
-  }
+// Run any one-time migration before first load.
+migrateFromLegacy();
+
+// Live state: starts loaded for the active client, or empty if none.
+export const state = (() => {
+  const id = getActiveClientId();
+  if (!id) return EMPTY();
+  const data = getClientData(id);
+  return normalize(data);
+})();
+
+export function hasActiveClient() {
+  return Boolean(getActiveClientId());
+}
+
+export function activeClientId() {
+  return getActiveClientId();
+}
+
+// Replace the in-memory state with the given client's data.
+export function switchToClient(id) {
+  setActiveClientId(id);
+  const data = getClientData(id) || EMPTY();
+  Object.assign(state, EMPTY(), normalize(data));
+}
+
+// Create a new client and switch to it. Returns the new id.
+export function newClient(name = "New Household") {
+  const id = createClient(name);
+  switchToClient(id);
+  return id;
+}
+
+// Detach: clears the active pointer (returns to landing without deleting).
+export function leaveClient() {
+  setActiveClientId("");
 }
 
 export function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  const id = getActiveClientId();
+  if (!id) return;
+  saveClientData(id, state);
+  touchClientMeta(id, state);
 }
 
 export function reset() {
@@ -49,13 +82,22 @@ export function reset() {
 
 export function loadSample() {
   const copy = JSON.parse(JSON.stringify(SAMPLE_HOUSEHOLD));
-  Object.assign(state, copy);
+  // If no active client, create one for the sample.
+  if (!getActiveClientId()) {
+    const id = createClient(copy.name || "Sample Household");
+    setActiveClientId(id);
+  }
+  Object.assign(state, normalize(copy));
   save();
 }
 
 export function importJSON(obj) {
   if (!obj || typeof obj !== "object") throw new Error("Invalid file");
-  Object.assign(state, EMPTY(), obj);
+  if (!getActiveClientId()) {
+    const id = createClient(obj.name || "Imported Household");
+    setActiveClientId(id);
+  }
+  Object.assign(state, normalize(obj));
   save();
 }
 
