@@ -89,12 +89,36 @@ export function remove(coll, id) {
   save();
 }
 
-// Calculations
-export const fmtUSD = (n) =>
-  (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n||0)).toLocaleString();
+// Calculations & formatting
+export function getCurrency() {
+  return (state.assumptions && state.assumptions.currency) || "GBP";
+}
 
-export const fmtUSDc = (n) =>
-  (n < 0 ? "-" : "") + "$" + Math.abs(n||0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+const _fmtCache = new Map();
+function _formatter(currency) {
+  if (_fmtCache.has(currency)) return _fmtCache.get(currency);
+  let f;
+  try {
+    f = new Intl.NumberFormat("en-GB", {
+      style: "currency", currency,
+      maximumFractionDigits: 0, minimumFractionDigits: 0,
+    });
+  } catch {
+    f = { format: (n) => `${currency} ${Math.round(n).toLocaleString()}` };
+  }
+  _fmtCache.set(currency, f);
+  return f;
+}
+
+export function fmtMoney(n, currency) {
+  const ccy = currency || getCurrency();
+  const v = Math.round(n || 0);
+  if (v < 0) return "-" + _formatter(ccy).format(Math.abs(v));
+  return _formatter(ccy).format(v);
+}
+
+// Backwards-compat alias so existing imports keep working.
+export const fmtUSD = fmtMoney;
 
 export const freqPerYear = (id) =>
   (FREQUENCIES.find(f => f.id === id) || {per_year: 12}).per_year;

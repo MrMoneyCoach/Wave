@@ -97,12 +97,19 @@ export const EVENT_KINDS = [
 
 // Default household-level assumptions for projections.
 export const DEFAULT_ASSUMPTIONS = () => ({
+  currency: "GBP",
   startYear: new Date().getFullYear(),
   yearsToProject: 30,
   inflationRate: 2.5,
   retirementWithdrawalRate: 4.0,
   defaultReturns: { ...DEFAULT_RETURNS },
 });
+
+export const SUPPORTED_CURRENCIES = [
+  { id: "GBP", label: "British Pound", symbol: "£" },
+  { id: "USD", label: "US Dollar",     symbol: "$" },
+  { id: "EUR", label: "Euro",          symbol: "€" },
+];
 
 export const SAMPLE_HOUSEHOLD = {
   name: "The Carter Household",
@@ -156,6 +163,7 @@ export const SAMPLE_HOUSEHOLD = {
     { id: "c14", name: "Other Expenses",    kind: "other-out",  amount: 600,  frequency: "monthly", direction: "out", ownerIds: ["p_self","p_spouse"], inflate: true },
   ],
   assumptions: {
+    currency: "GBP",
     startYear: new Date().getFullYear(),
     yearsToProject: 35,
     inflationRate: 2.5,

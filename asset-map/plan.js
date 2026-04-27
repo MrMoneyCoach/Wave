@@ -1,7 +1,8 @@
-// Plan view: charts, year-by-year table, assumptions, life events.
+// Plan view: charts, year-by-year table, life events.
+// (Assumptions live on the Settings page so they're configured once.)
 import { ASSET_KINDS, LIABILITY_KINDS, EVENT_KINDS } from "./data.js";
 import {
-  state, save, simulate, fmtUSD, setAssumption, upsert, remove, personLabels,
+  state, save, simulate, fmtUSD, upsert, remove, personLabels,
 } from "./state.js";
 
 const escape = (s) => String(s ?? "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
@@ -14,11 +15,18 @@ export function renderPlan() {
   const sim = simulate();
   lastSim = sim;
   const root = document.getElementById("plan-content");
+  const a = state.assumptions;
   root.innerHTML = `
     <div class="plan-grid">
       <div class="card plan-assumptions">
-        <h3>Assumptions</h3>
-        ${assumptionsForm()}
+        <h3>Assumptions <a class="assumptions-link" data-jump-settings>Edit in Settings →</a></h3>
+        <div class="assumptions-summary">
+          <div><span class="lbl">Currency</span><span class="val">${a.currency}</span></div>
+          <div><span class="lbl">Start Year</span><span class="val">${a.startYear}</span></div>
+          <div><span class="lbl">Years</span><span class="val">${a.yearsToProject}</span></div>
+          <div><span class="lbl">Inflation</span><span class="val">${a.inflationRate}%</span></div>
+          <div><span class="lbl">Withdrawal</span><span class="val">${a.retirementWithdrawalRate}%</span></div>
+        </div>
       </div>
       <div class="card plan-events">
         <h3>Life Events <button class="btn primary" id="add-event">+ Event</button></h3>
@@ -46,52 +54,13 @@ export function renderPlan() {
       ${yearTable(sim)}
     </div>
   `;
-  bindAssumptions();
   bindEvents();
-}
-
-// ---------- Assumptions form ----------
-function assumptionsForm() {
-  const a = state.assumptions;
-  return `
-    <div class="field-row">
-      <div class="field"><label>Start Year</label>
-        <input type="number" id="a-startYear" value="${a.startYear}" min="1900" max="2100"/></div>
-      <div class="field"><label>Years to Project</label>
-        <input type="number" id="a-years" value="${a.yearsToProject}" min="1" max="70"/></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Inflation %</label>
-        <input type="number" id="a-inflation" value="${a.inflationRate}" step="0.1" min="0" max="20"/></div>
-      <div class="field"><label>Withdrawal Rate %</label>
-        <input type="number" id="a-withdrawal" value="${a.retirementWithdrawalRate}" step="0.1" min="0" max="20"/></div>
-    </div>
-    <div class="field"><label>Default returns by asset class (%)</label>
-      <div class="returns-grid">
-        ${ASSET_KINDS.map(k => `
-          <label class="ret-row">
-            <span>${k.icon} ${esc(k.label)}</span>
-            <input type="number" step="0.1" data-ret="${k.id}" value="${a.defaultReturns[k.id] ?? 0}"/>
-          </label>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function bindAssumptions() {
-  const set = (k, parser) => (e) => setAssumption(k, parser(e.target.value));
-  document.getElementById("a-startYear").addEventListener("change", (e) => { setAssumption("startYear", parseInt(e.target.value, 10) || new Date().getFullYear()); renderPlan(); });
-  document.getElementById("a-years").addEventListener("change", (e) => { setAssumption("yearsToProject", Math.max(1, parseInt(e.target.value, 10) || 30)); renderPlan(); });
-  document.getElementById("a-inflation").addEventListener("change", (e) => { setAssumption("inflationRate", parseFloat(e.target.value) || 0); renderPlan(); });
-  document.getElementById("a-withdrawal").addEventListener("change", (e) => { setAssumption("retirementWithdrawalRate", parseFloat(e.target.value) || 0); renderPlan(); });
-  for (const r of document.querySelectorAll("[data-ret]")) {
-    r.addEventListener("change", (e) => {
-      const next = { ...state.assumptions.defaultReturns, [r.dataset.ret]: parseFloat(e.target.value) || 0 };
-      setAssumption("defaultReturns", next);
-      renderPlan();
-    });
-  }
+  const jump = root.querySelector("[data-jump-settings]");
+  if (jump) jump.addEventListener("click", (e) => {
+    e.preventDefault();
+    const tab = document.querySelector('.tab[data-view="settings"]');
+    if (tab) tab.click();
+  });
 }
 
 // ---------- Events list ----------
