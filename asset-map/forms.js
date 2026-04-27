@@ -86,7 +86,7 @@ const num = (n) => parseFloat(val(n)) || 0;
 
 // ---------- Person ----------
 export function personForm(existing, onAfter) {
-  const e = existing || { name: "", relationship: "Self", age: "" };
+  const e = existing || { name: "", relationship: "Self", age: "", retirementAge: 65 };
   openDrawer(existing ? "Edit Person" : "Add Person", `
     <div class="field"><label>Name</label><input name="name" value="${escapeAttr(e.name)}" placeholder="Full name"/></div>
     <div class="field-row">
@@ -95,18 +95,23 @@ export function personForm(existing, onAfter) {
       </div>
       <div class="field"><label>Age</label><input name="age" type="number" min="0" max="120" value="${escapeAttr(e.age)}"/></div>
     </div>
+    <div class="field"><label>Retirement Age</label>
+      <input name="retirementAge" type="number" min="0" max="120" value="${escapeAttr(e.retirementAge ?? "")}" placeholder="e.g. 65 — leave blank for N/A"/>
+    </div>
+    <div class="help">Used by projections to auto-stop salary income at retirement.</div>
     ${footer(existing?.id)}
   `);
   bindForm("people", () => ({
     id: existing?.id, name: val("name").trim() || "Unnamed",
     relationship: val("relationship"),
     age: val("age") ? parseInt(val("age"), 10) : null,
+    retirementAge: val("retirementAge") ? parseInt(val("retirementAge"), 10) : null,
   }), onAfter, existing?.id);
 }
 
 // ---------- Asset ----------
 export function assetForm(existing, onAfter) {
-  const e = existing || { name: "", kind: "cash", value: 0, ownerIds: [], institution: "" };
+  const e = existing || { name: "", kind: "cash", value: 0, ownerIds: [], institution: "", growthRate: "" };
   openDrawer(existing ? "Edit Asset" : "Add Asset", `
     <div class="field"><label>Name</label><input name="name" value="${escapeAttr(e.name)}" placeholder="e.g. Joint Checking"/></div>
     <div class="field-row">
@@ -115,7 +120,10 @@ export function assetForm(existing, onAfter) {
       </div>
       <div class="field"><label>Value (USD)</label><input name="value" type="number" min="0" step="100" value="${escapeAttr(e.value)}"/></div>
     </div>
-    <div class="field"><label>Institution</label><input name="institution" value="${escapeAttr(e.institution||"")}" placeholder="e.g. Bank, Brokerage"/></div>
+    <div class="field-row">
+      <div class="field"><label>Institution</label><input name="institution" value="${escapeAttr(e.institution||"")}" placeholder="e.g. Bank, Brokerage"/></div>
+      <div class="field"><label>Growth % (override)</label><input name="growthRate" type="number" step="0.1" value="${escapeAttr(e.growthRate ?? "")}" placeholder="default by type"/></div>
+    </div>
     <div class="field"><label>Owner(s)</label>${peopleCheckboxes(e.ownerIds)}</div>
     ${footer(existing?.id)}
   `);
@@ -123,6 +131,7 @@ export function assetForm(existing, onAfter) {
     id: existing?.id, name: val("name").trim() || "Asset",
     kind: val("kind"), value: num("value"),
     institution: val("institution"), ownerIds: checkedValues('input[name="ownerIds"]'),
+    growthRate: val("growthRate") === "" ? null : parseFloat(val("growthRate")),
   }), onAfter, existing?.id);
 }
 
@@ -185,7 +194,7 @@ export function insuranceForm(existing, onAfter) {
 
 // ---------- Cash flow ----------
 export function cashflowForm(existing, onAfter) {
-  const e = existing || { name: "", kind: "salary", amount: 0, frequency: "monthly", direction: "in", ownerIds: [] };
+  const e = existing || { name: "", kind: "salary", amount: 0, frequency: "monthly", direction: "in", ownerIds: [], inflate: true, stopAtRetirement: false, startYear: "", endYear: "" };
   openDrawer(existing ? "Edit Cash Flow" : "Add Cash Flow", `
     <div class="field"><label>Name</label><input name="name" value="${escapeAttr(e.name)}" placeholder="e.g. Alex Salary"/></div>
     <div class="field-row">
@@ -205,6 +214,18 @@ export function cashflowForm(existing, onAfter) {
         <select name="frequency">${FREQUENCIES.map(f => opt(f.id, f.label, f.id === e.frequency)).join("")}</select>
       </div>
     </div>
+    <div class="field-row">
+      <div class="field"><label>Start Year</label><input name="startYear" type="number" min="1900" max="2100" value="${escapeAttr(e.startYear ?? "")}" placeholder="now"/></div>
+      <div class="field"><label>End Year</label><input name="endYear" type="number" min="1900" max="2100" value="${escapeAttr(e.endYear ?? "")}" placeholder="ongoing"/></div>
+    </div>
+    <div class="field">
+      <label style="display:flex;gap:8px;align-items:center;font-weight:500;color:var(--ink);text-transform:none;letter-spacing:0">
+        <input type="checkbox" name="inflate" ${e.inflate !== false ? "checked" : ""}/> Inflate annually with assumed inflation rate
+      </label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:500;color:var(--ink);text-transform:none;letter-spacing:0">
+        <input type="checkbox" name="stopAtRetirement" ${e.stopAtRetirement ? "checked" : ""}/> Stop at owner retirement (salary-style)
+      </label>
+    </div>
     <div class="field"><label>Owner(s)</label>${peopleCheckboxes(e.ownerIds)}</div>
     ${footer(existing?.id)}
   `);
@@ -213,5 +234,9 @@ export function cashflowForm(existing, onAfter) {
     kind: val("kind"), amount: num("amount"),
     frequency: val("frequency"), direction: val("direction"),
     ownerIds: checkedValues('input[name="ownerIds"]'),
+    startYear: val("startYear") ? parseInt(val("startYear"), 10) : null,
+    endYear: val("endYear") ? parseInt(val("endYear"), 10) : null,
+    inflate: body().querySelector('[name="inflate"]').checked,
+    stopAtRetirement: body().querySelector('[name="stopAtRetirement"]').checked,
   }), onAfter, existing?.id);
 }

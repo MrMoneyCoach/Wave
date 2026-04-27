@@ -2,6 +2,7 @@
 import { state, save, reset, loadSample, importJSON } from "./state.js";
 import { renderStats, renderList, renderReports, renderCashflow } from "./views.js";
 import { renderMap, fitView, zoom } from "./map.js";
+import { renderPlan } from "./plan.js";
 import {
   personForm, assetForm, liabilityForm, insuranceForm, cashflowForm,
 } from "./forms.js";
@@ -14,6 +15,7 @@ function rerender() {
   else if (currentView === "list") renderList(rerender);
   else if (currentView === "reports") renderReports();
   else if (currentView === "cashflow") renderCashflow();
+  else if (currentView === "plan") renderPlan();
 }
 
 function setView(v) {
