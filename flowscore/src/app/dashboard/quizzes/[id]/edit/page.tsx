@@ -5,6 +5,19 @@ import QuizEditor from "@/components/QuizEditor";
 
 export const dynamic = "force-dynamic";
 
+function parseHighlights(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((s): s is string => typeof s === "string");
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
 export default async function EditQuizPage({ params }: { params: { id: string } }) {
   const user = await requireUser();
   const quiz = await prisma.quiz.findUnique({
@@ -32,6 +45,11 @@ export default async function EditQuizPage({ params }: { params: { id: string } 
     bookingLabel: quiz.bookingLabel ?? "",
     ownerName: quiz.ownerName ?? "",
     theme: (quiz.theme === "card" ? "card" : "minimal") as "minimal" | "card",
+    brandColor: quiz.brandColor ?? "",
+    logoUrl: quiz.logoUrl ?? "",
+    heroImageUrl: quiz.heroImageUrl ?? "",
+    videoUrl: quiz.videoUrl ?? "",
+    highlights: parseHighlights(quiz.highlights),
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,

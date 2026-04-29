@@ -37,6 +37,15 @@ const updateSchema = z.object({
   bookingLabel: z.string().max(200).optional().default(""),
   ownerName: z.string().max(200).optional().default(""),
   theme: z.enum(["minimal", "card"]).default("minimal"),
+  brandColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/i, "Use a 6-digit hex like #345ff2")
+    .optional()
+    .or(z.literal("")),
+  logoUrl: z.string().url().optional().or(z.literal("")),
+  heroImageUrl: z.string().url().optional().or(z.literal("")),
+  videoUrl: z.string().url().optional().or(z.literal("")),
+  highlights: z.array(z.string().max(140)).max(8).optional().default([]),
   questions: z.array(questionSchema),
   outcomes: z.array(outcomeSchema),
 });
@@ -125,6 +134,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
           bookingLabel: data.bookingLabel || null,
           ownerName: data.ownerName || null,
           theme: data.theme,
+          brandColor: data.brandColor || null,
+          logoUrl: data.logoUrl || null,
+          heroImageUrl: data.heroImageUrl || null,
+          videoUrl: data.videoUrl || null,
+          highlights: (() => {
+            const clean = (data.highlights ?? []).map((s) => s.trim()).filter(Boolean);
+            return clean.length > 0 ? JSON.stringify(clean) : null;
+          })(),
         },
       }),
       prisma.question.deleteMany({ where: { quizId: params.id } }),

@@ -31,6 +31,11 @@ type Quiz = {
   bookingLabel: string;
   ownerName: string;
   theme: "minimal" | "card";
+  brandColor: string;
+  logoUrl: string;
+  heroImageUrl: string;
+  videoUrl: string;
+  highlights: string[];
   questions: Question[];
   outcomes: Outcome[];
 };
@@ -316,6 +321,136 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
               placeholder="Book a call with Scott"
             />
           </div>
+        </div>
+      </section>
+
+      <section className="card mt-6 space-y-5">
+        <div>
+          <h2 className="text-lg font-semibold">Design</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Brand the landing page and the PDF. URLs for now — direct file upload is
+            coming next.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[200px_1fr]">
+          <div>
+            <label className="label">Brand colour</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                className="h-10 w-16 cursor-pointer rounded border border-slate-300"
+                value={quiz.brandColor || "#345ff2"}
+                onChange={(e) => update("brandColor", e.target.value)}
+              />
+              <input
+                className="input flex-1 font-mono text-sm"
+                value={quiz.brandColor}
+                onChange={(e) => update("brandColor", e.target.value)}
+                placeholder="#345ff2"
+              />
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Used for buttons, accents, PDF header.
+            </p>
+          </div>
+          <div>
+            <label className="label">Logo URL</label>
+            <input
+              type="url"
+              className="input"
+              value={quiz.logoUrl}
+              onChange={(e) => update("logoUrl", e.target.value)}
+              placeholder="https://example.com/logo.png"
+            />
+            {quiz.logoUrl && (
+              <div className="mt-2 inline-block rounded border border-slate-200 bg-slate-50 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={quiz.logoUrl} alt="Logo preview" className="h-8 w-auto" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Hero image URL</label>
+          <input
+            type="url"
+            className="input"
+            value={quiz.heroImageUrl}
+            onChange={(e) => update("heroImageUrl", e.target.value)}
+            placeholder="https://example.com/hero.jpg"
+          />
+          {quiz.heroImageUrl && (
+            <div className="mt-2 overflow-hidden rounded-lg border border-slate-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={quiz.heroImageUrl}
+                alt="Hero preview"
+                className="max-h-48 w-full object-cover"
+              />
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="label">Highlights (bullet points on the landing page)</label>
+          <p className="mb-2 text-xs text-slate-500">
+            Up to 8 short benefits. Empty rows are ignored on save.
+          </p>
+          <div className="space-y-2">
+            {quiz.highlights.map((h, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  value={h}
+                  onChange={(e) =>
+                    update(
+                      "highlights",
+                      quiz.highlights.map((x, j) => (j === i ? e.target.value : x)),
+                    )
+                  }
+                  placeholder="e.g. Personalised PDF report"
+                  maxLength={140}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={() =>
+                    update(
+                      "highlights",
+                      quiz.highlights.filter((_, j) => j !== i),
+                    )
+                  }
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {quiz.highlights.length < 8 && (
+              <button
+                type="button"
+                className="btn-secondary text-xs"
+                onClick={() => update("highlights", [...quiz.highlights, ""])}
+              >
+                + Add highlight
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Video URL (optional)</label>
+          <input
+            type="url"
+            className="input"
+            value={quiz.videoUrl}
+            onChange={(e) => update("videoUrl", e.target.value)}
+            placeholder="https://youtube.com/watch?v=…"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            YouTube or Vimeo link, embedded on the landing page.
+          </p>
         </div>
       </section>
 
