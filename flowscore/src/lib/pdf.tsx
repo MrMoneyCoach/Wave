@@ -3,6 +3,7 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
   Svg,
   Circle,
@@ -185,6 +186,8 @@ export type PdfData = {
   ownerName: string | null;
   bookingUrl: string | null;
   bookingLabel: string | null;
+  brandColor: string | null;
+  logoUrl: string | null;
   respondent: {
     firstName: string;
     lastName: string;
@@ -202,7 +205,7 @@ export type PdfData = {
   completedAt: Date;
 };
 
-function ScoreDial({ percent }: { percent: number }) {
+function ScoreDial({ percent, brand }: { percent: number; brand: string }) {
   const clamped = Math.max(0, Math.min(100, percent));
   const r = 50;
   const cx = 60;
@@ -210,7 +213,7 @@ function ScoreDial({ percent }: { percent: number }) {
   if (clamped >= 100) {
     return (
       <Svg width={120} height={120} viewBox="0 0 120 120">
-        <Circle cx={cx} cy={cy} r={r} stroke={BRAND} strokeWidth={10} fill="none" />
+        <Circle cx={cx} cy={cy} r={r} stroke={brand} strokeWidth={10} fill="none" />
       </Svg>
     );
   }
@@ -225,7 +228,7 @@ function ScoreDial({ percent }: { percent: number }) {
       {clamped > 0 && (
         <Path
           d={arcPath}
-          stroke={BRAND}
+          stroke={brand}
           strokeWidth={10}
           strokeLinecap="round"
           fill="none"
@@ -238,10 +241,17 @@ function ScoreDial({ percent }: { percent: number }) {
 function ReportDocument({ data }: { data: PdfData }) {
   const r = data.respondent;
   const fullName = [r.firstName, r.lastName].filter(Boolean).join(" ");
+  const brand = (data.brandColor || BRAND).trim();
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.hero} fixed={false}>
+          {data.logoUrl && (
+            <View style={{ marginBottom: 14 }}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
+              <Image src={data.logoUrl} style={{ height: 28, width: "auto" }} />
+            </View>
+          )}
           <Text style={styles.heroEyebrow}>Flowscore report</Text>
           <Text style={styles.heroTitle}>{data.quizTitle}</Text>
           <Text style={styles.heroMeta}>
@@ -251,7 +261,7 @@ function ReportDocument({ data }: { data: PdfData }) {
 
         <View style={styles.body}>
           <View style={styles.scoreRow}>
-            <ScoreDial percent={data.scorePercent} />
+            <ScoreDial percent={data.scorePercent} brand={brand} />
             <View style={styles.scoreText}>
               <Text style={styles.scoreNumber}>{data.scorePercent.toFixed(1)}%</Text>
               <Text style={styles.scoreSub}>
@@ -261,9 +271,13 @@ function ReportDocument({ data }: { data: PdfData }) {
           </View>
 
           {data.outcomeTitle && (
-            <View style={styles.outcomeCard}>
-              <Text style={styles.outcomeEyebrow}>Your outcome</Text>
-              <Text style={styles.outcomeTitle}>{data.outcomeTitle}</Text>
+            <View style={[styles.outcomeCard, { borderLeftColor: brand }]}>
+              <Text style={[styles.outcomeEyebrow, { color: brand }]}>
+                Your outcome
+              </Text>
+              <Text style={[styles.outcomeTitle, { color: brand }]}>
+                {data.outcomeTitle}
+              </Text>
               {data.outcomeDescription && (
                 <Text style={styles.outcomeBody}>{data.outcomeDescription}</Text>
               )}
@@ -282,7 +296,9 @@ function ReportDocument({ data }: { data: PdfData }) {
           <Text style={styles.sectionHeading}>Your answers</Text>
           {data.answers.map((a, i) => (
             <View key={i} style={styles.answer} wrap={false}>
-              <Text style={styles.answerNum}>{i + 1}</Text>
+              <Text style={[styles.answerNum, { backgroundColor: brand }]}>
+                {i + 1}
+              </Text>
               <View style={styles.answerBody}>
                 <Text style={styles.answerQ}>{a.question}</Text>
                 {a.answer ? (
@@ -295,7 +311,7 @@ function ReportDocument({ data }: { data: PdfData }) {
           ))}
 
           {data.bookingUrl && (
-            <View style={styles.cta}>
+            <View style={[styles.cta, { backgroundColor: brand }]}>
               <Text style={styles.ctaEyebrow}>Next step</Text>
               <Text style={styles.ctaTitle}>
                 {data.bookingLabel ||

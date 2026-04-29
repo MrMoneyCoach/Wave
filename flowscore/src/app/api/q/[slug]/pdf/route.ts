@@ -87,6 +87,8 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
       ownerName,
       bookingUrl: quiz.bookingUrl,
       bookingLabel: quiz.bookingLabel,
+      brandColor: quiz.brandColor,
+      logoUrl: quiz.logoUrl,
       questions: quiz.questions.map((q) => ({
         id: q.id,
         text: q.text,
