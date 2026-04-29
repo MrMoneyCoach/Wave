@@ -40,6 +40,28 @@ model Quiz {
   questions     Question[]
   outcomes      Outcome[]
   submissions   Submission[]
+  landingPages  LandingPage[]
+}
+
+model LandingPage {
+  id           String   @id @default(cuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  name         String
+  slug         String?
+  isPrimary    Boolean  @default(false)
+  headline     String?
+  subheadline  String?
+  ctaLabel     String?
+  brandColor   String?
+  logoUrl      String?
+  heroImageUrl String?
+  videoUrl     String?
+  highlights   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([quizId, slug])
 }
 
 model Question {

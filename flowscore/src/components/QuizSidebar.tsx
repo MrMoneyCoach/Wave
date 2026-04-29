@@ -47,7 +47,12 @@ export default function QuizSidebar({
     {
       heading: "Build",
       items: [
-        { label: "Landing Page", comingSoon: true, icon: "🪧" },
+        {
+          label: "Landing Pages",
+          href: `${base}/landing-pages`,
+          match: (p) => p.startsWith(`${base}/landing-pages`),
+          icon: "🪧",
+        },
         {
           label: "Questions",
           href: `${base}/edit`,
