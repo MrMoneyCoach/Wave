@@ -30,8 +30,8 @@ export default async function LandingPagesPage({
           </p>
           <h1 className="mt-1 text-2xl font-bold">Landing Pages</h1>
           <p className="mt-1 text-sm text-slate-500">
-            One Primary lives at <code>/q/{quiz.slug}</code>. Variants get their own
-            sub-URL once edit + routing land in the next push.
+            The Primary lives at <code>/q/{quiz.slug}</code>. Each variant gets its
+            own URL and inherits any field it doesn't override.
           </p>
         </div>
         <NewLandingPageButton quizId={quiz.id} />
@@ -86,19 +86,26 @@ export default async function LandingPagesPage({
                 </td>
                 <td className="px-4 py-3 text-slate-600">
                   <code className="text-xs">
-                    /q/{quiz.slug}/{lp.slug}{" "}
-                    <span className="text-slate-400">(soon)</span>
+                    /q/{quiz.slug}/{lp.slug}
                   </code>
                 </td>
                 <td className="px-4 py-3 text-slate-500">
                   {lp.createdAt.toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <DeleteLandingPageButton
-                    quizId={quiz.id}
-                    lpId={lp.id}
-                    name={lp.name}
-                  />
+                  <div className="flex items-center justify-end gap-3">
+                    <Link
+                      href={`/dashboard/quizzes/${quiz.id}/landing-pages/${lp.id}`}
+                      className="text-sm font-medium text-brand-600 hover:underline"
+                    >
+                      Edit
+                    </Link>
+                    <DeleteLandingPageButton
+                      quizId={quiz.id}
+                      lpId={lp.id}
+                      name={lp.name}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}

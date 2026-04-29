@@ -3,12 +3,17 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 
-const slugify = (raw: string) =>
-  raw
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || "variant";
+const RESERVED_SLUGS = new Set(["result", "results"]);
+
+const slugify = (raw: string) => {
+  const base =
+    raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "variant";
+  return RESERVED_SLUGS.has(base) ? `${base}-page` : base;
+};
 
 const createSchema = z.object({
   name: z.string().min(1).max(80),
