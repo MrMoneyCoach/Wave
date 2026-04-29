@@ -74,6 +74,7 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function update<K extends keyof Quiz>(key: K, value: Quiz[K]) {
@@ -481,7 +482,11 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
             />
             <button
               className="btn-primary"
-              onClick={() => update("questions", [...quiz.questions, newQuestion()])}
+              onClick={() => {
+                const next = [...quiz.questions, newQuestion()];
+                update("questions", next);
+                setSelectedIdx(next.length - 1);
+              }}
               type="button"
             >
               + Question
@@ -524,90 +529,179 @@ Describe your growth strategy.    | text    | Great detail     | 20    | 200`}
             No questions yet. Add one manually or upload from Excel.
           </div>
         ) : (
-          <div className="space-y-4">
-            {quiz.questions.map((q, i) => (
-              <div
-                key={i}
-                draggable
-                onDragStart={(e) => {
-                  setDragIdx(i);
-                  e.dataTransfer.effectAllowed = "move";
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  if (dragOverIdx !== i) setDragOverIdx(i);
-                }}
-                onDragLeave={() => {
-                  if (dragOverIdx === i) setDragOverIdx(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragIdx !== null) moveQuestionTo(dragIdx, i);
-                  setDragIdx(null);
-                  setDragOverIdx(null);
-                }}
-                onDragEnd={() => {
-                  setDragIdx(null);
-                  setDragOverIdx(null);
-                }}
-                className={`card transition ${
-                  dragIdx === i ? "opacity-50" : ""
-                } ${
-                  dragOverIdx === i && dragIdx !== null && dragIdx !== i
-                    ? "ring-2 ring-brand-400"
-                    : ""
-                }`}
-              >
-                <div className="mb-3 flex items-start gap-2">
-                  <span
-                    className="mt-1 cursor-grab select-none px-1 text-slate-400 hover:text-slate-600 active:cursor-grabbing"
-                    title="Drag to reorder"
-                    aria-hidden
-                  >
-                    ⋮⋮
-                  </span>
-                  <span className="mt-2 text-sm font-semibold text-slate-500">{i + 1}.</span>
-                  <input
-                    className="input"
-                    value={q.text}
-                    placeholder="Question text"
-                    onChange={(e) =>
-                      updateQuestion(i, (qq) => ({ ...qq, text: e.target.value }))
-                    }
-                  />
-                  <div className="flex flex-col gap-1">
-                    <button
-                      className="btn-secondary px-2 py-1 text-xs"
-                      onClick={() => moveQuestion(i, -1)}
-                      disabled={i === 0}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      className="btn-secondary px-2 py-1 text-xs"
-                      onClick={() => moveQuestion(i, 1)}
-                      disabled={i === quiz.questions.length - 1}
-                    >
-                      ↓
-                    </button>
-                  </div>
-                  <button
-                    className="btn-danger px-2 py-1 text-xs"
-                    onClick={() => removeQuestion(i)}
-                  >
-                    Remove
-                  </button>
+          (() => {
+            const safeIdx = Math.min(selectedIdx, quiz.questions.length - 1);
+            const sel = quiz.questions[safeIdx];
+            return (
+              <div className="grid gap-4 lg:grid-cols-[260px_1fr_340px]">
+                <div className="card max-h-[640px] overflow-auto p-2">
+                  <ul className="space-y-1">
+                    {quiz.questions.map((q, i) => {
+                      const active = i === safeIdx;
+                      return (
+                        <li key={i}>
+                          <div
+                            draggable
+                            onDragStart={(e) => {
+                              setDragIdx(i);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                              if (dragOverIdx !== i) setDragOverIdx(i);
+                            }}
+                            onDragLeave={() => {
+                              if (dragOverIdx === i) setDragOverIdx(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (dragIdx !== null) {
+                                moveQuestionTo(dragIdx, i);
+                                setSelectedIdx(i);
+                              }
+                              setDragIdx(null);
+                              setDragOverIdx(null);
+                            }}
+                            onDragEnd={() => {
+                              setDragIdx(null);
+                              setDragOverIdx(null);
+                            }}
+                            onClick={() => setSelectedIdx(i)}
+                            className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm transition ${
+                              active
+                                ? "bg-brand-50 text-brand-700"
+                                : "text-slate-700 hover:bg-slate-50"
+                            } ${dragIdx === i ? "opacity-50" : ""} ${
+                              dragOverIdx === i && dragIdx !== null && dragIdx !== i
+                                ? "ring-2 ring-brand-400"
+                                : ""
+                            }`}
+                          >
+                            <span className="select-none text-slate-400" aria-hidden>
+                              ⋮⋮
+                            </span>
+                            <span className="font-semibold tabular-nums text-slate-500">
+                              {i + 1}.
+                            </span>
+                            <span className="line-clamp-2 flex-1">
+                              {q.text || (
+                                <span className="italic text-slate-400">
+                                  Untitled question
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
 
-                <div className="mb-3 flex flex-wrap gap-3 text-sm">
-                  <label>
-                    Type{" "}
-                    <select
-                      className="rounded border border-slate-300 px-2 py-1"
-                      value={q.type}
+                <div className="card max-h-[640px] overflow-auto">
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Preview
+                  </p>
+                  <div className="border-t border-slate-100 pt-5">
+                    <div className="text-sm font-medium text-brand-600">
+                      {safeIdx + 1} <span aria-hidden>→</span>
+                    </div>
+                    <h3 className="mt-2 text-2xl font-semibold leading-tight text-slate-900">
+                      {sel.text || (
+                        <span className="italic text-slate-400">
+                          Untitled question
+                        </span>
+                      )}
+                      {!sel.required && (
+                        <span className="ml-2 align-middle text-sm font-normal text-slate-400">
+                          (optional)
+                        </span>
+                      )}
+                    </h3>
+                    <div className="mt-6">
+                      {sel.type === "scale" ? (
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from({ length: 11 }).map((_, v) => (
+                            <span
+                              key={v}
+                              className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-700"
+                            >
+                              {v}
+                            </span>
+                          ))}
+                        </div>
+                      ) : sel.type === "text" ? (
+                        <div className="border-b-2 border-slate-200 pb-3 pt-2 text-base text-slate-400">
+                          Type your answer…
+                        </div>
+                      ) : sel.options.length === 0 ? (
+                        <p className="text-sm italic text-slate-400">
+                          No options yet — add some on the right.
+                        </p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {sel.options.map((o, oi) => (
+                            <li
+                              key={oi}
+                              className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-3"
+                            >
+                              <span className="grid h-7 w-9 place-items-center rounded border border-slate-300 text-xs font-semibold text-slate-600">
+                                {String.fromCharCode(65 + oi)}
+                              </span>
+                              <span className="text-slate-800">
+                                {o.text || (
+                                  <span className="italic text-slate-400">
+                                    Option {oi + 1}
+                                  </span>
+                                )}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card max-h-[640px] space-y-4 overflow-auto">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Settings
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-red-600 hover:text-red-700"
+                      onClick={() => {
+                        removeQuestion(safeIdx);
+                        setSelectedIdx(Math.max(0, safeIdx - 1));
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="label">Question text</label>
+                    <textarea
+                      className="input min-h-[80px]"
+                      value={sel.text}
+                      placeholder="What do you want to ask?"
                       onChange={(e) =>
-                        updateQuestion(i, (qq) => ({ ...qq, type: e.target.value as Question["type"] }))
+                        updateQuestion(safeIdx, (qq) => ({ ...qq, text: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">Type</label>
+                    <select
+                      className="input"
+                      value={sel.type}
+                      onChange={(e) =>
+                        updateQuestion(safeIdx, (qq) => ({
+                          ...qq,
+                          type: e.target.value as Question["type"],
+                        }))
                       }
                     >
                       <option value="single">Single choice</option>
@@ -615,157 +709,180 @@ Describe your growth strategy.    | text    | Great detail     | 20    | 200`}
                       <option value="scale">Scale (0–10)</option>
                       <option value="text">Free text</option>
                     </select>
-                  </label>
-                  <label className="flex items-center gap-2">
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={q.required}
+                      checked={sel.required}
                       onChange={(e) =>
-                        updateQuestion(i, (qq) => ({ ...qq, required: e.target.checked }))
+                        updateQuestion(safeIdx, (qq) => ({
+                          ...qq,
+                          required: e.target.checked,
+                        }))
                       }
                     />
                     Required
                   </label>
-                </div>
 
-                {q.type === "scale" ? (
-                  <p className="text-sm text-slate-600">
-                    Respondents pick a value 0–10. The raw value is added to the score
-                    (max 10 points per scale question).
-                  </p>
-                ) : q.type === "text" ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-slate-600">
-                      Respondents type a free-text answer. Optionally score by length — add
-                      thresholds below. The highest threshold the answer meets wins; leave
-                      this empty to capture the text without scoring.
+                  {sel.type === "scale" ? (
+                    <p className="text-xs text-slate-500">
+                      Respondents pick 0–10. The raw value adds to the score (max 10
+                      pts).
                     </p>
-                    {q.options.length > 0 && (
-                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-xs font-medium text-slate-500">
-                        <span>Min characters</span>
-                        <span>Points awarded</span>
-                        <span />
-                      </div>
-                    )}
-                    {q.options.map((o, oi) => (
-                      <div key={oi} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
-                        <input
-                          type="number"
-                          min={0}
-                          className="input"
-                          placeholder="e.g. 140"
-                          value={o.minChars ?? ""}
-                          onChange={(e) =>
-                            updateQuestion(i, (qq) => {
-                              const opts = [...qq.options];
-                              const n = e.target.value === "" ? null : Number(e.target.value);
-                              opts[oi] = {
-                                ...opts[oi],
-                                minChars: n === null || Number.isNaN(n) ? null : Math.max(0, Math.round(n)),
-                              };
-                              return { ...qq, options: opts };
-                            })
-                          }
-                        />
-                        <input
-                          type="number"
-                          className="input"
-                          placeholder="e.g. 10"
-                          value={o.score}
-                          onChange={(e) =>
-                            updateQuestion(i, (qq) => {
-                              const opts = [...qq.options];
-                              opts[oi] = { ...opts[oi], score: Number(e.target.value) || 0 };
-                              return { ...qq, options: opts };
-                            })
-                          }
-                        />
-                        <button
-                          className="btn-secondary text-xs"
-                          type="button"
-                          onClick={() =>
-                            updateQuestion(i, (qq) => ({
-                              ...qq,
-                              options: qq.options.filter((_, j) => j !== oi),
-                            }))
-                          }
+                  ) : sel.type === "text" ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-slate-500">
+                        Respondents type freely. Add length thresholds below to score by
+                        character count, or leave empty to capture text without scoring.
+                      </p>
+                      {sel.options.length > 0 && (
+                        <div className="grid grid-cols-[1fr_1fr_auto] gap-2 text-xs font-medium text-slate-500">
+                          <span>Min chars</span>
+                          <span>Points</span>
+                          <span />
+                        </div>
+                      )}
+                      {sel.options.map((o, oi) => (
+                        <div
+                          key={oi}
+                          className="grid grid-cols-[1fr_1fr_auto] items-center gap-2"
                         >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      className="btn-secondary text-xs"
-                      type="button"
-                      onClick={() =>
-                        updateQuestion(i, (qq) => ({
-                          ...qq,
-                          options: [...qq.options, { text: "", score: 0, minChars: 0 }],
-                        }))
-                      }
-                    >
-                      + Threshold
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {q.options.map((o, oi) => (
-                      <div key={oi} className="flex items-center gap-2">
-                        <input
-                          className="input flex-1"
-                          placeholder={`Option ${oi + 1}`}
-                          value={o.text}
-                          onChange={(e) =>
-                            updateQuestion(i, (qq) => {
-                              const opts = [...qq.options];
-                              opts[oi] = { ...opts[oi], text: e.target.value };
-                              return { ...qq, options: opts };
-                            })
-                          }
-                        />
-                        <input
-                          type="number"
-                          className="input w-24"
-                          placeholder="Score"
-                          value={o.score}
-                          onChange={(e) =>
-                            updateQuestion(i, (qq) => {
-                              const opts = [...qq.options];
-                              opts[oi] = { ...opts[oi], score: Number(e.target.value) || 0 };
-                              return { ...qq, options: opts };
-                            })
-                          }
-                        />
-                        <button
-                          className="btn-secondary text-xs"
-                          onClick={() =>
-                            updateQuestion(i, (qq) => ({
-                              ...qq,
-                              options: qq.options.filter((_, j) => j !== oi),
-                            }))
-                          }
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      className="btn-secondary text-xs"
-                      type="button"
-                      onClick={() =>
-                        updateQuestion(i, (qq) => ({
-                          ...qq,
-                          options: [...qq.options, { text: "", score: 0 }],
-                        }))
-                      }
-                    >
-                      + Option
-                    </button>
-                  </div>
-                )}
+                          <input
+                            type="number"
+                            min={0}
+                            className="input"
+                            placeholder="140"
+                            value={o.minChars ?? ""}
+                            onChange={(e) =>
+                              updateQuestion(safeIdx, (qq) => {
+                                const opts = [...qq.options];
+                                const n =
+                                  e.target.value === "" ? null : Number(e.target.value);
+                                opts[oi] = {
+                                  ...opts[oi],
+                                  minChars:
+                                    n === null || Number.isNaN(n)
+                                      ? null
+                                      : Math.max(0, Math.round(n)),
+                                };
+                                return { ...qq, options: opts };
+                              })
+                            }
+                          />
+                          <input
+                            type="number"
+                            className="input"
+                            placeholder="10"
+                            value={o.score}
+                            onChange={(e) =>
+                              updateQuestion(safeIdx, (qq) => {
+                                const opts = [...qq.options];
+                                opts[oi] = {
+                                  ...opts[oi],
+                                  score: Number(e.target.value) || 0,
+                                };
+                                return { ...qq, options: opts };
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn-secondary text-xs"
+                            onClick={() =>
+                              updateQuestion(safeIdx, (qq) => ({
+                                ...qq,
+                                options: qq.options.filter((_, j) => j !== oi),
+                              }))
+                            }
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="btn-secondary text-xs"
+                        onClick={() =>
+                          updateQuestion(safeIdx, (qq) => ({
+                            ...qq,
+                            options: [
+                              ...qq.options,
+                              { text: "", score: 0, minChars: 0 },
+                            ],
+                          }))
+                        }
+                      >
+                        + Threshold
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Options
+                      </p>
+                      {sel.options.map((o, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <input
+                            className="input flex-1"
+                            placeholder={`Option ${oi + 1}`}
+                            value={o.text}
+                            onChange={(e) =>
+                              updateQuestion(safeIdx, (qq) => {
+                                const opts = [...qq.options];
+                                opts[oi] = { ...opts[oi], text: e.target.value };
+                                return { ...qq, options: opts };
+                              })
+                            }
+                          />
+                          <input
+                            type="number"
+                            className="input w-20"
+                            placeholder="Score"
+                            value={o.score}
+                            onChange={(e) =>
+                              updateQuestion(safeIdx, (qq) => {
+                                const opts = [...qq.options];
+                                opts[oi] = {
+                                  ...opts[oi],
+                                  score: Number(e.target.value) || 0,
+                                };
+                                return { ...qq, options: opts };
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn-secondary text-xs"
+                            onClick={() =>
+                              updateQuestion(safeIdx, (qq) => ({
+                                ...qq,
+                                options: qq.options.filter((_, j) => j !== oi),
+                              }))
+                            }
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="btn-secondary text-xs"
+                        onClick={() =>
+                          updateQuestion(safeIdx, (qq) => ({
+                            ...qq,
+                            options: [...qq.options, { text: "", score: 0 }],
+                          }))
+                        }
+                      >
+                        + Option
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })()
         )}
       </section>
 
