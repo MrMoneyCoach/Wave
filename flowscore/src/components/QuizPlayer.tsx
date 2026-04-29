@@ -11,6 +11,14 @@ type Question = {
   required: boolean;
   options: Option[];
 };
+type Block =
+  | { id: string; type: "heading"; text: string; level: 1 | 2 | 3 }
+  | { id: string; type: "paragraph"; text: string }
+  | { id: string; type: "image"; url: string; alt: string }
+  | { id: string; type: "list"; items: string[]; checkmark: boolean }
+  | { id: string; type: "button"; label: string; url: string; style: "primary" | "secondary" }
+  | { id: string; type: "divider" };
+
 type Quiz = {
   id: string;
   slug: string;
@@ -24,6 +32,7 @@ type Quiz = {
   heroImageUrl?: string | null;
   videoUrl?: string | null;
   highlights?: string[];
+  blocks?: Block[];
   questions: Question[];
 };
 
@@ -314,6 +323,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
               heroImageUrl={quiz.heroImageUrl ?? null}
               videoUrl={quiz.videoUrl ?? null}
               highlights={quiz.highlights ?? []}
+              blocks={quiz.blocks ?? []}
             />
           )}
 
@@ -399,6 +409,7 @@ function IntroScreen({
   heroImageUrl,
   videoUrl,
   highlights,
+  blocks,
 }: {
   title: string;
   intro: string;
@@ -410,67 +421,79 @@ function IntroScreen({
   heroImageUrl: string | null;
   videoUrl: string | null;
   highlights: string[];
+  blocks: Block[];
 }) {
   const embed = videoUrl ? videoEmbedUrl(videoUrl) : null;
+  const useBlocks = blocks.length > 0;
   return (
     <div>
-      {logoUrl && (
-        <div className="mb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="" className="h-10 w-auto" />
-        </div>
-      )}
-
-      {heroImageUrl && (
-        <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={heroImageUrl}
-            alt=""
-            className="h-56 w-full object-cover md:h-72"
-          />
-        </div>
-      )}
-
-      <h1 className="text-4xl font-semibold leading-tight tracking-tight text-slate-900 md:text-6xl">
-        {title}
-      </h1>
-      {intro && (
-        <p className="mt-6 whitespace-pre-wrap text-lg text-slate-600 md:text-xl">
-          {intro}
-        </p>
-      )}
-
-      {highlights.length > 0 && (
-        <ul className="mt-8 space-y-3">
-          {highlights.map((h, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span
-                aria-hidden
-                className="mt-1 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                style={{ backgroundColor: brand }}
-              >
-                ✓
-              </span>
-              <span className="text-base text-slate-800 md:text-lg">{h}</span>
-            </li>
+      {useBlocks ? (
+        <div className="space-y-6">
+          {blocks.map((b) => (
+            <BlockRender key={b.id} block={b} brand={brand} />
           ))}
-        </ul>
-      )}
-
-      {embed && (
-        <div className="mt-8 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-          <div className="relative aspect-video w-full">
-            <iframe
-              src={embed}
-              title="Intro video"
-              loading="lazy"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0 h-full w-full"
-            />
-          </div>
         </div>
+      ) : (
+        <>
+          {logoUrl && (
+            <div className="mb-8">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="" className="h-10 w-auto" />
+            </div>
+          )}
+
+          {heroImageUrl && (
+            <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={heroImageUrl}
+                alt=""
+                className="h-56 w-full object-cover md:h-72"
+              />
+            </div>
+          )}
+
+          <h1 className="text-4xl font-semibold leading-tight tracking-tight text-slate-900 md:text-6xl">
+            {title}
+          </h1>
+          {intro && (
+            <p className="mt-6 whitespace-pre-wrap text-lg text-slate-600 md:text-xl">
+              {intro}
+            </p>
+          )}
+
+          {highlights.length > 0 && (
+            <ul className="mt-8 space-y-3">
+              {highlights.map((h, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="mt-1 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                    style={{ backgroundColor: brand }}
+                  >
+                    ✓
+                  </span>
+                  <span className="text-base text-slate-800 md:text-lg">{h}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {embed && (
+            <div className="mt-8 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+              <div className="relative aspect-video w-full">
+                <iframe
+                  src={embed}
+                  title="Intro video"
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 h-full w-full"
+                />
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <p className="mt-8 text-sm text-slate-500">
@@ -972,4 +995,88 @@ function NavArrows({
       </button>
     </div>
   );
+}
+
+function BlockRender({ block, brand }: { block: Block; brand: string }) {
+  if (block.type === "heading") {
+    const sizeCls =
+      block.level === 1
+        ? "text-4xl md:text-6xl"
+        : block.level === 2
+        ? "text-3xl md:text-5xl"
+        : "text-2xl md:text-3xl";
+    return (
+      <h2
+        className={`${sizeCls} font-semibold leading-tight tracking-tight text-slate-900`}
+      >
+        {block.text}
+      </h2>
+    );
+  }
+  if (block.type === "paragraph") {
+    return (
+      <p className="whitespace-pre-wrap text-lg text-slate-600 md:text-xl">
+        {block.text}
+      </p>
+    );
+  }
+  if (block.type === "image") {
+    if (!block.url) return null;
+    return (
+      <div className="overflow-hidden rounded-2xl border border-slate-200">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={block.url}
+          alt={block.alt}
+          className="w-full object-cover"
+        />
+      </div>
+    );
+  }
+  if (block.type === "list") {
+    const items = block.items.filter((s) => s.trim().length > 0);
+    if (items.length === 0) return null;
+    return (
+      <ul className="space-y-3">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-3">
+            {block.checkmark ? (
+              <span
+                aria-hidden
+                className="mt-1 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                style={{ backgroundColor: brand }}
+              >
+                ✓
+              </span>
+            ) : (
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-400" />
+            )}
+            <span className="text-base text-slate-800 md:text-lg">{item}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (block.type === "button") {
+    if (!block.url || !block.label) return null;
+    const style =
+      block.style === "primary"
+        ? { backgroundColor: brand, color: "white" }
+        : { border: `1px solid ${brand}`, color: brand };
+    return (
+      <a
+        href={block.url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-2 rounded-lg px-6 py-3 text-base font-medium transition hover:opacity-90"
+        style={style}
+      >
+        {block.label} <span aria-hidden>→</span>
+      </a>
+    );
+  }
+  if (block.type === "divider") {
+    return <hr className="border-t border-slate-200" />;
+  }
+  return null;
 }

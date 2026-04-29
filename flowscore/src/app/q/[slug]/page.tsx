@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import QuizPlayer from "@/components/QuizPlayer";
+import type { Block } from "@/components/LandingDesigner";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,25 @@ function parseHighlights(raw: string | null): string[] {
     /* ignore */
   }
   return [];
+}
+
+function parseBlocks(raw: string | null): Block[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const valid = ["heading", "paragraph", "image", "list", "button", "divider"];
+    return parsed.filter(
+      (b: unknown): b is Block =>
+        !!b &&
+        typeof b === "object" &&
+        "type" in b &&
+        "id" in b &&
+        valid.includes((b as { type: string }).type),
+    );
+  } catch {
+    return [];
+  }
 }
 
 export default async function QuizPublicPage({ params }: { params: { slug: string } }) {
@@ -42,6 +62,7 @@ export default async function QuizPublicPage({ params }: { params: { slug: strin
     heroImageUrl: quiz.heroImageUrl,
     videoUrl: quiz.videoUrl,
     highlights: parseHighlights(quiz.highlights),
+    blocks: parseBlocks(quiz.landingBlocks),
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,

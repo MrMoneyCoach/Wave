@@ -66,7 +66,7 @@ export default async function LandingPagesPage({
               <td className="px-4 py-3 text-slate-500">—</td>
               <td className="px-4 py-3 text-right">
                 <Link
-                  href={`/dashboard/quizzes/${quiz.id}/edit`}
+                  href={`/dashboard/quizzes/${quiz.id}/landing-pages/primary`}
                   className="text-sm font-medium text-brand-600 hover:underline"
                 >
                   Edit design
