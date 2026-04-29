@@ -49,7 +49,12 @@ export default async function DashboardHome() {
             <div key={q.id} className="card">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">{q.title}</h3>
+                  <Link
+                    href={`/dashboard/quizzes/${q.id}`}
+                    className="text-lg font-semibold text-slate-900 hover:text-brand-700"
+                  >
+                    {q.title}
+                  </Link>
                   <p className="mt-1 text-sm text-slate-500">
                     {q._count.questions} questions · {q._count.submissions} submissions
                   </p>

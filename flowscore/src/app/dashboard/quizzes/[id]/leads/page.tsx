@@ -49,10 +49,10 @@ export default async function LeadsPage({ params }: { params: { id: string } }) 
       <div className="flex items-center justify-between">
         <div>
           <Link
-            href={`/dashboard/quizzes/${quiz.id}/edit`}
+            href={`/dashboard/quizzes/${quiz.id}`}
             className="text-sm text-slate-500 hover:text-slate-700"
           >
-            ← Back to quiz
+            ← Scorecard home
           </Link>
           <h1 className="mt-1 text-2xl font-bold">{quiz.title} — Leads</h1>
           <p className="text-sm text-slate-500">

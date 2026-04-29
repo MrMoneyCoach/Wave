@@ -57,10 +57,10 @@ export default async function AnalyticsPage({ params }: { params: { id: string }
   return (
     <div>
       <Link
-        href={`/dashboard/quizzes/${quiz.id}/edit`}
+        href={`/dashboard/quizzes/${quiz.id}`}
         className="text-sm text-slate-500 hover:text-slate-700"
       >
-        ← Back to quiz
+        ← Scorecard home
       </Link>
       <h1 className="mt-1 text-2xl font-bold">{quiz.title} — Analytics</h1>
 

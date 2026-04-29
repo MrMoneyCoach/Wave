@@ -187,10 +187,13 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-700">
-            ← Dashboard
+          <Link
+            href={`/dashboard/quizzes/${quiz.id}`}
+            className="text-sm text-slate-500 hover:text-slate-700"
+          >
+            ← Scorecard home
           </Link>
-          <h1 className="mt-1 text-2xl font-bold">Edit quiz</h1>
+          <h1 className="mt-1 text-2xl font-bold">Questions</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <button className="btn-secondary" onClick={() => save()} disabled={saving}>
