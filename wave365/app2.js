@@ -1,0 +1,421 @@
+// wave 365 — main app, part 2: views, router, settings, init
+(function () {
+  'use strict';
+  const W = window.W365;
+  if (!W) return;
+  const PLAN = window.PLAN;
+  const { el, $, $$, toast, isoDate, dayIndexFor, dayRecord, effectiveToday, dowOf,
+          fmtDateLong, monthTheme, effectiveEngine, ENGINE_LABEL, RULES,
+          blockTimeFor, endTimeFor, isDone, totals, drawProgressWave,
+          renderToday, DAY1 } = W;
+
+  // ---------- View router ----------------------------------------------------
+  function setView(name, opts = {}) {
+    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+    $$('.view').forEach(v => v.classList.toggle('active', v.dataset.view === name));
+    if (name === 'today')      renderToday();
+    if (name === 'week')       renderWeek(opts.weekOffset || 0);
+    if (name === 'year')       renderYear();
+    if (name === 'milestones') renderMilestones();
+    if (name === 'metrics')    renderMetrics(opts.weekOffset || 0);
+    if (name === 'settings')   renderSettings();
+  }
+
+  // ---------- WEEK -----------------------------------------------------------
+  let weekOffset = 0;
+  function renderWeek(offset) {
+    weekOffset = offset || 0;
+    const today = effectiveToday();
+    today.setDate(today.getDate() + weekOffset * 7);
+    // Snap to Monday of the week
+    const dow = today.getDay(); // Sun=0..Sat=6
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dow + 6) % 7));
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      const idx = dayIndexFor(d);
+      const rec = dayRecord(idx);
+      days.push({ date: d, idx, rec });
+    }
+
+    // Header — pick week number / theme from first present rec, else infer from today
+    const first = days.find(x => x.rec) || days[0];
+    if (first.rec) {
+      $('#weekNum').textContent   = `Week ${first.rec.week}`;
+      $('#weekTheme').textContent = `${first.rec.month} · ${monthTheme(first.rec.month)}`;
+    } else {
+      $('#weekNum').textContent   = `${monday.toDateString()}`;
+      $('#weekTheme').textContent = 'Outside the 365-day window';
+    }
+
+    const grid = $('#weekDays');
+    grid.innerHTML = '';
+    const realToday = effectiveToday();
+    days.forEach(({ date, idx, rec }) => {
+      const isToday = isoDate(date) === isoDate(realToday);
+      const card = el('div', {
+        class: `week-day ${isToday ? 'today' : ''}`,
+        onclick: () => {
+          if (rec) {
+            // Setting override would change "today" — instead just jump to today view if it IS today.
+            if (isToday) setView('today');
+          }
+        }
+      }, [
+        el('div', { class: 'week-day-header' }, [
+          el('div', { class: 'week-day-dow' }, dowOf(date)),
+          el('div', { class: 'week-day-num' }, rec ? `Day ${rec.day}` : isoDate(date)),
+        ]),
+      ]);
+      if (rec) {
+        const dowStr = dowOf(date);
+        rec.tasks.forEach((t, i) => {
+          const eng = effectiveEngine(t, rec);
+          const start = blockTimeFor(t, dowStr);
+          card.appendChild(el('div', {
+            class: 'week-day-task', 'data-engine': eng,
+          }, [
+            el('span', { class: 'engine-tag' }, ENGINE_LABEL[eng] || eng),
+            el('strong', {}, `${start} · ${t.headline}`),
+          ]));
+        });
+      } else {
+        card.appendChild(el('div', { class: 'muted', style: 'font-size:12px;' }, '—'));
+      }
+      grid.appendChild(card);
+    });
+
+    // Weekly Rhythm reference table
+    const rhy = $('#rhythmList');
+    rhy.innerHTML = '';
+    (PLAN.weeklyRhythm || []).forEach(r => {
+      rhy.appendChild(el('div', { class: 'rhy-day' }, r.day));
+      rhy.appendChild(el('div', { class: 'rhy-block' }, r.block));
+      rhy.appendChild(el('div', { class: 'rhy-activity', 'data-engine': r.engine }, r.activity));
+    });
+  }
+
+  $('#weekPrev').addEventListener('click',  () => renderWeek(weekOffset - 1));
+  $('#weekNext').addEventListener('click',  () => renderWeek(weekOffset + 1));
+  $('#weekToday').addEventListener('click', () => renderWeek(0));
+
+  // ---------- YEAR -----------------------------------------------------------
+  function renderYear() {
+    const grid = $('#yearGrid');
+    grid.innerHTML = '';
+    // Header row: blank corner + 53 week numbers
+    grid.appendChild(el('div', { class: 'year-row-label' }, ''));
+    for (let w = 1; w <= 53; w++) {
+      grid.appendChild(el('div', { class: 'year-row-label', style: 'justify-content:center;' }, w % 4 === 1 ? `W${w}` : ''));
+    }
+
+    const dows = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const realTodayIdx = dayIndexFor(effectiveToday());
+
+    for (let r = 0; r < 7; r++) {
+      grid.appendChild(el('div', { class: 'year-row-label' }, dows[r]));
+      for (let w = 1; w <= 53; w++) {
+        const dayNum = (w - 1) * 7 + r + 1;
+        if (dayNum > 365) {
+          grid.appendChild(el('div', { class: 'year-cell empty' }));
+          continue;
+        }
+        const rec = dayRecord(dayNum);
+        if (!rec) { grid.appendChild(el('div', { class: 'year-cell empty' })); continue; }
+        const primary = rec.tasks[0];
+        const eng = primary ? effectiveEngine(primary, rec) : 'Admin';
+        const allDone = rec.tasks.every((_, i) => isDone(rec.day, i));
+        const cell = el('div', {
+          class: `year-cell ${allDone ? 'done' : ''} ${dayNum === realTodayIdx ? 'today' : ''}`,
+          'data-engine': eng,
+          'data-day': dayNum,
+        });
+        cell.addEventListener('mouseenter', (e) => showYearTip(e, rec));
+        cell.addEventListener('mousemove', moveYearTip);
+        cell.addEventListener('mouseleave', hideYearTip);
+        cell.addEventListener('click', () => {
+          // Set override and jump to today
+          localStorage.setItem(W.LS_OVRIDE, isoDate(new Date(DAY1.getTime() + (rec.day - 1) * 86400000)));
+          setView('today');
+          toast(`Viewing day ${rec.day}. Settings → Time travel to clear.`);
+        });
+        grid.appendChild(cell);
+      }
+    }
+
+    // Legend
+    const legend = $('#yearLegend');
+    legend.innerHTML = '';
+    [
+      ['LC-Money', 'Legacy · Money'],
+      ['LC-LI',    'Legacy · LinkedIn'],
+      ['LC-IG',    'Legacy · Instagram'],
+      ['BB',       'Born Bare'],
+      ['BB-Sprint','BB Kickstarter sprint'],
+      ['MMP',      'MMP'],
+      ['Personal', 'Scott · personal'],
+      ['Batch',    'Sunday batch'],
+      ['Admin',    'Admin'],
+      ['Review',   'Review'],
+    ].forEach(([eng, label]) => {
+      legend.appendChild(el('span', { class: 'legend-pill', 'data-engine': eng }, [
+        el('span', { class: 'swatch' }), label,
+      ]));
+    });
+  }
+
+  function showYearTip(ev, rec) {
+    const tip = $('#yearTooltip');
+    const lines = rec.tasks.map(t => `• ${t.headline}`).join('<br>');
+    tip.innerHTML = `<strong>Day ${rec.day} — ${rec.dow} · ${rec.month}</strong><br>${rec.date}<br><br>${lines}`;
+    tip.classList.add('visible');
+    moveYearTip(ev);
+  }
+  function moveYearTip(ev) {
+    const tip = $('#yearTooltip');
+    const x = Math.min(window.innerWidth - 280, ev.clientX + 14);
+    const y = Math.min(window.innerHeight - 140, ev.clientY + 14);
+    tip.style.left = x + 'px';
+    tip.style.top  = y + 'px';
+  }
+  function hideYearTip() { $('#yearTooltip').classList.remove('visible'); }
+
+  // ---------- MILESTONES -----------------------------------------------------
+  function renderMilestones() {
+    const list = $('#milestonesList');
+    list.innerHTML = '';
+    const today = effectiveToday();
+    const idx = dayIndexFor(today);
+    const cur = dayRecord(idx);
+    const currentMonth = cur ? cur.month : null;
+
+    (PLAN.monthlyMilestones || []).forEach(m => {
+      const card = el('div', {
+        class: `milestone-card ${m.month === currentMonth ? 'current' : ''}`,
+      }, [
+        el('div', { class: 'milestone-month' }, [
+          el('div', { class: 'milestone-num' }, m.month),
+          el('div', { class: 'milestone-theme' }, m.theme || ''),
+        ]),
+        el('div', { class: 'milestone-engines' }, [
+          el('div', { class: 'milestone-engine', 'data-engine': 'LC-Money' }, [
+            el('h4', {}, 'Legacy Capital'),
+            el('p', {}, m.lc || '—'),
+          ]),
+          el('div', { class: 'milestone-engine', 'data-engine': 'BB' }, [
+            el('h4', {}, 'Born Bare'),
+            el('p', {}, m.bb || '—'),
+          ]),
+          el('div', { class: 'milestone-engine', 'data-engine': 'MMP' }, [
+            el('h4', {}, 'MMP'),
+            el('p', {}, m.mmp || '—'),
+          ]),
+        ]),
+      ]);
+      list.appendChild(card);
+    });
+  }
+
+  // ---------- METRICS --------------------------------------------------------
+  let metricsOffset = 0;
+  function metricsWeekKey(offset) {
+    const today = effectiveToday();
+    const idx = dayIndexFor(today);
+    const cur = dayRecord(idx);
+    const wkNum = cur ? cur.week : 1;
+    return `W${Math.max(1, wkNum + (offset || 0))}`;
+  }
+  function renderMetrics(offset) {
+    metricsOffset = offset || 0;
+    const wKey = metricsWeekKey(metricsOffset);
+    $('#metricsWeekLabel').textContent = wKey;
+
+    const grid = $('#metricsGrid');
+    grid.innerHTML = '';
+    const stored = W.METRICS[wKey] || {};
+
+    // Section by section
+    let curSection = null;
+    (PLAN.metrics || []).forEach(m => {
+      if (m.section !== curSection) {
+        curSection = m.section;
+        const engineHint = sectionEngine(curSection);
+        grid.appendChild(el('div', { class: 'metric-section-header', 'data-engine': engineHint }, curSection));
+      }
+      const input = el('input', {
+        type: 'text',
+        class: 'metric-value',
+        placeholder: '—',
+        value: stored[m.num] || '',
+        'data-num': m.num,
+      });
+      input.addEventListener('change', () => {
+        if (!W.METRICS[wKey]) W.METRICS[wKey] = {};
+        W.METRICS[wKey][m.num] = input.value;
+        W.saveJSON(W.LS_METRIC, W.METRICS);
+        toast(`${wKey} · ${m.name}: saved`);
+      });
+      grid.appendChild(el('div', { class: 'metric-row' }, [
+        el('div', { class: 'metric-name' }, m.name),
+        input,
+        el('div', { class: 'metric-target' }, m.target ? `→ ${m.target}` : ''),
+      ]));
+    });
+  }
+  function sectionEngine(section) {
+    if (!section) return 'Admin';
+    const s = section.toUpperCase();
+    if (s.includes('LEGACY'))   return 'LC-Money';
+    if (s.includes('BORN'))     return 'BB';
+    if (s.includes('MMP'))      return 'MMP';
+    if (s.includes('PERSONAL')) return 'Personal';
+    return 'Admin';
+  }
+  $('#metricsPrev').addEventListener('click',  () => renderMetrics(metricsOffset - 1));
+  $('#metricsNext').addEventListener('click',  () => renderMetrics(metricsOffset + 1));
+  $('#metricsToday').addEventListener('click', () => renderMetrics(0));
+
+  // ---------- SETTINGS -------------------------------------------------------
+  function renderSettings() {
+    // Notification status pill
+    const status = (window.W365notify && window.W365notify.permission()) || 'unsupported';
+    const pill = $('#notifStatus');
+    pill.textContent = status;
+    pill.classList.toggle('granted', status === 'granted');
+    pill.classList.toggle('denied',  status === 'denied');
+
+    // Pref checkboxes
+    const prefs = window.W365notify ? window.W365notify.prefs() : {};
+    $('#notifMorning').checked = !!prefs.morning;
+    $('#notifBlocks').checked  = !!prefs.blocks;
+    $('#notifFriday').checked  = !!prefs.friday;
+    $('#notifBatch').checked   = !!prefs.batch;
+
+    // Override
+    $('#overrideDate').value = localStorage.getItem(W.LS_OVRIDE) || '';
+
+    // Rules + outcomes
+    const rules = $('#rulesList'); rules.innerHTML = '';
+    RULES.forEach(r => rules.appendChild(el('li', {}, r)));
+
+    const outcomes = $('#outcomesList'); outcomes.innerHTML = '';
+    const o = (PLAN.readme && PLAN.readme.outcomes) || {};
+    Object.entries(o).forEach(([k, v]) => {
+      outcomes.appendChild(el('li', {}, [el('b', {}, k), document.createTextNode(v)]));
+    });
+  }
+
+  $('#notifEnable').addEventListener('click', async () => {
+    if (!window.W365notify) return;
+    const res = await window.W365notify.requestPermission();
+    toast(`Permission: ${res}`);
+    renderSettings();
+    renderToday(); // re-arm scheduling
+  });
+  $('#notifTest').addEventListener('click', () => window.W365notify && window.W365notify.test());
+  ['notifMorning','notifBlocks','notifFriday','notifBatch'].forEach((id) => {
+    const map = { notifMorning: 'morning', notifBlocks: 'blocks', notifFriday: 'friday', notifBatch: 'batch' };
+    $('#' + id).addEventListener('change', (e) => {
+      window.W365notify && window.W365notify.setPref(map[id], e.target.checked);
+      renderToday();
+    });
+  });
+  $('#overrideDate').addEventListener('change', (e) => {
+    if (e.target.value) localStorage.setItem(W.LS_OVRIDE, e.target.value);
+    else localStorage.removeItem(W.LS_OVRIDE);
+    toast('Time travel updated.');
+    renderToday();
+  });
+  $('#overrideClear').addEventListener('click', () => {
+    localStorage.removeItem(W.LS_OVRIDE);
+    $('#overrideDate').value = '';
+    toast('Back to today.');
+    renderToday();
+  });
+  $('#exportData').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ done: W.DONE, metrics: W.METRICS }, null, 2)],
+      { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = el('a', { href: url, download: `wave365-progress-${isoDate(new Date())}.json` });
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+  $('#importData').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (data.done)    { Object.assign(W.DONE, data.done);       W.saveJSON(W.LS_DONE, W.DONE); }
+        if (data.metrics) { Object.assign(W.METRICS, data.metrics); W.saveJSON(W.LS_METRIC, W.METRICS); }
+        toast('Imported.'); renderToday();
+      } catch { toast('Import failed.'); }
+    };
+    reader.readAsText(f);
+  });
+  $('#resetData').addEventListener('click', () => {
+    if (!confirm('Reset all progress? This clears done-state and metrics.')) return;
+    localStorage.removeItem(W.LS_DONE);
+    localStorage.removeItem(W.LS_METRIC);
+    Object.keys(W.DONE).forEach(k => delete W.DONE[k]);
+    Object.keys(W.METRICS).forEach(k => delete W.METRICS[k]);
+    toast('Reset.'); renderToday();
+  });
+
+  // ---------- Tabs -----------------------------------------------------------
+  $$('.tab').forEach((t) => t.addEventListener('click', () => setView(t.dataset.view)));
+
+  // ---------- Grain canvas ---------------------------------------------------
+  function paintGrain() {
+    const c = document.getElementById('grain');
+    if (!c) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+    c.style.width = innerWidth + 'px'; c.style.height = innerHeight + 'px';
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(c.width, c.height);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = (Math.random() * 255) | 0;
+      img.data[i] = img.data[i+1] = img.data[i+2] = v;
+      img.data[i+3] = 24;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // ---------- Service worker -------------------------------------------------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+    navigator.serviceWorker.addEventListener('message', (ev) => {
+      if (ev.data && ev.data.type === 'navigate' && ev.data.view) setView(ev.data.view);
+    });
+  }
+
+  // ---------- Init -----------------------------------------------------------
+  function init() {
+    paintGrain();
+    addEventListener('resize', paintGrain);
+
+    // Initial view from URL ?view= param, else Today.
+    const params = new URLSearchParams(location.search);
+    const initial = params.get('view') || 'today';
+    setView(initial);
+
+    // Re-render on focus (e.g. coming back to a tab the next morning)
+    window.addEventListener('focus', () => renderToday());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') renderToday();
+    });
+
+    // Tick every minute to refresh "next up" countdown logic
+    setInterval(() => {
+      if (document.querySelector('.view-today.active')) renderToday();
+    }, 60_000);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
