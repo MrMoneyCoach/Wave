@@ -19,6 +19,11 @@ type Quiz = {
   ctaLabel: string;
   collectEmail: boolean;
   theme?: "minimal" | "card";
+  brandColor?: string | null;
+  logoUrl?: string | null;
+  heroImageUrl?: string | null;
+  videoUrl?: string | null;
+  highlights?: string[];
   questions: Question[];
 };
 
@@ -258,6 +263,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
 
   const theme = quiz.theme ?? "minimal";
   const isCard = theme === "card";
+  const brand = (quiz.brandColor || "#345ff2").trim();
 
   return (
     <main
@@ -267,8 +273,8 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
     >
       <div className="fixed left-0 right-0 top-0 z-40 h-1 bg-slate-100">
         <div
-          className="h-full bg-brand-600 transition-all duration-500"
-          style={{ width: `${progress}%` }}
+          className="h-full transition-all duration-500"
+          style={{ width: `${progress}%`, backgroundColor: brand }}
         />
       </div>
 
@@ -303,6 +309,11 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
               total={total}
               ctaLabel={quiz.ctaLabel || "Start"}
               onStart={() => setStage("capture")}
+              brand={brand}
+              logoUrl={quiz.logoUrl ?? null}
+              heroImageUrl={quiz.heroImageUrl ?? null}
+              videoUrl={quiz.videoUrl ?? null}
+              highlights={quiz.highlights ?? []}
             />
           )}
 
@@ -383,15 +394,44 @@ function IntroScreen({
   total,
   ctaLabel,
   onStart,
+  brand,
+  logoUrl,
+  heroImageUrl,
+  videoUrl,
+  highlights,
 }: {
   title: string;
   intro: string;
   total: number;
   ctaLabel: string;
   onStart: () => void;
+  brand: string;
+  logoUrl: string | null;
+  heroImageUrl: string | null;
+  videoUrl: string | null;
+  highlights: string[];
 }) {
+  const embed = videoUrl ? videoEmbedUrl(videoUrl) : null;
   return (
     <div>
+      {logoUrl && (
+        <div className="mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoUrl} alt="" className="h-10 w-auto" />
+        </div>
+      )}
+
+      {heroImageUrl && (
+        <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroImageUrl}
+            alt=""
+            className="h-56 w-full object-cover md:h-72"
+          />
+        </div>
+      )}
+
       <h1 className="text-4xl font-semibold leading-tight tracking-tight text-slate-900 md:text-6xl">
         {title}
       </h1>
@@ -400,6 +440,39 @@ function IntroScreen({
           {intro}
         </p>
       )}
+
+      {highlights.length > 0 && (
+        <ul className="mt-8 space-y-3">
+          {highlights.map((h, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className="mt-1 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                style={{ backgroundColor: brand }}
+              >
+                ✓
+              </span>
+              <span className="text-base text-slate-800 md:text-lg">{h}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {embed && (
+        <div className="mt-8 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+          <div className="relative aspect-video w-full">
+            <iframe
+              src={embed}
+              title="Intro video"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full"
+            />
+          </div>
+        </div>
+      )}
+
       <p className="mt-8 text-sm text-slate-500">
         {total} question{total === 1 ? "" : "s"} · takes a couple of minutes
       </p>
@@ -408,7 +481,8 @@ function IntroScreen({
           type="button"
           onClick={onStart}
           disabled={total === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-lg font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg px-6 py-3 text-lg font-medium text-white transition disabled:opacity-50"
+          style={{ backgroundColor: brand }}
         >
           {ctaLabel}
           <span aria-hidden>→</span>
@@ -419,6 +493,28 @@ function IntroScreen({
       </div>
     </div>
   );
+}
+
+function videoEmbedUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const v = u.searchParams.get("v");
+      if (v) return `https://www.youtube.com/embed/${v}`;
+    }
+    if (host === "youtu.be") {
+      const id = u.pathname.slice(1).split("/")[0];
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+    if (host === "vimeo.com" || host === "player.vimeo.com") {
+      const id = u.pathname.split("/").filter(Boolean).pop();
+      if (id) return `https://player.vimeo.com/video/${id}`;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function QuestionScreen({
