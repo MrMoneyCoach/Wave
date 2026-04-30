@@ -55,8 +55,8 @@ export default function QuizSidebar({
         },
         {
           label: "Questions",
-          href: `${base}/edit`,
-          match: (p) => p === `${base}/edit`,
+          href: `${base}/questions`,
+          match: (p) => p.startsWith(`${base}/questions`),
           icon: "✍️",
         },
         { label: "Result Pages", comingSoon: true, icon: "🎯" },
