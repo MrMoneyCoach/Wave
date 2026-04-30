@@ -342,7 +342,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
               : ""
           }`}
         >
-          {stage === "intro" && (
+          {(stage === "intro" || stage === "capture") && (
             <IntroScreen
               title={quiz.title}
               intro={quiz.intro}
@@ -392,19 +392,6 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
             />
           )}
 
-          {stage === "capture" && (
-            <CaptureScreen
-              lead={lead}
-              consent={consent}
-              onChange={(patch) => setLead((l) => ({ ...l, ...patch }))}
-              onConsent={setConsent}
-              onBack={() => setStage("intro")}
-              onStart={startQuiz}
-              starting={starting}
-              error={error}
-            />
-          )}
-
           {stage === "submitting" && (
             <div className="text-center">
               <p className="text-lg text-slate-500">Scoring your answers…</p>
@@ -425,6 +412,23 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
       <footer className="fixed bottom-4 left-6 text-xs text-slate-400">
         Powered by <span className="font-medium text-slate-500">Flowscore</span>
       </footer>
+
+      {stage === "capture" && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 px-4 py-6 backdrop-blur-sm md:items-center md:py-12">
+          <div className="fade-in max-h-full w-full max-w-xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl md:p-10">
+            <CaptureScreen
+              lead={lead}
+              consent={consent}
+              onChange={(patch) => setLead((l) => ({ ...l, ...patch }))}
+              onConsent={setConsent}
+              onBack={() => setStage("intro")}
+              onStart={startQuiz}
+              starting={starting}
+              error={error}
+            />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
