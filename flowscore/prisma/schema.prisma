@@ -49,6 +49,19 @@ model Quiz {
   outcomes      Outcome[]
   submissions   Submission[]
   landingPages  LandingPage[]
+  resultPages   ResultPage[]
+}
+
+model ResultPage {
+  id          String   @id @default(cuid())
+  quizId      String
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  name        String
+  isDefault   Boolean  @default(false)
+  outcomeId   String?
+  blocks      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model LandingPage {

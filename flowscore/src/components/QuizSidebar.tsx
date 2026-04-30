@@ -59,7 +59,7 @@ export default function QuizSidebar({
           match: (p) => p.startsWith(`${base}/questions`),
           icon: "✍️",
         },
-        { label: "Result Pages", comingSoon: true, icon: "🎯" },
+        { label: "Result Pages", href: `${base}/result-pages`, match: (p) => p.startsWith(`${base}/result-pages`), icon: "🎯" },
         { label: "PDF Report", comingSoon: true, icon: "📄" },
       ],
     },
