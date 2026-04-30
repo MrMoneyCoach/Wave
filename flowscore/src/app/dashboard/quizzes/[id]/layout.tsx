@@ -20,14 +20,16 @@ export default async function QuizLayout({
   if (!quiz || quiz.userId !== user.id) return notFound();
 
   return (
-    <div className="-mx-6 -my-8 flex min-h-[calc(100vh-65px)]">
+    <div className="-mx-6 -my-8 flex min-h-[calc(100vh-65px)] flex-col md:flex-row">
       <QuizSidebar
         quizId={quiz.id}
         quizTitle={quiz.title}
         published={quiz.published}
         slug={quiz.slug}
       />
-      <div className="flex-1 overflow-x-auto px-8 py-8">{children}</div>
+      <div className="flex-1 overflow-x-auto px-4 py-6 md:px-8 md:py-8">
+        {children}
+      </div>
     </div>
   );
 }

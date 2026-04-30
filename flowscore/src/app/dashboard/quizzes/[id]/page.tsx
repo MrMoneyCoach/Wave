@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import DeleteScorecardButton from "@/components/DeleteScorecardButton";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +143,23 @@ export default async function ScorecardHomePage({
           </code>
         </section>
       )}
+
+      <section className="mt-8 rounded-xl border border-red-200 bg-red-50/40 p-5">
+        <h2 className="text-base font-semibold text-red-900">Danger zone</h2>
+        <p className="mt-1 text-sm text-red-800/80">
+          Deleting this scorecard will permanently remove every lead, submission,
+          landing page, result page and email setting attached to it. This can't be
+          undone.
+        </p>
+        <div className="mt-4">
+          <DeleteScorecardButton
+            quizId={quiz.id}
+            quizTitle={quiz.title}
+            redirectTo="/dashboard"
+            variant="button"
+          />
+        </div>
+      </section>
     </div>
   );
 }

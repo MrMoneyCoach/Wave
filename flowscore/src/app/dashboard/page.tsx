@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import DeleteScorecardButton from "@/components/DeleteScorecardButton";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ export default async function DashboardHome() {
                   {q.published ? "Published" : "Draft"}
                 </span>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
                 <Link href={`/dashboard/quizzes/${q.id}/edit`} className="btn-secondary">
                   Edit
                 </Link>
@@ -88,6 +89,9 @@ export default async function DashboardHome() {
                     View live ↗
                   </Link>
                 )}
+                <span className="ml-auto">
+                  <DeleteScorecardButton quizId={q.id} quizTitle={q.title} />
+                </span>
               </div>
             </div>
           ))}
