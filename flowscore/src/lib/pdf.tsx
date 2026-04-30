@@ -181,6 +181,14 @@ const styles = StyleSheet.create({
   },
 });
 
+export type PdfBlock =
+  | { id: string; type: "heading"; text: string; level: 1 | 2 | 3 }
+  | { id: string; type: "paragraph"; text: string }
+  | { id: string; type: "image"; url: string; alt: string }
+  | { id: string; type: "list"; items: string[]; checkmark: boolean }
+  | { id: string; type: "button"; label: string; url: string; style: "primary" | "secondary" }
+  | { id: string; type: "divider" };
+
 export type PdfData = {
   quizTitle: string;
   ownerName: string | null;
@@ -203,6 +211,9 @@ export type PdfData = {
   outcomeDescription?: string;
   answers: { question: string; answer: string }[];
   completedAt: Date;
+  /** Optional custom body blocks. If non-empty, these replace the
+   *  built-in 'Your answers' section in the report. */
+  bodyBlocks?: PdfBlock[];
 };
 
 function ScoreDial({ percent, brand }: { percent: number; brand: string }) {
@@ -293,22 +304,28 @@ function ReportDocument({ data }: { data: PdfData }) {
             {r.jobTitle && <Detail label="Role" value={r.jobTitle} />}
           </View>
 
-          <Text style={styles.sectionHeading}>Your answers</Text>
-          {data.answers.map((a, i) => (
-            <View key={i} style={styles.answer} wrap={false}>
-              <Text style={[styles.answerNum, { backgroundColor: brand }]}>
-                {i + 1}
-              </Text>
-              <View style={styles.answerBody}>
-                <Text style={styles.answerQ}>{a.question}</Text>
-                {a.answer ? (
-                  <Text style={styles.answerA}>{a.answer}</Text>
-                ) : (
-                  <Text style={[styles.answerA, styles.answerEmpty]}>Not answered</Text>
-                )}
-              </View>
-            </View>
-          ))}
+          {data.bodyBlocks && data.bodyBlocks.length > 0 ? (
+            <PdfBlocks blocks={data.bodyBlocks} brand={brand} />
+          ) : (
+            <>
+              <Text style={styles.sectionHeading}>Your answers</Text>
+              {data.answers.map((a, i) => (
+                <View key={i} style={styles.answer} wrap={false}>
+                  <Text style={[styles.answerNum, { backgroundColor: brand }]}>
+                    {i + 1}
+                  </Text>
+                  <View style={styles.answerBody}>
+                    <Text style={styles.answerQ}>{a.question}</Text>
+                    {a.answer ? (
+                      <Text style={styles.answerA}>{a.answer}</Text>
+                    ) : (
+                      <Text style={[styles.answerA, styles.answerEmpty]}>Not answered</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
 
           {data.bookingUrl && (
             <View style={[styles.cta, { backgroundColor: brand }]}>
@@ -345,6 +362,172 @@ function Detail({ label, value }: { label: string; value: string }) {
       <Text style={styles.detailValue}>{value || "—"}</Text>
     </View>
   );
+}
+
+const blockStyles = StyleSheet.create({
+  h1: {
+    fontSize: 22,
+    fontFamily: "Helvetica-Bold",
+    color: SLATE_900,
+    marginBottom: 8,
+    marginTop: 6,
+  },
+  h2: {
+    fontSize: 16,
+    fontFamily: "Helvetica-Bold",
+    color: SLATE_900,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  h3: {
+    fontSize: 13,
+    fontFamily: "Helvetica-Bold",
+    color: SLATE_900,
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  p: {
+    fontSize: 11,
+    color: SLATE_700,
+    marginBottom: 8,
+    lineHeight: 1.5,
+  },
+  listRow: {
+    flexDirection: "row",
+    marginBottom: 4,
+    alignItems: "flex-start",
+  },
+  bullet: {
+    width: 12,
+    fontSize: 11,
+    color: SLATE_500,
+  },
+  check: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    color: "#ffffff",
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    textAlign: "center",
+    paddingTop: 2,
+    marginRight: 6,
+  },
+  listItem: {
+    flex: 1,
+    fontSize: 11,
+    color: SLATE_700,
+    lineHeight: 1.5,
+  },
+  buttonPrimary: {
+    backgroundColor: BRAND,
+    color: "#ffffff",
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingLeft: 14,
+    paddingRight: 14,
+    borderRadius: 4,
+    marginTop: 4,
+    marginBottom: 8,
+    textDecoration: "none",
+  },
+  buttonSecondary: {
+    color: BRAND,
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingLeft: 14,
+    paddingRight: 14,
+    borderWidth: 1,
+    borderColor: BRAND,
+    borderRadius: 4,
+    marginTop: 4,
+    marginBottom: 8,
+    textDecoration: "none",
+  },
+  divider: {
+    borderBottomWidth: 1,
+    borderBottomColor: SLATE_200,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  pdfImage: {
+    width: "100%",
+    marginTop: 4,
+    marginBottom: 8,
+    borderRadius: 4,
+  },
+});
+
+function PdfBlocks({ blocks, brand }: { blocks: PdfBlock[]; brand: string }) {
+  return (
+    <View>
+      {blocks.map((b) => (
+        <PdfBlock key={b.id} block={b} brand={brand} />
+      ))}
+    </View>
+  );
+}
+
+function PdfBlock({ block, brand }: { block: PdfBlock; brand: string }) {
+  if (block.type === "heading") {
+    const style =
+      block.level === 1
+        ? blockStyles.h1
+        : block.level === 2
+        ? blockStyles.h2
+        : blockStyles.h3;
+    return <Text style={style}>{block.text}</Text>;
+  }
+  if (block.type === "paragraph") {
+    return <Text style={blockStyles.p}>{block.text}</Text>;
+  }
+  if (block.type === "image") {
+    if (!block.url) return null;
+    return (
+      // eslint-disable-next-line jsx-a11y/alt-text
+      <Image src={block.url} style={blockStyles.pdfImage} />
+    );
+  }
+  if (block.type === "list") {
+    const items = block.items.filter((s) => s.trim().length > 0);
+    if (items.length === 0) return null;
+    return (
+      <View style={{ marginBottom: 6 }}>
+        {items.map((item, i) => (
+          <View key={i} style={blockStyles.listRow}>
+            {block.checkmark ? (
+              <Text style={[blockStyles.check, { backgroundColor: brand }]}>
+                ✓
+              </Text>
+            ) : (
+              <Text style={blockStyles.bullet}>•</Text>
+            )}
+            <Text style={blockStyles.listItem}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+  if (block.type === "button") {
+    if (!block.label || !block.url) return null;
+    const style =
+      block.style === "primary"
+        ? [blockStyles.buttonPrimary, { backgroundColor: brand }]
+        : [blockStyles.buttonSecondary, { color: brand, borderColor: brand }];
+    return (
+      <Link src={block.url} style={style}>
+        {block.label}
+      </Link>
+    );
+  }
+  if (block.type === "divider") {
+    return <View style={blockStyles.divider} />;
+  }
+  return null;
 }
 
 export async function generatePdfBuffer(data: PdfData): Promise<Buffer> {

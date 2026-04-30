@@ -50,6 +50,18 @@ model Quiz {
   submissions   Submission[]
   landingPages  LandingPage[]
   resultPages   ResultPage[]
+  pdfReports    PdfReport[]
+}
+
+model PdfReport {
+  id          String   @id @default(cuid())
+  quizId      String
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  name        String
+  isDefault   Boolean  @default(false)
+  blocks      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ResultPage {

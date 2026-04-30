@@ -1,9 +1,43 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { generatePdfBuffer } from "@/lib/pdf";
+import { generatePdfBuffer, type PdfBlock } from "@/lib/pdf";
 import { buildPdfData } from "@/lib/submissionPdf";
 import { emailConfigured, sendResultEmail } from "@/lib/email";
+
+function parseBlocks(raw: string | null): PdfBlock[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const valid = ["heading", "paragraph", "image", "list", "button", "divider"];
+    return parsed.filter((b: unknown): b is PdfBlock => {
+      if (!b || typeof b !== "object" || !("type" in b) || !("id" in b)) return false;
+      return valid.includes((b as { type: string }).type);
+    });
+  } catch {
+    return [];
+  }
+}
+
+function sub(text: string, ctx: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, k) => ctx[k] ?? "");
+}
+
+function substituteBlocks(blocks: PdfBlock[], ctx: Record<string, string>): PdfBlock[] {
+  return blocks.map((b) => {
+    if (b.type === "heading" || b.type === "paragraph") {
+      return { ...b, text: sub(b.text, ctx) };
+    }
+    if (b.type === "list") {
+      return { ...b, items: b.items.map((i) => sub(i, ctx)) };
+    }
+    if (b.type === "button") {
+      return { ...b, label: sub(b.label, ctx), url: sub(b.url, ctx) };
+    }
+    return b;
+  });
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -81,6 +115,27 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   const ownerName =
     quiz.ownerName || quiz.user.name || quiz.user.email.split("@")[0];
 
+  // Pick the default PDF report for this quiz, if the owner designed one.
+  const report = await prisma.pdfReport.findFirst({
+    where: { quizId: quiz.id, isDefault: true },
+  });
+  const outcome = updatedSubmission.outcomeId
+    ? quiz.outcomes.find((o) => o.id === updatedSubmission.outcomeId)
+    : undefined;
+  const reportBlocks = report ? parseBlocks(report.blocks) : [];
+  const subbedBlocks =
+    reportBlocks.length > 0
+      ? substituteBlocks(reportBlocks, {
+          firstName: updatedSubmission.firstName ?? "",
+          lastName: updatedSubmission.lastName ?? "",
+          score: updatedSubmission.score.toFixed(1),
+          percent: updatedSubmission.percent.toFixed(1),
+          maxScore: updatedSubmission.maxScore.toFixed(1),
+          outcomeTitle: outcome?.title ?? "",
+          outcomeDescription: outcome?.description ?? "",
+        })
+      : undefined;
+
   const pdfData = buildPdfData({
     quiz: {
       title: quiz.title,
@@ -102,6 +157,7 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
       })),
     },
     submission: updatedSubmission,
+    bodyBlocks: subbedBlocks,
   });
 
   let pdfBuffer: Buffer;

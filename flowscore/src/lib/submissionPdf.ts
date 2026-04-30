@@ -1,4 +1,4 @@
-import type { PdfData } from "./pdf";
+import type { PdfData, PdfBlock } from "./pdf";
 
 type PrismaAnswer = {
   questionId: string;
@@ -36,9 +36,12 @@ export type BuildInput = {
     createdAt: Date;
     completedAt: Date | null;
   };
+  /** Optional custom body blocks. When provided, replaces the
+   *  default 'Your answers' section in the generated PDF. */
+  bodyBlocks?: PdfBlock[];
 };
 
-export function buildPdfData({ quiz, submission }: BuildInput): PdfData {
+export function buildPdfData({ quiz, submission, bodyBlocks }: BuildInput): PdfData {
   let answers: PrismaAnswer[] = [];
   try {
     answers = JSON.parse(submission.answers);
@@ -91,5 +94,6 @@ export function buildPdfData({ quiz, submission }: BuildInput): PdfData {
     outcomeDescription: outcome?.description,
     answers: renderedAnswers,
     completedAt: submission.completedAt ?? submission.createdAt,
+    bodyBlocks,
   };
 }
