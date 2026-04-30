@@ -7,7 +7,7 @@
   const { el, $, $$, toast, isoDate, dayIndexFor, dayRecord, effectiveToday, dowOf,
           fmtDateLong, monthTheme, effectiveEngine, ENGINE_LABEL, RULES,
           blockTimeFor, endTimeFor, isDone, totals, drawProgressWave,
-          renderToday, DAY1 } = W;
+          renderToday, getStartDate } = W;
 
   // ---------- View router ----------------------------------------------------
   function setView(name, opts = {}) {
@@ -137,7 +137,7 @@
         cell.addEventListener('mouseleave', hideYearTip);
         cell.addEventListener('click', () => {
           // Set override and jump to today
-          localStorage.setItem(W.LS_OVRIDE, isoDate(new Date(DAY1.getTime() + (rec.day - 1) * 86400000)));
+          localStorage.setItem(W.LS_OVRIDE, isoDate(new Date(getStartDate().getTime() + (rec.day - 1) * 86400000)));
           setView('today');
           toast(`Viewing day ${rec.day}. Settings → Time travel to clear.`);
         });
@@ -296,6 +296,18 @@
     // Override
     $('#overrideDate').value = localStorage.getItem(W.LS_OVRIDE) || '';
 
+    // Start date
+    const startInput = $('#startDateInput');
+    if (startInput) {
+      startInput.value = isoDate(getStartDate());
+      const start = getStartDate();
+      const todayIdx = W.dayIndexFor(W.effectiveToday());
+      const info = todayIdx < 1
+        ? `Today is ${1 - todayIdx} day(s) before Day 1.`
+        : (todayIdx > 365 ? `The 365 days have ended.` : `Today is Day ${todayIdx} of 365.`);
+      $('#startDateInfo').textContent = `Day 1 = ${fmtDateLong(start)}. ${info}`;
+    }
+
     // Rules + outcomes
     const rules = $('#rulesList'); rules.innerHTML = '';
     RULES.forEach(r => rules.appendChild(el('li', {}, r)));
@@ -334,6 +346,33 @@
     toast('Back to today.');
     renderToday();
   });
+
+  // Start-date input
+  const startDateInput = $('#startDateInput');
+  if (startDateInput) {
+    startDateInput.addEventListener('change', (e) => {
+      W.setStartDate(e.target.value);
+      toast('Start date updated.');
+      renderToday(); renderSettings();
+    });
+  }
+  $('#startDateReset')?.addEventListener('click', () => {
+    W.setStartDate(null);
+    toast('Start date reset to default.');
+    renderToday(); renderSettings();
+  });
+
+  // Theme toggle
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('wave365.theme', theme);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1f1814' : '#fff7ea');
+  }
+  $('#themeToggle')?.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(cur === 'dark' ? 'light' : 'dark');
+  });
   $('#exportData').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ done: W.DONE, metrics: W.METRICS }, null, 2)],
       { type: 'application/json' });
@@ -368,22 +407,9 @@
   // ---------- Tabs -----------------------------------------------------------
   $$('.tab').forEach((t) => t.addEventListener('click', () => setView(t.dataset.view)));
 
-  // ---------- Grain canvas ---------------------------------------------------
-  function paintGrain() {
-    const c = document.getElementById('grain');
-    if (!c) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    c.width = innerWidth * dpr; c.height = innerHeight * dpr;
-    c.style.width = innerWidth + 'px'; c.style.height = innerHeight + 'px';
-    const ctx = c.getContext('2d');
-    const img = ctx.createImageData(c.width, c.height);
-    for (let i = 0; i < img.data.length; i += 4) {
-      const v = (Math.random() * 255) | 0;
-      img.data[i] = img.data[i+1] = img.data[i+2] = v;
-      img.data[i+3] = 24;
-    }
-    ctx.putImageData(img, 0, 0);
-  }
+  // The #grain canvas is left empty in the new theme — soft watercolor blobs
+  // come from CSS gradients on the body. No JS painting needed.
+  function paintGrain() { /* no-op in Headspace theme */ }
 
   // ---------- Service worker -------------------------------------------------
   if ('serviceWorker' in navigator) {
