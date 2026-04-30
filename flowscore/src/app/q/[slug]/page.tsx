@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import QuizPlayer from "@/components/QuizPlayer";
@@ -36,6 +37,34 @@ function parseBlocks(raw: string | null): Block[] {
   }
 }
 
+const FONT_STACKS: Record<string, string> = {
+  sans: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Inter, sans-serif",
+  serif: "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+  mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+};
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const quiz = await prisma.quiz.findUnique({
+    where: { slug: params.slug },
+    select: {
+      title: true,
+      intro: true,
+      published: true,
+      metaTitle: true,
+      metaDescription: true,
+    },
+  });
+  if (!quiz || !quiz.published) return {};
+  return {
+    title: quiz.metaTitle || quiz.title,
+    description: quiz.metaDescription || quiz.intro || undefined,
+  };
+}
+
 export default async function QuizPublicPage({ params }: { params: { slug: string } }) {
   const quiz = await prisma.quiz.findUnique({
     where: { slug: params.slug },
@@ -72,5 +101,24 @@ export default async function QuizPublicPage({ params }: { params: { slug: strin
     })),
   };
 
-  return <QuizPlayer quiz={safe} />;
+  const fontStack = quiz.fontFamily
+    ? FONT_STACKS[quiz.fontFamily]
+    : undefined;
+
+  const wrapperStyle: React.CSSProperties & Record<"--brand-2", string | undefined> = {
+    fontFamily: fontStack,
+    "--brand-2": quiz.secondaryColor || undefined,
+  };
+
+  return (
+    <>
+      {quiz.customCss && (
+        // eslint-disable-next-line react/no-danger
+        <style dangerouslySetInnerHTML={{ __html: quiz.customCss }} />
+      )}
+      <div style={wrapperStyle}>
+        <QuizPlayer quiz={safe} />
+      </div>
+    </>
+  );
 }

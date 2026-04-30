@@ -36,6 +36,13 @@ model Quiz {
   videoUrl      String?
   highlights    String?
   landingBlocks String?
+  secondaryLogoUrl  String?
+  squareIconUrl     String?
+  secondaryColor    String?
+  fontFamily        String?
+  metaTitle         String?
+  metaDescription   String?
+  customCss         String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   questions     Question[]

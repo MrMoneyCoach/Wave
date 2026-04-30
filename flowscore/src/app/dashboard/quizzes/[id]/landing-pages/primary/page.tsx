@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import LandingDesigner, { type Block } from "@/components/LandingDesigner";
+import LandingDesigner, {
+  type Block,
+  type ThemeState,
+  type SettingsState,
+} from "@/components/LandingDesigner";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +24,10 @@ function parseBlocks(raw: string | null): Block[] {
   }
 }
 
+function coerceFont(v: string | null): ThemeState["fontFamily"] {
+  return v === "sans" || v === "serif" || v === "mono" ? v : "";
+}
+
 export default async function PrimaryDesignerPage({
   params,
 }: {
@@ -30,6 +38,19 @@ export default async function PrimaryDesignerPage({
   if (!quiz || quiz.userId !== user.id) return notFound();
 
   const initialBlocks = parseBlocks(quiz.landingBlocks);
+  const initialTheme: ThemeState = {
+    brandColor: quiz.brandColor ?? "",
+    secondaryColor: quiz.secondaryColor ?? "",
+    logoUrl: quiz.logoUrl ?? "",
+    secondaryLogoUrl: quiz.secondaryLogoUrl ?? "",
+    squareIconUrl: quiz.squareIconUrl ?? "",
+    fontFamily: coerceFont(quiz.fontFamily),
+  };
+  const initialSettings: SettingsState = {
+    metaTitle: quiz.metaTitle ?? "",
+    metaDescription: quiz.metaDescription ?? "",
+    customCss: quiz.customCss ?? "",
+  };
 
   return (
     <LandingDesigner
@@ -37,9 +58,9 @@ export default async function PrimaryDesignerPage({
       quizTitle={quiz.title}
       quizSlug={quiz.slug}
       published={quiz.published}
-      brandColor={quiz.brandColor || "#345ff2"}
       initialBlocks={initialBlocks}
+      initialTheme={initialTheme}
+      initialSettings={initialSettings}
     />
   );
 }
-

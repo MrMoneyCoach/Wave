@@ -45,23 +45,42 @@ function defaultBlock(type: Block["type"]): Block {
   }
 }
 
+export type ThemeState = {
+  brandColor: string;
+  secondaryColor: string;
+  logoUrl: string;
+  secondaryLogoUrl: string;
+  squareIconUrl: string;
+  fontFamily: "" | "sans" | "serif" | "mono";
+};
+
+export type SettingsState = {
+  metaTitle: string;
+  metaDescription: string;
+  customCss: string;
+};
+
 export default function LandingDesigner({
   quizId,
   quizTitle,
   quizSlug,
   published,
-  brandColor,
   initialBlocks,
+  initialTheme,
+  initialSettings,
 }: {
   quizId: string;
   quizTitle: string;
   quizSlug: string;
   published: boolean;
-  brandColor: string;
   initialBlocks: Block[];
+  initialTheme: ThemeState;
+  initialSettings: SettingsState;
 }) {
   const router = useRouter();
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
+  const [theme, setTheme] = useState<ThemeState>(initialTheme);
+  const [settings, setSettings] = useState<SettingsState>(initialSettings);
   const [selectedId, setSelectedId] = useState<string | null>(
     initialBlocks[0]?.id ?? null,
   );
@@ -74,6 +93,7 @@ export default function LandingDesigner({
   const [rail, setRail] = useState<Rail>("sections");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
 
+  const brandColor = theme.brandColor || "#345ff2";
   const selected = blocks.find((b) => b.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -116,7 +136,7 @@ export default function LandingDesigner({
     const res = await fetch(`/api/quizzes/${quizId}/design`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blocks }),
+      body: JSON.stringify({ blocks, theme, settings }),
     });
     setBusy(false);
     if (!res.ok) {
@@ -166,9 +186,13 @@ export default function LandingDesigner({
             onShowPalette={setShowPalette}
           />
         ) : rail === "theme" ? (
-          <ThemePanel brandColor={brandColor} quizId={quizId} />
+          <ThemePanel theme={theme} onChange={setTheme} />
         ) : (
-          <SettingsPanel quizSlug={quizSlug} />
+          <SettingsPanel
+            quizSlug={quizSlug}
+            settings={settings}
+            onChange={setSettings}
+          />
         )
       }
       rightPanel={
@@ -350,62 +374,234 @@ function SectionsPanel({
 }
 
 function ThemePanel({
-  brandColor,
-  quizId,
+  theme,
+  onChange,
 }: {
-  brandColor: string;
-  quizId: string;
+  theme: ThemeState;
+  onChange: (next: ThemeState) => void;
 }) {
+  function patch(next: Partial<ThemeState>) {
+    onChange({ ...theme, ...next });
+  }
   return (
     <div>
       <EditorPanelHeading>Theme</EditorPanelHeading>
-      <div className="space-y-4 px-4 pb-4 text-sm">
-        <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-            Brand colour
-          </p>
-          <div className="flex items-center gap-2">
-            <span
-              className="h-8 w-8 rounded-md border border-slate-200"
-              style={{ backgroundColor: brandColor }}
-              aria-hidden
-            />
-            <code className="text-xs text-slate-700">{brandColor}</code>
+
+      <details open className="border-b border-slate-100 px-4 pb-4">
+        <summary className="cursor-pointer py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Logos
+        </summary>
+        <div className="space-y-3 pt-1">
+          <LogoField
+            label="Main logo"
+            value={theme.logoUrl}
+            onChange={(v) => patch({ logoUrl: v })}
+          />
+          <LogoField
+            label="Secondary logo"
+            value={theme.secondaryLogoUrl}
+            onChange={(v) => patch({ secondaryLogoUrl: v })}
+          />
+          <LogoField
+            label="Square icon"
+            value={theme.squareIconUrl}
+            onChange={(v) => patch({ squareIconUrl: v })}
+            square
+          />
+        </div>
+      </details>
+
+      <details open className="border-b border-slate-100 px-4 pb-4">
+        <summary className="cursor-pointer py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Colours
+        </summary>
+        <div className="space-y-3 pt-1">
+          <ColourField
+            label="Primary"
+            value={theme.brandColor}
+            onChange={(v) => patch({ brandColor: v })}
+            placeholder="#345ff2"
+          />
+          <ColourField
+            label="Secondary"
+            value={theme.secondaryColor}
+            onChange={(v) => patch({ secondaryColor: v })}
+            placeholder="#1f3087"
+          />
+        </div>
+      </details>
+
+      <details className="px-4 pb-4">
+        <summary className="cursor-pointer py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Typography
+        </summary>
+        <div className="space-y-3 pt-1">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Font family
+            </label>
+            <select
+              className="input"
+              value={theme.fontFamily}
+              onChange={(e) =>
+                patch({
+                  fontFamily: e.target.value as ThemeState["fontFamily"],
+                })
+              }
+            >
+              <option value="">System default</option>
+              <option value="sans">Sans-serif</option>
+              <option value="serif">Serif</option>
+              <option value="mono">Monospace</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Applied to the public landing page.
+            </p>
           </div>
         </div>
-        <a
-          href={`/dashboard/quizzes/${quizId}/edit`}
-          className="block rounded-md border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700"
-        >
-          Edit theme on Quiz settings →
-        </a>
-        <p className="text-xs text-slate-500">
-          Logos, typography, and additional theme controls are coming as part of
-          the Theme rail.
-        </p>
+      </details>
+    </div>
+  );
+}
+
+function LogoField({
+  label,
+  value,
+  onChange,
+  square,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  square?: boolean;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-slate-700">{label}</label>
+      <input
+        type="url"
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="https://…"
+      />
+      {value && (
+        <div className="mt-2 inline-block rounded border border-slate-200 bg-slate-50 p-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={value}
+            alt=""
+            className={square ? "h-8 w-8 object-contain" : "h-8 w-auto"}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ColourField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-slate-700">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          className="h-9 w-12 cursor-pointer rounded border border-slate-300"
+          value={value || placeholder || "#000000"}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <input
+          className="input flex-1 font-mono text-xs"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
       </div>
     </div>
   );
 }
 
-function SettingsPanel({ quizSlug }: { quizSlug: string }) {
+function SettingsPanel({
+  quizSlug,
+  settings,
+  onChange,
+}: {
+  quizSlug: string;
+  settings: SettingsState;
+  onChange: (next: SettingsState) => void;
+}) {
+  function patch(next: Partial<SettingsState>) {
+    onChange({ ...settings, ...next });
+  }
   return (
     <div>
       <EditorPanelHeading>Settings</EditorPanelHeading>
-      <div className="space-y-4 px-4 pb-4 text-sm">
-        <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-            Public URL
-          </p>
-          <code className="block break-all text-xs text-slate-700">
-            /q/{quizSlug}
-          </code>
+
+      <details open className="border-b border-slate-100 px-4 pb-4">
+        <summary className="cursor-pointer py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          General
+        </summary>
+        <div className="space-y-3 pt-1">
+          <div>
+            <p className="mb-1 text-xs font-medium text-slate-700">Public URL</p>
+            <code className="block break-all rounded bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
+              /q/{quizSlug}
+            </code>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Title tag (SEO)
+            </label>
+            <input
+              className="input"
+              value={settings.metaTitle}
+              onChange={(e) => patch({ metaTitle: e.target.value })}
+              placeholder="Inherits the quiz title"
+              maxLength={120}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Meta description (SEO)
+            </label>
+            <textarea
+              className="input min-h-[80px] text-xs"
+              value={settings.metaDescription}
+              onChange={(e) => patch({ metaDescription: e.target.value })}
+              placeholder="Shown in search results."
+              maxLength={300}
+            />
+          </div>
         </div>
-        <p className="text-xs text-slate-500">
-          Page name, SEO meta, custom CSS and script settings will land here in a
-          follow-up push.
-        </p>
-      </div>
+      </details>
+
+      <details className="px-4 pb-4">
+        <summary className="cursor-pointer py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Custom CSS
+        </summary>
+        <div className="pt-1">
+          <textarea
+            className="input min-h-[140px] font-mono text-xs"
+            value={settings.customCss}
+            onChange={(e) => patch({ customCss: e.target.value })}
+            placeholder="/* Add CSS that runs on the public page */"
+            maxLength={20000}
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Injected as a &lt;style&gt; tag on the public landing page.
+          </p>
+        </div>
+      </details>
     </div>
   );
 }

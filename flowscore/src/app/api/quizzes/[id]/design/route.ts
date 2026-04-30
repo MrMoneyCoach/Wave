@@ -40,8 +40,35 @@ const blockSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+const hexOrEmpty = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/i, "Use a 6-digit hex like #345ff2")
+  .optional()
+  .or(z.literal(""));
+
+const themeSchema = z
+  .object({
+    brandColor: hexOrEmpty,
+    secondaryColor: hexOrEmpty,
+    logoUrl: z.string().url().optional().or(z.literal("")),
+    secondaryLogoUrl: z.string().url().optional().or(z.literal("")),
+    squareIconUrl: z.string().url().optional().or(z.literal("")),
+    fontFamily: z.enum(["sans", "serif", "mono"]).optional().or(z.literal("")),
+  })
+  .optional();
+
+const settingsSchema = z
+  .object({
+    metaTitle: z.string().max(120).optional().or(z.literal("")),
+    metaDescription: z.string().max(300).optional().or(z.literal("")),
+    customCss: z.string().max(20000).optional().or(z.literal("")),
+  })
+  .optional();
+
 const schema = z.object({
-  blocks: z.array(blockSchema).max(40),
+  blocks: z.array(blockSchema).max(40).optional(),
+  theme: themeSchema,
+  settings: settingsSchema,
 });
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
@@ -57,17 +84,37 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return NextResponse.json(
-      { error: issue ? `${issue.path.join(".") || "field"}: ${issue.message}` : "Invalid" },
+      {
+        error: issue
+          ? `${issue.path.join(".") || "field"}: ${issue.message}`
+          : "Invalid",
+      },
       { status: 400 },
     );
   }
 
-  await prisma.quiz.update({
-    where: { id: quiz.id },
-    data: {
-      landingBlocks:
-        parsed.data.blocks.length > 0 ? JSON.stringify(parsed.data.blocks) : null,
-    },
-  });
+  const data: Record<string, unknown> = {};
+  const { blocks, theme, settings } = parsed.data;
+
+  if (blocks !== undefined) {
+    data.landingBlocks = blocks.length > 0 ? JSON.stringify(blocks) : null;
+  }
+  if (theme) {
+    if ("brandColor" in theme) data.brandColor = theme.brandColor || null;
+    if ("secondaryColor" in theme) data.secondaryColor = theme.secondaryColor || null;
+    if ("logoUrl" in theme) data.logoUrl = theme.logoUrl || null;
+    if ("secondaryLogoUrl" in theme)
+      data.secondaryLogoUrl = theme.secondaryLogoUrl || null;
+    if ("squareIconUrl" in theme) data.squareIconUrl = theme.squareIconUrl || null;
+    if ("fontFamily" in theme) data.fontFamily = theme.fontFamily || null;
+  }
+  if (settings) {
+    if ("metaTitle" in settings) data.metaTitle = settings.metaTitle || null;
+    if ("metaDescription" in settings)
+      data.metaDescription = settings.metaDescription || null;
+    if ("customCss" in settings) data.customCss = settings.customCss || null;
+  }
+
+  await prisma.quiz.update({ where: { id: quiz.id }, data });
   return NextResponse.json({ ok: true });
 }
