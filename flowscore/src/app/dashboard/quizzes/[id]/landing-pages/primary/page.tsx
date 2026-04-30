@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
@@ -33,30 +32,14 @@ export default async function PrimaryDesignerPage({
   const initialBlocks = parseBlocks(quiz.landingBlocks);
 
   return (
-    <div>
-      <Link
-        href={`/dashboard/quizzes/${quiz.id}/landing-pages`}
-        className="text-sm text-slate-500 hover:text-slate-700"
-      >
-        ← All landing pages
-      </Link>
-      <div className="mt-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Primary landing page · Designer
-        </p>
-        <h1 className="mt-1 text-2xl font-bold">{quiz.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Drag blocks to reorder, click to edit, and save when you're done.
-        </p>
-      </div>
-
-      <div className="mt-6">
-        <LandingDesigner
-          quizId={quiz.id}
-          brandColor={quiz.brandColor || "#345ff2"}
-          initialBlocks={initialBlocks}
-        />
-      </div>
-    </div>
+    <LandingDesigner
+      quizId={quiz.id}
+      quizTitle={quiz.title}
+      quizSlug={quiz.slug}
+      published={quiz.published}
+      brandColor={quiz.brandColor || "#345ff2"}
+      initialBlocks={initialBlocks}
+    />
   );
 }
+
