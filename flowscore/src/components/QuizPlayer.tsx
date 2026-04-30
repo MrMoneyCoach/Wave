@@ -311,23 +311,22 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
         isCard ? "bg-gradient-to-b from-brand-50 via-white to-brand-50/30" : "bg-white"
       }`}
     >
-      <div className="fixed left-0 right-0 top-0 z-40 h-1 bg-slate-100">
-        <div
-          className="h-full transition-all duration-500"
-          style={{ width: `${progress}%`, backgroundColor: brand }}
-        />
-      </div>
-
       {stage === "questions" && total > 0 && (
-        <div className="fixed right-4 top-4 z-40 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
-          <span>
-            Question <span className="text-slate-900">{current + 1}</span>{" "}
-            <span className="text-slate-400">of {total}</span>
-          </span>
-          <span className="h-3 w-px bg-slate-200" aria-hidden />
-          <span className="text-slate-500">
-            {Math.round(((current + 1) / total) * 100)}%
-          </span>
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-8">
+          <div className="mx-auto flex max-w-2xl flex-col gap-1.5">
+            <span className="text-sm font-medium text-slate-700">
+              {Math.round(((current + 1) / total) * 100)}% Complete
+            </span>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${((current + 1) / total) * 100}%`,
+                  backgroundColor: brand,
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -365,6 +364,8 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
               question={question}
               answer={existingAnswer}
               theme={theme}
+              brand={brand}
+              logoUrl={quiz.logoUrl ?? null}
               onSelectOption={(opt) => {
                 if (question.type === "multi") {
                   const cur = existingAnswer?.optionIds ?? [];
@@ -400,18 +401,11 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
         </div>
       </div>
 
-      {stage === "questions" && (
-        <NavArrows
-          canPrev={current > 0}
-          canNext={canAdvance()}
-          onPrev={prev}
-          onNext={next}
-        />
+      {stage !== "questions" && (
+        <footer className="fixed bottom-4 left-6 text-xs text-slate-400">
+          Powered by <span className="font-medium text-slate-500">Flowscore</span>
+        </footer>
       )}
-
-      <footer className="fixed bottom-4 left-6 text-xs text-slate-400">
-        Powered by <span className="font-medium text-slate-500">Flowscore</span>
-      </footer>
 
       {stage === "capture" && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 px-4 py-6 backdrop-blur-sm md:items-center md:py-12">
@@ -553,6 +547,17 @@ function IntroScreen({
   );
 }
 
+function pickTextOn(hex: string): "white" | "#0f172a" {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return "white";
+  const r = parseInt(m.substr(0, 2), 16);
+  const g = parseInt(m.substr(2, 2), 16);
+  const b = parseInt(m.substr(4, 2), 16);
+  // YIQ luma; 155 is a sensible threshold for perceived lightness.
+  const luma = (r * 299 + g * 587 + b * 114) / 1000;
+  return luma > 155 ? "#0f172a" : "white";
+}
+
 function videoEmbedUrl(raw: string): string | null {
   try {
     const u = new URL(raw);
@@ -581,6 +586,8 @@ function QuestionScreen({
   question,
   answer,
   theme,
+  brand,
+  logoUrl,
   onSelectOption,
   onSelectScale,
   onText,
@@ -594,6 +601,8 @@ function QuestionScreen({
   question: Question;
   answer?: Answer;
   theme: "minimal" | "card";
+  brand: string;
+  logoUrl: string | null;
   onSelectOption: (opt: Option) => void;
   onSelectScale: (v: number) => void;
   onText: (t: string) => void;
@@ -604,15 +613,32 @@ function QuestionScreen({
 }) {
   const titleSize =
     theme === "card"
-      ? "text-2xl md:text-3xl"
-      : "text-3xl md:text-4xl";
+      ? "text-3xl md:text-4xl"
+      : "text-4xl md:text-5xl";
+  const textOnBrand = pickTextOn(brand);
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-brand-600">
-        <span>{index + 1}</span>
-        <span aria-hidden>→</span>
-      </div>
-      <h2 className={`${titleSize} font-semibold leading-tight tracking-tight text-slate-900`}>
+    <div className="relative">
+      {logoUrl && (
+        <div className="mb-12 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoUrl} alt="" className="h-12 w-auto" />
+        </div>
+      )}
+
+      {index > 0 && (
+        <button
+          type="button"
+          onClick={onPrev}
+          className="mb-8 inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500 transition hover:text-slate-800"
+        >
+          <span aria-hidden>←</span> Back
+        </button>
+      )}
+
+      <h2
+        className={`${titleSize} font-serif font-bold leading-tight tracking-tight text-slate-900`}
+        style={{ fontFamily: "Georgia, 'Times New Roman', Times, serif" }}
+      >
         {question.text}
         {!question.required && (
           <span className="ml-2 align-middle text-sm font-normal text-slate-400">
@@ -631,6 +657,7 @@ function QuestionScreen({
           <ScaleAnswer
             value={answer?.scaleValue}
             onSelect={onSelectScale}
+            brand={brand}
           />
         ) : (
           <OptionsAnswer
@@ -638,7 +665,7 @@ function QuestionScreen({
             selectedIds={answer?.optionIds ?? []}
             multi={question.type === "multi"}
             onSelect={onSelectOption}
-            theme={theme}
+            brand={brand}
           />
         )}
       </div>
@@ -649,11 +676,12 @@ function QuestionScreen({
         </div>
       )}
 
-      <div className="mt-10 flex items-center gap-4">
+      <div className="mt-10 flex flex-wrap items-center gap-4">
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-medium text-white transition hover:bg-brand-700"
+          className="inline-flex items-center gap-2 rounded-lg px-6 py-3 text-base font-semibold transition hover:opacity-90"
+          style={{ backgroundColor: brand, color: textOnBrand }}
         >
           {isLast ? "See my result" : "OK"}
           <span aria-hidden>{isLast ? "→" : "✓"}</span>
@@ -668,15 +696,6 @@ function QuestionScreen({
             <kbd>Enter ↵</kbd>
           )}
         </span>
-        {index > 0 && (
-          <button
-            type="button"
-            onClick={onPrev}
-            className="ml-auto text-sm text-slate-500 hover:text-slate-700"
-          >
-            ← back
-          </button>
-        )}
       </div>
     </div>
   );
@@ -687,48 +706,48 @@ function OptionsAnswer({
   selectedIds,
   multi,
   onSelect,
-  theme,
+  brand,
 }: {
   options: Option[];
   selectedIds: string[];
   multi: boolean;
   onSelect: (opt: Option) => void;
-  theme: "minimal" | "card";
+  brand: string;
 }) {
-  const containerCls =
-    theme === "card"
-      ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
-      : "flex flex-col gap-3";
+  const textOnBrand = pickTextOn(brand);
+  // Choose row vs stack layout based on count and option text length —
+  // short single-word options (Yes / No / 3-way splits) read better in a row.
+  const maxLen = options.reduce((m, o) => Math.max(m, o.text.length), 0);
+  const rowLayout = options.length <= 3 && maxLen <= 28;
+  const containerCls = rowLayout
+    ? "grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3"
+    : "grid grid-cols-1 gap-3 md:grid-cols-2";
+
   return (
     <div className={containerCls}>
-      {options.map((opt, i) => {
+      {options.map((opt) => {
         const active = selectedIds.includes(opt.id);
-        const letter = String.fromCharCode(65 + i);
         return (
           <button
             key={opt.id}
             type="button"
             onClick={() => onSelect(opt)}
-            className={`group flex w-full items-center gap-4 rounded-xl border px-5 py-4 text-left transition ${
-              active
-                ? "border-brand-600 bg-brand-600/5"
-                : "border-slate-200 hover:border-brand-400 hover:bg-slate-50"
-            }`}
+            className="group relative flex min-h-[88px] items-center justify-center rounded-xl px-6 py-5 text-center text-lg font-semibold transition hover:scale-[1.01] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
+            style={{
+              backgroundColor: brand,
+              color: textOnBrand,
+              opacity: active ? 1 : 0.9,
+              boxShadow: active
+                ? `0 0 0 3px ${textOnBrand === "white" ? "rgba(255,255,255,0.6)" : "rgba(15,23,42,0.4)"}`
+                : "0 1px 2px rgba(15,23,42,0.05)",
+            }}
           >
-            <span
-              className={`flex h-9 min-w-[36px] items-center justify-center rounded-md border text-sm font-semibold transition ${
-                active
-                  ? "border-brand-600 bg-brand-600 text-white"
-                  : "border-slate-300 bg-white text-slate-600 group-hover:border-brand-400 group-hover:text-brand-600"
-              }`}
-            >
-              {letter}
-            </span>
-            <span className="text-lg text-slate-900">{opt.text}</span>
+            <span className="text-balance leading-snug">{opt.text}</span>
             {active && (
               <span
-                className="ml-auto text-brand-600"
                 aria-hidden
+                className="absolute right-3 top-3 text-base"
+                style={{ color: textOnBrand }}
               >
                 ✓
               </span>
@@ -737,8 +756,8 @@ function OptionsAnswer({
         );
       })}
       {multi && (
-        <p className={`text-xs text-slate-500 ${theme === "card" ? "sm:col-span-2 mt-1" : "mt-2"}`}>
-          Select any that apply. Press a letter to toggle.
+        <p className="text-xs text-slate-500 sm:col-span-full">
+          Select any that apply.
         </p>
       )}
     </div>
@@ -748,10 +767,13 @@ function OptionsAnswer({
 function ScaleAnswer({
   value,
   onSelect,
+  brand,
 }: {
   value?: number;
   onSelect: (v: number) => void;
+  brand: string;
 }) {
+  const textOnBrand = pickTextOn(brand);
   return (
     <div>
       <div className="flex flex-wrap gap-2">
@@ -762,11 +784,12 @@ function ScaleAnswer({
               key={v}
               type="button"
               onClick={() => onSelect(v)}
-              className={`h-14 w-14 rounded-xl border text-lg font-semibold transition ${
+              className="h-14 w-14 rounded-xl border text-lg font-semibold transition hover:opacity-90"
+              style={
                 active
-                  ? "border-brand-600 bg-brand-600 text-white"
-                  : "border-slate-200 bg-white text-slate-800 hover:border-brand-400"
-              }`}
+                  ? { backgroundColor: brand, color: textOnBrand, borderColor: brand }
+                  : { backgroundColor: "white", color: "#0f172a", borderColor: "#e2e8f0" }
+              }
             >
               {v}
             </button>
@@ -992,42 +1015,6 @@ function LeadField({
         onChange={(e) => onChange(e.target.value)}
         className="mt-2 w-full border-0 border-b-2 border-slate-200 bg-transparent px-0 py-2 text-lg text-slate-900 outline-none placeholder:text-slate-300 focus:border-brand-600 md:text-xl"
       />
-    </div>
-  );
-}
-
-function NavArrows({
-  canPrev,
-  canNext,
-  onPrev,
-  onNext,
-}: {
-  canPrev: boolean;
-  canNext: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div className="fixed bottom-4 right-4 z-40 flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      <button
-        type="button"
-        onClick={onPrev}
-        disabled={!canPrev}
-        className="flex h-10 w-10 items-center justify-center text-slate-600 hover:bg-slate-50 disabled:text-slate-300"
-        aria-label="Previous question"
-      >
-        ↑
-      </button>
-      <div className="w-px bg-slate-200" />
-      <button
-        type="button"
-        onClick={onNext}
-        disabled={!canNext}
-        className="flex h-10 w-10 items-center justify-center text-slate-600 hover:bg-slate-50 disabled:text-slate-300"
-        aria-label="Next question"
-      >
-        ↓
-      </button>
     </div>
   );
 }
