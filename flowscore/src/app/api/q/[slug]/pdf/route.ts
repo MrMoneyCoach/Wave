@@ -158,19 +158,75 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   }
 
   const senderName = ownerName || "Flowscore";
+  const brand = quiz.brandColor || "#345ff2";
+
+  const ctx: Record<string, string> = {
+    firstName: submission.firstName ?? "there",
+    lastName: submission.lastName ?? "",
+    quizTitle: quiz.title,
+    percent: submission.percent.toFixed(1),
+    outcomeTitle: pdfData.outcomeTitle ?? "",
+    outcomeDescription: pdfData.outcomeDescription ?? "",
+    ownerName: senderName,
+  };
+  const escape = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const subOne = (text: string) =>
+    text.replace(/\{\{(\w+)\}\}/g, (_, k) => ctx[k] ?? "");
+  const subEsc = (text: string) => escape(subOne(text));
+  const para = (text: string) =>
+    text
+      ? text
+          .split(/\n\n+/)
+          .map((p) => `<p style="margin: 0 0 14px;">${escape(subOne(p)).replace(/\n/g, "<br/>")}</p>`)
+          .join("")
+      : "";
+
+  const subjectTpl =
+    quiz.emailSubject?.trim() || "Your {{quizTitle}} results";
+  const greetingTpl =
+    quiz.emailGreeting?.trim() || "Hi {{firstName}},";
+  const introTpl =
+    quiz.emailIntro?.trim() ||
+    "Thank you for completing the {{quizTitle}}. Your personalised report is attached as a PDF.\n\nYou scored {{percent}}% — {{outcomeTitle}}.";
+  const bulletsRaw = quiz.emailBullets?.trim() || "";
+  const bookingLineTpl =
+    quiz.emailBookingLine?.trim() ||
+    (quiz.bookingUrl
+      ? "Want to talk through your results? Book a no-obligation call."
+      : "");
+  const signoffTpl =
+    quiz.emailSignoff?.trim() || "Thanks,\n— {{ownerName}}";
+
+  const bulletItems = bulletsRaw
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const bulletsHtml =
+    bulletItems.length > 0
+      ? `<ul style="margin: 0 0 14px; padding-left: 20px;">${bulletItems
+          .map((b) => `<li style="margin-bottom: 4px;">${subEsc(b)}</li>`)
+          .join("")}</ul>`
+      : "";
+  const bookingHtml = quiz.bookingUrl
+    ? `<p style="margin: 18px 0 14px;"><a href="${escape(quiz.bookingUrl)}" style="display: inline-block; background: ${brand}; color: #fff; padding: 12px 22px; border-radius: 6px; text-decoration: none; font-weight: 600;">${escape(quiz.bookingLabel || `Book a call with ${senderName}`)}</a></p>`
+    : "";
+
+  const html = `
+    <div style="font-family: Helvetica, Arial, sans-serif; color: #0f172a; max-width: 580px; line-height: 1.5;">
+      ${para(greetingTpl)}
+      ${para(introTpl)}
+      ${bulletsHtml}
+      ${para(bookingLineTpl)}
+      ${bookingHtml}
+      ${para(signoffTpl)}
+    </div>
+  `;
+
   const emailResult = await sendResultEmail({
     to: submission.email,
-    subject: `Your ${quiz.title} results`,
-    html: `
-      <div style="font-family: Helvetica, Arial, sans-serif; color: #0f172a;">
-        <p>Hi ${submission.firstName ?? "there"},</p>
-        <p>Your personalised results for <strong>${quiz.title}</strong> are attached as a PDF.</p>
-        <p>You scored <strong>${submission.percent.toFixed(1)}%</strong>${
-          pdfData.outcomeTitle ? ` — ${pdfData.outcomeTitle}` : ""
-        }.</p>
-        <p>Thanks for completing the scorecard.<br/>— ${senderName}</p>
-      </div>
-    `,
+    subject: subOne(subjectTpl),
+    html,
     pdf: pdfBuffer,
     filename: `${quiz.slug}-result.pdf`,
   });
