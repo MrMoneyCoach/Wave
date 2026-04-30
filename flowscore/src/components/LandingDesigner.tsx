@@ -13,7 +13,38 @@ export type Block =
   | { id: string; type: "image"; url: string; alt: string }
   | { id: string; type: "list"; items: string[]; checkmark: boolean }
   | { id: string; type: "button"; label: string; url: string; style: "primary" | "secondary" }
-  | { id: string; type: "divider" };
+  | { id: string; type: "divider" }
+  | {
+      id: string;
+      type: "hero-split";
+      headline: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+      bullets: string[];
+      imageUrl: string;
+      imageAlt: string;
+      imagePosition: "left" | "right";
+    }
+  | {
+      id: string;
+      type: "feature-grid";
+      heading: string;
+      subhead: string;
+      columns: 2 | 3 | 4;
+      items: { id: string; iconUrl: string; title: string; body: string }[];
+    }
+  | {
+      id: string;
+      type: "image-text";
+      imageUrl: string;
+      imageAlt: string;
+      imagePosition: "left" | "right";
+      heading: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+    };
 
 const BLOCK_LIBRARY: { type: Block["type"]; label: string; icon: string }[] = [
   { type: "heading", label: "Heading", icon: "T" },
@@ -22,6 +53,9 @@ const BLOCK_LIBRARY: { type: Block["type"]; label: string; icon: string }[] = [
   { type: "list", label: "List", icon: "•" },
   { type: "button", label: "Button", icon: "▢" },
   { type: "divider", label: "Divider", icon: "—" },
+  { type: "hero-split", label: "Hero (split)", icon: "▤" },
+  { type: "feature-grid", label: "Feature grid", icon: "▦" },
+  { type: "image-text", label: "Image + text", icon: "▥" },
 ];
 
 function newId() {
@@ -42,6 +76,49 @@ function defaultBlock(type: Block["type"]): Block {
       return { id: newId(), type, label: "Click me", url: "", style: "primary" };
     case "divider":
       return { id: newId(), type };
+    case "hero-split":
+      return {
+        id: newId(),
+        type,
+        headline: "Where will your scorecard take you?",
+        body: "A short, plain-English sentence about what they get and why it matters.",
+        ctaLabel: "Begin the assessment",
+        ctaUrl: "",
+        bullets: [
+          "This tool is completely free",
+          "You'll receive a tailored insight report",
+          "It takes less than 2 minutes to complete",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      };
+    case "feature-grid":
+      return {
+        id: newId(),
+        type,
+        heading: "How it works",
+        subhead: "Three or four short benefits — one per column.",
+        columns: 4,
+        items: [
+          { id: newId(), iconUrl: "", title: "First", body: "What this column is about." },
+          { id: newId(), iconUrl: "", title: "Second", body: "What this column is about." },
+          { id: newId(), iconUrl: "", title: "Third", body: "What this column is about." },
+          { id: newId(), iconUrl: "", title: "Fourth", body: "What this column is about." },
+        ],
+      };
+    case "image-text":
+      return {
+        id: newId(),
+        type,
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "left",
+        heading: "Insights you can trust",
+        body: "Two or three sentences pairing an image with a short value statement.",
+        ctaLabel: "",
+        ctaUrl: "",
+      };
   }
 }
 
@@ -620,6 +697,12 @@ function summarise(b: Block): string {
       return b.label || "(no label)";
     case "divider":
       return "Horizontal divider";
+    case "hero-split":
+      return b.headline || "(hero)";
+    case "feature-grid":
+      return `${b.heading || "(grid)"} · ${b.items.length} item${b.items.length === 1 ? "" : "s"}`;
+    case "image-text":
+      return b.heading || "(image + text)";
   }
 }
 
@@ -821,6 +904,295 @@ function BlockSettings({
         </>
       )}
 
+      {block.type === "hero-split" && (
+        <>
+          <div>
+            <label className="label">Headline</label>
+            <input
+              className="input"
+              value={block.headline}
+              onChange={(e) => onChange({ headline: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Body</label>
+            <textarea
+              className="input min-h-[80px]"
+              value={block.body}
+              onChange={(e) => onChange({ body: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Bullets (optional)</label>
+            <div className="space-y-2">
+              {block.bullets.map((b, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    className="input flex-1"
+                    value={b}
+                    onChange={(e) =>
+                      onChange({
+                        bullets: block.bullets.map((x, j) =>
+                          j === i ? e.target.value : x,
+                        ),
+                      })
+                    }
+                    maxLength={140}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs"
+                    onClick={() =>
+                      onChange({
+                        bullets: block.bullets.filter((_, j) => j !== i),
+                      })
+                    }
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              {block.bullets.length < 6 && (
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={() =>
+                    onChange({ bullets: [...block.bullets, ""] })
+                  }
+                >
+                  + Add bullet
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="label">CTA label</label>
+            <input
+              className="input"
+              value={block.ctaLabel}
+              onChange={(e) => onChange({ ctaLabel: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">CTA URL (leave blank to start the quiz)</label>
+            <input
+              type="url"
+              className="input"
+              value={block.ctaUrl}
+              onChange={(e) => onChange({ ctaUrl: e.target.value })}
+              placeholder="https://…"
+            />
+          </div>
+          <div>
+            <label className="label">Image URL</label>
+            <input
+              type="url"
+              className="input"
+              value={block.imageUrl}
+              onChange={(e) => onChange({ imageUrl: e.target.value })}
+              placeholder="https://…"
+            />
+          </div>
+          <div>
+            <label className="label">Image side</label>
+            <select
+              className="input"
+              value={block.imagePosition}
+              onChange={(e) =>
+                onChange({ imagePosition: e.target.value as "left" | "right" })
+              }
+            >
+              <option value="right">Right</option>
+              <option value="left">Left</option>
+            </select>
+          </div>
+        </>
+      )}
+
+      {block.type === "feature-grid" && (
+        <>
+          <div>
+            <label className="label">Section heading</label>
+            <input
+              className="input"
+              value={block.heading}
+              onChange={(e) => onChange({ heading: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Sub-heading</label>
+            <textarea
+              className="input min-h-[60px]"
+              value={block.subhead}
+              onChange={(e) => onChange({ subhead: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Columns</label>
+            <select
+              className="input"
+              value={block.columns}
+              onChange={(e) =>
+                onChange({ columns: Number(e.target.value) as 2 | 3 | 4 })
+              }
+            >
+              <option value={2}>2 columns</option>
+              <option value={3}>3 columns</option>
+              <option value={4}>4 columns</option>
+            </select>
+          </div>
+          <div>
+            <p className="label">Items</p>
+            <div className="space-y-3">
+              {block.items.map((item, i) => (
+                <div
+                  key={item.id}
+                  className="space-y-2 rounded-lg border border-slate-200 bg-white p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Item {i + 1}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-slate-500 hover:text-red-700"
+                      onClick={() =>
+                        onChange({
+                          items: block.items.filter((_, j) => j !== i),
+                        })
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <input
+                    className="input text-sm"
+                    placeholder="Title"
+                    value={item.title}
+                    onChange={(e) =>
+                      onChange({
+                        items: block.items.map((x, j) =>
+                          j === i ? { ...x, title: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                  <textarea
+                    className="input min-h-[60px] text-sm"
+                    placeholder="Body"
+                    value={item.body}
+                    onChange={(e) =>
+                      onChange({
+                        items: block.items.map((x, j) =>
+                          j === i ? { ...x, body: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                  <input
+                    type="url"
+                    className="input text-sm"
+                    placeholder="Icon image URL (optional)"
+                    value={item.iconUrl}
+                    onChange={(e) =>
+                      onChange({
+                        items: block.items.map((x, j) =>
+                          j === i ? { ...x, iconUrl: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                </div>
+              ))}
+              {block.items.length < 8 && (
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={() =>
+                    onChange({
+                      items: [
+                        ...block.items,
+                        { id: newId(), iconUrl: "", title: "", body: "" },
+                      ],
+                    })
+                  }
+                >
+                  + Add item
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {block.type === "image-text" && (
+        <>
+          <div>
+            <label className="label">Image URL</label>
+            <input
+              type="url"
+              className="input"
+              value={block.imageUrl}
+              onChange={(e) => onChange({ imageUrl: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Image alt text</label>
+            <input
+              className="input"
+              value={block.imageAlt}
+              onChange={(e) => onChange({ imageAlt: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Image side</label>
+            <select
+              className="input"
+              value={block.imagePosition}
+              onChange={(e) =>
+                onChange({ imagePosition: e.target.value as "left" | "right" })
+              }
+            >
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Heading</label>
+            <input
+              className="input"
+              value={block.heading}
+              onChange={(e) => onChange({ heading: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Body</label>
+            <textarea
+              className="input min-h-[80px]"
+              value={block.body}
+              onChange={(e) => onChange({ body: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">CTA label (optional)</label>
+            <input
+              className="input"
+              value={block.ctaLabel}
+              onChange={(e) => onChange({ ctaLabel: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">CTA URL (optional)</label>
+            <input
+              type="url"
+              className="input"
+              value={block.ctaUrl}
+              onChange={(e) => onChange({ ctaUrl: e.target.value })}
+            />
+          </div>
+        </>
+      )}
+
       {block.type === "divider" && (
         <p className="text-sm text-slate-500">No settings.</p>
       )}
@@ -920,6 +1292,189 @@ function BlockRender({ block, brand }: { block: Block; brand: string }) {
       </span>
     );
   }
+  if (block.type === "hero-split") {
+    const text = (
+      <div className="flex flex-col justify-center">
+        <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-5xl">
+          {block.headline || (
+            <span className="italic text-slate-400">Headline</span>
+          )}
+        </h2>
+        {block.body && (
+          <p className="mt-5 whitespace-pre-wrap text-base text-slate-600 md:text-lg">
+            {block.body}
+          </p>
+        )}
+        {block.bullets.filter(Boolean).length > 0 && (
+          <ul className="mt-6 space-y-3">
+            {block.bullets.filter(Boolean).map((b, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span
+                  aria-hidden
+                  className="mt-1 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: brand }}
+                >
+                  ✓
+                </span>
+                <span className="text-base text-slate-800">{b}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {block.ctaLabel && (
+          <span
+            className="mt-8 inline-flex max-w-max items-center gap-2 rounded-lg px-6 py-3 text-base font-medium text-white"
+            style={{ backgroundColor: brand }}
+          >
+            {block.ctaLabel} <span aria-hidden>→</span>
+          </span>
+        )}
+      </div>
+    );
+    const image = block.imageUrl ? (
+      <div className="overflow-hidden rounded-2xl">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={block.imageUrl}
+          alt={block.imageAlt}
+          className="h-full w-full object-contain"
+        />
+      </div>
+    ) : (
+      <div className="grid h-64 place-items-center rounded-2xl border-2 border-dashed border-slate-200 text-sm italic text-slate-400">
+        Image
+      </div>
+    );
+    return (
+      <div className="grid items-center gap-8 md:grid-cols-2">
+        {block.imagePosition === "left" ? (
+          <>
+            {image}
+            {text}
+          </>
+        ) : (
+          <>
+            {text}
+            {image}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (block.type === "feature-grid") {
+    const colsClass =
+      block.columns === 2
+        ? "md:grid-cols-2"
+        : block.columns === 3
+        ? "md:grid-cols-3"
+        : "md:grid-cols-4";
+    return (
+      <div>
+        {(block.heading || block.subhead) && (
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            {block.heading && (
+              <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
+                {block.heading}
+              </h2>
+            )}
+            {block.subhead && (
+              <p className="mt-3 whitespace-pre-wrap text-base text-slate-600 md:text-lg">
+                {block.subhead}
+              </p>
+            )}
+          </div>
+        )}
+        <div className={`grid gap-8 ${colsClass}`}>
+          {block.items.map((item) => (
+            <div key={item.id} className="text-center">
+              {item.iconUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={item.iconUrl}
+                  alt=""
+                  className="mx-auto mb-4 h-16 w-16 object-contain"
+                />
+              ) : (
+                <div
+                  className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full text-xl font-bold text-white"
+                  style={{ backgroundColor: brand }}
+                  aria-hidden
+                >
+                  ◆
+                </div>
+              )}
+              {item.title && (
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {item.title}
+                </h3>
+              )}
+              {item.body && (
+                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
+                  {item.body}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === "image-text") {
+    const text = (
+      <div className="flex flex-col justify-center">
+        {block.heading && (
+          <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
+            {block.heading}
+          </h2>
+        )}
+        {block.body && (
+          <p className="mt-4 whitespace-pre-wrap text-base text-slate-600 md:text-lg">
+            {block.body}
+          </p>
+        )}
+        {block.ctaLabel && (
+          <span
+            className="mt-6 inline-flex max-w-max items-center gap-2 rounded-lg px-6 py-3 text-base font-medium text-white"
+            style={{ backgroundColor: brand }}
+          >
+            {block.ctaLabel} <span aria-hidden>→</span>
+          </span>
+        )}
+      </div>
+    );
+    const image = block.imageUrl ? (
+      <div className="overflow-hidden rounded-2xl">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={block.imageUrl}
+          alt={block.imageAlt}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    ) : (
+      <div className="grid h-64 place-items-center rounded-2xl border-2 border-dashed border-slate-200 text-sm italic text-slate-400">
+        Image
+      </div>
+    );
+    return (
+      <div className="grid items-center gap-8 md:grid-cols-2">
+        {block.imagePosition === "left" ? (
+          <>
+            {image}
+            {text}
+          </>
+        ) : (
+          <>
+            {text}
+            {image}
+          </>
+        )}
+      </div>
+    );
+  }
+
   if (block.type === "divider") {
     return <hr className="border-t border-slate-200" />;
   }

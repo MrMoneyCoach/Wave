@@ -17,7 +17,38 @@ type Block =
   | { id: string; type: "image"; url: string; alt: string }
   | { id: string; type: "list"; items: string[]; checkmark: boolean }
   | { id: string; type: "button"; label: string; url: string; style: "primary" | "secondary" }
-  | { id: string; type: "divider" };
+  | { id: string; type: "divider" }
+  | {
+      id: string;
+      type: "hero-split";
+      headline: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+      bullets: string[];
+      imageUrl: string;
+      imageAlt: string;
+      imagePosition: "left" | "right";
+    }
+  | {
+      id: string;
+      type: "feature-grid";
+      heading: string;
+      subhead: string;
+      columns: 2 | 3 | 4;
+      items: { id: string; iconUrl: string; title: string; body: string }[];
+    }
+  | {
+      id: string;
+      type: "image-text";
+      imageUrl: string;
+      imageAlt: string;
+      imagePosition: "left" | "right";
+      heading: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+    };
 
 type Quiz = {
   id: string;
@@ -1075,6 +1106,187 @@ function BlockRender({ block, brand }: { block: Block; brand: string }) {
       </a>
     );
   }
+  if (block.type === "hero-split") {
+    const text = (
+      <div className="flex flex-col justify-center">
+        <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-5xl">
+          {block.headline}
+        </h2>
+        {block.body && (
+          <p className="mt-5 whitespace-pre-wrap text-base text-slate-600 md:text-lg">
+            {block.body}
+          </p>
+        )}
+        {block.bullets.filter(Boolean).length > 0 && (
+          <ul className="mt-6 space-y-3">
+            {block.bullets.filter(Boolean).map((b, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span
+                  aria-hidden
+                  className="mt-1 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: brand }}
+                >
+                  ✓
+                </span>
+                <span className="text-base text-slate-800">{b}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {block.ctaLabel && block.ctaUrl && (
+          <a
+            href={block.ctaUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-8 inline-flex max-w-max items-center gap-2 rounded-lg px-6 py-3 text-base font-medium text-white transition hover:opacity-90"
+            style={{ backgroundColor: brand }}
+          >
+            {block.ctaLabel} <span aria-hidden>→</span>
+          </a>
+        )}
+      </div>
+    );
+    if (!block.imageUrl) return text;
+    const image = (
+      <div className="overflow-hidden rounded-2xl">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={block.imageUrl}
+          alt={block.imageAlt}
+          className="h-full w-full object-contain"
+        />
+      </div>
+    );
+    return (
+      <div className="grid items-center gap-8 md:grid-cols-2">
+        {block.imagePosition === "left" ? (
+          <>
+            {image}
+            {text}
+          </>
+        ) : (
+          <>
+            {text}
+            {image}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (block.type === "feature-grid") {
+    const colsClass =
+      block.columns === 2
+        ? "md:grid-cols-2"
+        : block.columns === 3
+        ? "md:grid-cols-3"
+        : "md:grid-cols-4";
+    return (
+      <div>
+        {(block.heading || block.subhead) && (
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            {block.heading && (
+              <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
+                {block.heading}
+              </h2>
+            )}
+            {block.subhead && (
+              <p className="mt-3 whitespace-pre-wrap text-base text-slate-600 md:text-lg">
+                {block.subhead}
+              </p>
+            )}
+          </div>
+        )}
+        <div className={`grid gap-8 ${colsClass}`}>
+          {block.items.map((item) => (
+            <div key={item.id} className="text-center">
+              {item.iconUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={item.iconUrl}
+                  alt=""
+                  className="mx-auto mb-4 h-16 w-16 object-contain"
+                />
+              ) : (
+                <div
+                  className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full text-xl font-bold text-white"
+                  style={{ backgroundColor: brand }}
+                  aria-hidden
+                >
+                  ◆
+                </div>
+              )}
+              {item.title && (
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {item.title}
+                </h3>
+              )}
+              {item.body && (
+                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
+                  {item.body}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === "image-text") {
+    const text = (
+      <div className="flex flex-col justify-center">
+        {block.heading && (
+          <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
+            {block.heading}
+          </h2>
+        )}
+        {block.body && (
+          <p className="mt-4 whitespace-pre-wrap text-base text-slate-600 md:text-lg">
+            {block.body}
+          </p>
+        )}
+        {block.ctaLabel && block.ctaUrl && (
+          <a
+            href={block.ctaUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-6 inline-flex max-w-max items-center gap-2 rounded-lg px-6 py-3 text-base font-medium text-white transition hover:opacity-90"
+            style={{ backgroundColor: brand }}
+          >
+            {block.ctaLabel} <span aria-hidden>→</span>
+          </a>
+        )}
+      </div>
+    );
+    if (!block.imageUrl) return text;
+    const image = (
+      <div className="overflow-hidden rounded-2xl">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={block.imageUrl}
+          alt={block.imageAlt}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+    return (
+      <div className="grid items-center gap-8 md:grid-cols-2">
+        {block.imagePosition === "left" ? (
+          <>
+            {image}
+            {text}
+          </>
+        ) : (
+          <>
+            {text}
+            {image}
+          </>
+        )}
+      </div>
+    );
+  }
+
   if (block.type === "divider") {
     return <hr className="border-t border-slate-200" />;
   }
