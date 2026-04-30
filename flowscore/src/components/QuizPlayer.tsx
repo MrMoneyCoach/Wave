@@ -465,19 +465,19 @@ function IntroScreen({
       ) : (
         <>
           {logoUrl && (
-            <div className="mb-8">
+            <div className="mb-10 md:mb-12">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="" className="h-10 w-auto" />
+              <img src={logoUrl} alt="" className="h-12 w-auto md:h-14" />
             </div>
           )}
 
           {heroImageUrl && (
-            <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200">
+            <div className="mb-10 overflow-hidden rounded-2xl shadow-sm ring-1 ring-slate-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={heroImageUrl}
                 alt=""
-                className="h-56 w-full object-cover md:h-72"
+                className="h-60 w-full object-cover md:h-80"
               />
             </div>
           )}
@@ -849,11 +849,10 @@ function CaptureScreen({
 }) {
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-brand-600">
-        <span>Before we begin</span>
-        <span aria-hidden>→</span>
-      </div>
-      <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
+        Before we begin
+      </p>
+      <h2 className="mt-2 text-3xl font-semibold leading-tight tracking-tight text-slate-900 md:text-4xl">
         Tell us a little about you
       </h2>
       <p className="mt-4 text-slate-600">
@@ -861,11 +860,16 @@ function CaptureScreen({
         required.
       </p>
 
-      <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <p className="font-medium">⚠️ Please use a real email</p>
-        <p className="mt-1">
-          We'll send your full PDF report to the email you give us. You'll get a chance
-          to confirm or fix it at the end of the quiz before we send anything.
+      <div className="mt-5 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <span
+          aria-hidden
+          className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-brand-600 text-[11px] font-bold text-white"
+        >
+          i
+        </span>
+        <p>
+          Please use a real email — we'll send your full PDF report there as soon as
+          you finish.
         </p>
       </div>
 

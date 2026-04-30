@@ -180,19 +180,39 @@ export default function ResultView({
           {!hasBlocks && (
             <div className="mt-8 border-t border-slate-100 pt-6 text-sm">
               {send.status === "sending" && (
-                <p className="text-slate-600">📨 Sending your report…</p>
+                <p className="flex items-center gap-2 text-slate-600">
+                  <span
+                    aria-hidden
+                    className="inline-block h-2 w-2 animate-pulse rounded-full bg-slate-400"
+                  />
+                  Sending your full report…
+                </p>
               )}
               {send.status === "sent" && (
-                <p className="text-green-700">
-                  📬 Your full report is on its way to{" "}
-                  <span className="font-semibold">{send.to || "your inbox"}</span>.
-                  Check spam if it doesn't arrive in a few minutes.
+                <p className="flex items-start gap-2 text-slate-700">
+                  <span
+                    aria-hidden
+                    className="mt-1.5 inline-block h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500"
+                  />
+                  <span>
+                    Your full report is on its way to{" "}
+                    <span className="font-semibold text-slate-900">
+                      {send.to || "your inbox"}
+                    </span>
+                    . Check spam if it doesn't arrive in a few minutes.
+                  </span>
                 </p>
               )}
               {send.status === "error" && (
-                <p className="text-red-700">
-                  We couldn't send your report — {send.message}. Please contact
-                  {ownerName ? ` ${ownerName}` : " the quiz owner"}.
+                <p className="flex items-start gap-2 text-red-700">
+                  <span
+                    aria-hidden
+                    className="mt-1.5 inline-block h-2 w-2 flex-shrink-0 rounded-full bg-red-500"
+                  />
+                  <span>
+                    We couldn't send your report — {send.message}. Please contact
+                    {ownerName ? ` ${ownerName}` : " the quiz owner"}.
+                  </span>
                 </p>
               )}
               {send.status === "idle" && submission.email === null && (
@@ -203,29 +223,36 @@ export default function ResultView({
             </div>
           )}
 
-          {!hasBlocks && bookingUrl && (
-            <div
-              className="mt-10 rounded-xl p-6 text-center text-white"
-              style={{ backgroundColor: brandColor }}
-            >
-              <p className="text-sm font-medium uppercase tracking-wide text-white/80">
-                Next step
-              </p>
-              <h2 className="mt-1 text-2xl font-bold">{bookingLabel}</h2>
-              <p className="mt-2 text-white/90">
-                Walk through your result one-to-one and get tailored next steps.
-              </p>
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-base font-semibold transition hover:bg-slate-100"
-                style={{ color: brandColor }}
+          {!hasBlocks && bookingUrl && (() => {
+            const onBrand = pickTextOn(brandColor);
+            const soft = onBrand === "white" ? "rgba(255,255,255,0.85)" : "rgba(15,23,42,0.7)";
+            return (
+              <div
+                className="mt-10 rounded-2xl p-6 text-center md:p-8"
+                style={{ backgroundColor: brandColor, color: onBrand }}
               >
-                Book a call →
-              </a>
-            </div>
-          )}
+                <p
+                  className="text-xs font-semibold uppercase tracking-[0.18em]"
+                  style={{ color: soft }}
+                >
+                  Next step
+                </p>
+                <h2 className="mt-2 text-2xl font-bold md:text-3xl">{bookingLabel}</h2>
+                <p className="mt-2 text-base" style={{ color: soft }}>
+                  Walk through your result one-to-one and get tailored next steps.
+                </p>
+                <a
+                  href={bookingUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-base font-semibold transition hover:bg-slate-100"
+                  style={{ color: brandColor }}
+                >
+                  Book a call →
+                </a>
+              </div>
+            );
+          })()}
 
           {!hasBlocks && (
             <div className="mt-8 flex flex-wrap gap-2">
@@ -239,6 +266,16 @@ export default function ResultView({
       </div>
     </main>
   );
+}
+
+function pickTextOn(hex: string): "white" | "#0f172a" {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return "white";
+  const r = parseInt(m.substr(0, 2), 16);
+  const g = parseInt(m.substr(2, 2), 16);
+  const b = parseInt(m.substr(4, 2), 16);
+  const luma = (r * 299 + g * 587 + b * 114) / 1000;
+  return luma > 155 ? "#0f172a" : "white";
 }
 
 function ScoreDial({ percent, brand }: { percent: number; brand: string }) {

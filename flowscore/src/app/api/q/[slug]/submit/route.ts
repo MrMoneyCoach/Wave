@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { computeScore } from "@/lib/scoring";
-import { emailConfigured, sendNotification } from "@/lib/email";
+import { emailConfigured, pickTextOnHex, sendNotification } from "@/lib/email";
 
 const schema = z.object({
   submissionId: z.string().min(1),
@@ -92,18 +92,38 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
         "Anonymous lead";
       const appUrl = (process.env.APP_URL ?? "").replace(/\/$/, "");
       const dashboardLink = `${appUrl}/dashboard/quizzes/${quiz.id}/leads/${updated.id}`;
+      const brand = quiz.brandColor || "#345ff2";
+      const onBrand = pickTextOnHex(brand);
+      const row = (label: string, value: string, strong = false) =>
+        `<tr><td style="padding: 8px 16px 8px 0; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: top;">${escapeHtml(label)}</td><td style="padding: 8px 0; color: #0f172a; font-size: 14px;">${strong ? `<strong>${value}</strong>` : value}</td></tr>`;
       const html = `
-        <div style="font-family: Helvetica, Arial, sans-serif; color: #0f172a; max-width: 540px;">
-          <h2 style="margin: 0 0 12px;">New lead from ${escapeHtml(quiz.title)}</h2>
-          <p style="margin: 0 0 16px;">A respondent just completed your scorecard.</p>
-          <table style="border-collapse: collapse; font-size: 14px; margin-bottom: 20px;">
-            <tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Name</td><td style="padding: 4px 0;"><strong>${escapeHtml(fullName)}</strong></td></tr>
-            <tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Email</td><td style="padding: 4px 0;">${escapeHtml(updated.email ?? "—")}</td></tr>
-            ${updated.phone ? `<tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Phone</td><td style="padding: 4px 0;">${escapeHtml(updated.phone)}</td></tr>` : ""}
-            ${updated.company ? `<tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Company</td><td style="padding: 4px 0;">${escapeHtml(updated.company)}</td></tr>` : ""}
-            <tr><td style="padding: 4px 12px 4px 0; color: #64748b;">Score</td><td style="padding: 4px 0;"><strong>${percent.toFixed(1)}%</strong>${outcome ? ` — ${escapeHtml(outcome.title)}` : ""}</td></tr>
+        <div style="background: #f1f5f9; padding: 24px 12px; font-family: Helvetica, Arial, sans-serif;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto; max-width: 600px; width: 100%; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,42,0.06);">
+            <tr>
+              <td style="background: ${brand}; padding: 22px 28px; color: ${onBrand};">
+                <p style="margin: 0; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.85;">New lead</p>
+                <p style="margin: 6px 0 0; font-size: 18px; font-weight: 700;">${escapeHtml(quiz.title)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 26px 28px 8px;">
+                <p style="margin: 0 0 18px; color: #334155; font-size: 14px;">A respondent just completed your scorecard.</p>
+                <table style="border-collapse: collapse; width: 100%;">
+                  ${row("Name", escapeHtml(fullName), true)}
+                  ${row("Email", escapeHtml(updated.email ?? "—"))}
+                  ${updated.phone ? row("Phone", escapeHtml(updated.phone)) : ""}
+                  ${updated.company ? row("Company", escapeHtml(updated.company)) : ""}
+                  ${row("Score", `<strong style="color: ${brand};">${percent.toFixed(1)}%</strong>${outcome ? ` <span style="color: #64748b;">— ${escapeHtml(outcome.title)}</span>` : ""}`)}
+                </table>
+              </td>
+            </tr>
+            ${appUrl ? `<tr><td style="padding: 8px 28px 28px;"><a href="${dashboardLink}" style="display: inline-block; background: ${brand}; color: ${onBrand}; padding: 11px 22px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">View lead →</a></td></tr>` : ""}
+            <tr>
+              <td style="padding: 14px 28px 20px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0;">
+                Sent via Flowscore
+              </td>
+            </tr>
           </table>
-          ${appUrl ? `<a href="${dashboardLink}" style="display: inline-block; background: #345ff2; color: #fff; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: 600;">View lead</a>` : ""}
         </div>
       `;
       // Fire and forget (don't block the response).

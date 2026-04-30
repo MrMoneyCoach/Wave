@@ -6,6 +6,17 @@ export function emailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY;
 }
 
+/** Returns black or white depending on which reads better on `hex`. */
+export function pickTextOnHex(hex: string): string {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return "#ffffff";
+  const r = parseInt(m.substr(0, 2), 16);
+  const g = parseInt(m.substr(2, 2), 16);
+  const b = parseInt(m.substr(4, 2), 16);
+  const luma = (r * 299 + g * 587 + b * 114) / 1000;
+  return luma > 155 ? "#0f172a" : "#ffffff";
+}
+
 export async function sendResultEmail(opts: {
   to: string;
   subject: string;

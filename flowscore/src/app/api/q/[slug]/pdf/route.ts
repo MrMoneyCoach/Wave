@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { generatePdfBuffer, type PdfBlock } from "@/lib/pdf";
 import { buildPdfData } from "@/lib/submissionPdf";
-import { emailConfigured, sendResultEmail } from "@/lib/email";
+import { emailConfigured, pickTextOnHex, sendResultEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -159,6 +159,7 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
 
   const senderName = ownerName || "Flowscore";
   const brand = quiz.brandColor || "#345ff2";
+  const onBrand = pickTextOnHex(brand);
 
   const ctx: Record<string, string> = {
     firstName: submission.firstName ?? "there",
@@ -178,7 +179,10 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
     text
       ? text
           .split(/\n\n+/)
-          .map((p) => `<p style="margin: 0 0 14px;">${escape(subOne(p)).replace(/\n/g, "<br/>")}</p>`)
+          .map(
+            (p) =>
+              `<p style="margin: 0 0 14px; color: #334155;">${escape(subOne(p)).replace(/\n/g, "<br/>")}</p>`,
+          )
           .join("")
       : "";
 
@@ -204,22 +208,48 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
     .filter(Boolean);
   const bulletsHtml =
     bulletItems.length > 0
-      ? `<ul style="margin: 0 0 14px; padding-left: 20px;">${bulletItems
-          .map((b) => `<li style="margin-bottom: 4px;">${subEsc(b)}</li>`)
+      ? `<ul style="margin: 0 0 18px; padding-left: 0; list-style: none;">${bulletItems
+          .map(
+            (b) =>
+              `<li style="margin-bottom: 8px; padding-left: 26px; position: relative; color: #334155;"><span style="position: absolute; left: 0; top: 1px; display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: ${brand}; color: ${onBrand}; text-align: center; line-height: 18px; font-size: 11px; font-weight: 700;">✓</span>${subEsc(b)}</li>`,
+          )
           .join("")}</ul>`
       : "";
   const bookingHtml = quiz.bookingUrl
-    ? `<p style="margin: 18px 0 14px;"><a href="${escape(quiz.bookingUrl)}" style="display: inline-block; background: ${brand}; color: #fff; padding: 12px 22px; border-radius: 6px; text-decoration: none; font-weight: 600;">${escape(quiz.bookingLabel || `Book a call with ${senderName}`)}</a></p>`
+    ? `<p style="margin: 22px 0 14px;"><a href="${escape(quiz.bookingUrl)}" style="display: inline-block; background: ${brand}; color: ${onBrand}; padding: 13px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">${escape(quiz.bookingLabel || `Book a call with ${senderName}`)}</a></p>`
+    : "";
+
+  const headerLogo = quiz.logoUrl
+    ? `<img src="${escape(quiz.logoUrl)}" alt="" style="display: block; height: 32px; width: auto; margin-bottom: 14px;" />`
     : "";
 
   const html = `
-    <div style="font-family: Helvetica, Arial, sans-serif; color: #0f172a; max-width: 580px; line-height: 1.5;">
-      ${para(greetingTpl)}
-      ${para(introTpl)}
-      ${bulletsHtml}
-      ${para(bookingLineTpl)}
-      ${bookingHtml}
-      ${para(signoffTpl)}
+    <div style="background: #f1f5f9; padding: 24px 12px; font-family: Helvetica, Arial, sans-serif;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto; max-width: 600px; width: 100%; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,42,0.06);">
+        <tr>
+          <td style="background: ${brand}; padding: 26px 32px; color: ${onBrand};">
+            ${headerLogo}
+            <p style="margin: 0; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.85;">Your scorecard report</p>
+            <p style="margin: 6px 0 0; font-size: 20px; font-weight: 700; line-height: 1.25;">${escape(quiz.title)}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 32px; color: #0f172a; line-height: 1.55; font-size: 15px;">
+            ${para(greetingTpl)}
+            ${para(introTpl)}
+            ${bulletsHtml}
+            ${para(bookingLineTpl)}
+            ${bookingHtml}
+            <div style="height: 1px; background: #e2e8f0; margin: 26px 0 22px;"></div>
+            ${para(signoffTpl)}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 16px 32px 22px; font-size: 11px; color: #94a3b8; text-align: center;">
+            Sent via Flowscore · Your personalised PDF is attached.
+          </td>
+        </tr>
+      </table>
     </div>
   `;
 

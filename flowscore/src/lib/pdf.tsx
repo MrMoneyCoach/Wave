@@ -13,7 +13,6 @@ import {
 } from "@react-pdf/renderer";
 
 const BRAND = "#345ff2";
-const BRAND_DARK = "#1f3087";
 const BRAND_TINT = "#eef4ff";
 const SLATE_50 = "#f8fafc";
 const SLATE_100 = "#f1f5f9";
@@ -22,6 +21,33 @@ const SLATE_500 = "#64748b";
 const SLATE_600 = "#475569";
 const SLATE_700 = "#334155";
 const SLATE_900 = "#0f172a";
+
+function pickTextOnHex(hex: string): string {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return "#ffffff";
+  const r = parseInt(m.substr(0, 2), 16);
+  const g = parseInt(m.substr(2, 2), 16);
+  const b = parseInt(m.substr(4, 2), 16);
+  const luma = (r * 299 + g * 587 + b * 114) / 1000;
+  return luma > 155 ? SLATE_900 : "#ffffff";
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return hex;
+  const r = parseInt(m.substr(0, 2), 16);
+  const g = parseInt(m.substr(2, 2), 16);
+  const b = parseInt(m.substr(4, 2), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function formatLongDate(d: Date): string {
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 const styles = StyleSheet.create({
   page: {
@@ -33,64 +59,79 @@ const styles = StyleSheet.create({
   },
 
   hero: {
-    backgroundColor: BRAND_DARK,
-    padding: 32,
-    paddingTop: 36,
-    paddingBottom: 36,
+    backgroundColor: BRAND,
+    paddingHorizontal: 40,
+    paddingTop: 44,
+    paddingBottom: 40,
     color: "#ffffff",
   },
   heroEyebrow: {
     fontSize: 9,
-    color: "#c7d3ff",
     textTransform: "uppercase",
     letterSpacing: 2,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   heroTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontFamily: "Helvetica-Bold",
     color: "#ffffff",
-    marginBottom: 6,
+    marginBottom: 8,
+    lineHeight: 1.2,
   },
-  heroMeta: { fontSize: 10, color: "#c7d3ff" },
+  heroMeta: { fontSize: 10 },
+  heroRule: {
+    height: 2,
+    width: 36,
+    marginTop: 18,
+  },
 
-  body: { paddingHorizontal: 40, paddingTop: 28 },
+  body: { paddingHorizontal: 40, paddingTop: 32 },
 
   scoreRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 28,
+    marginBottom: 32,
   },
-  scoreText: { marginLeft: 24, flex: 1 },
+  scoreText: { marginLeft: 28, flex: 1 },
   scoreNumber: {
-    fontSize: 36,
+    fontSize: 48,
     fontFamily: "Helvetica-Bold",
     color: SLATE_900,
-    lineHeight: 1.1,
+    lineHeight: 1,
+    letterSpacing: -1,
   },
-  scoreSub: { fontSize: 10, color: SLATE_500, marginTop: 4 },
+  scoreSub: { fontSize: 10, color: SLATE_500, marginTop: 6 },
+  scoreLabel: {
+    fontSize: 9,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    color: SLATE_500,
+    marginBottom: 4,
+  },
 
   outcomeCard: {
     backgroundColor: BRAND_TINT,
     borderLeftWidth: 4,
     borderLeftColor: BRAND,
-    padding: 18,
-    marginBottom: 24,
+    paddingTop: 18,
+    paddingBottom: 18,
+    paddingLeft: 20,
+    paddingRight: 20,
+    marginBottom: 28,
+    borderRadius: 4,
   },
   outcomeEyebrow: {
     fontSize: 9,
-    color: BRAND_DARK,
     textTransform: "uppercase",
     letterSpacing: 2,
-    marginBottom: 4,
-  },
-  outcomeTitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica-Bold",
-    color: BRAND_DARK,
     marginBottom: 6,
   },
-  outcomeBody: { fontSize: 11, color: SLATE_700 },
+  outcomeTitle: {
+    fontSize: 17,
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 8,
+  },
+  outcomeBody: { fontSize: 11, color: SLATE_700, lineHeight: 1.55 },
 
   sectionHeading: {
     fontSize: 9,
@@ -168,16 +209,23 @@ const styles = StyleSheet.create({
 
   footer: {
     position: "absolute",
-    bottom: 18,
+    bottom: 20,
     left: 40,
     right: 40,
     fontSize: 8,
     color: SLATE_500,
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 10,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: SLATE_100,
+  },
+  footerAccent: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
   },
 });
 
@@ -253,27 +301,34 @@ function ReportDocument({ data }: { data: PdfData }) {
   const r = data.respondent;
   const fullName = [r.firstName, r.lastName].filter(Boolean).join(" ");
   const brand = (data.brandColor || BRAND).trim();
+  const onBrand = pickTextOnHex(brand);
+  const heroSoft = onBrand === "#ffffff" ? withAlpha("#ffffff", 0.78) : withAlpha(SLATE_900, 0.7);
+  const heroRule = onBrand === "#ffffff" ? withAlpha("#ffffff", 0.5) : withAlpha(SLATE_900, 0.35);
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <View style={styles.hero} fixed={false}>
+        <View style={[styles.hero, { backgroundColor: brand }]} fixed={false}>
           {data.logoUrl && (
-            <View style={{ marginBottom: 14 }}>
+            <View style={{ marginBottom: 18 }}>
               {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image src={data.logoUrl} style={{ height: 28, width: "auto" }} />
+              <Image src={data.logoUrl} style={{ height: 30, width: "auto" }} />
             </View>
           )}
-          <Text style={styles.heroEyebrow}>Flowscore report</Text>
-          <Text style={styles.heroTitle}>{data.quizTitle}</Text>
-          <Text style={styles.heroMeta}>
-            {fullName || r.email} · {data.completedAt.toLocaleDateString()}
+          <Text style={[styles.heroEyebrow, { color: heroSoft }]}>
+            Personalised scorecard report
           </Text>
+          <Text style={[styles.heroTitle, { color: onBrand }]}>{data.quizTitle}</Text>
+          <Text style={[styles.heroMeta, { color: heroSoft }]}>
+            {fullName || r.email} · {formatLongDate(data.completedAt)}
+          </Text>
+          <View style={[styles.heroRule, { backgroundColor: heroRule }]} />
         </View>
 
         <View style={styles.body}>
           <View style={styles.scoreRow}>
             <ScoreDial percent={data.scorePercent} brand={brand} />
             <View style={styles.scoreText}>
+              <Text style={styles.scoreLabel}>Your score</Text>
               <Text style={styles.scoreNumber}>{data.scorePercent.toFixed(1)}%</Text>
               <Text style={styles.scoreSub}>
                 {data.score.toFixed(1)} of {data.maxScore.toFixed(1)} points
@@ -282,7 +337,7 @@ function ReportDocument({ data }: { data: PdfData }) {
           </View>
 
           {data.outcomeTitle && (
-            <View style={[styles.outcomeCard, { borderLeftColor: brand }]}>
+            <View style={[styles.outcomeCard, { borderLeftColor: brand, backgroundColor: withAlpha(brand, 0.08) }]}>
               <Text style={[styles.outcomeEyebrow, { color: brand }]}>
                 Your outcome
               </Text>
@@ -343,13 +398,13 @@ function ReportDocument({ data }: { data: PdfData }) {
 
         <View style={styles.footer} fixed>
           <Text>
-            Report generated by Flowscore
-            {data.ownerName ? ` for ${data.ownerName}` : ""}.
+            {data.ownerName ? `${data.ownerName} · ` : ""}Generated with Flowscore
           </Text>
           <Text
             render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
           />
         </View>
+        <View style={[styles.footerAccent, { backgroundColor: brand }]} fixed />
       </Page>
     </Document>
   );
