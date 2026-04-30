@@ -38,6 +38,54 @@ const blockSchema = z.discriminatedUnion("type", [
     id: z.string(),
     type: z.literal("divider"),
   }),
+  z.object({
+    id: z.string(),
+    type: z.literal("score-display"),
+    align: z.enum(["left", "center", "right"]).default("right"),
+    label: z.string().max(200).default(""),
+    showBar: z.boolean().default(true),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("hero-split"),
+    headline: z.string().max(200).default(""),
+    body: z.string().max(2000).default(""),
+    ctaLabel: z.string().max(80).default(""),
+    ctaUrl: z.string().url().or(z.literal("")).default(""),
+    bullets: z.array(z.string().max(140)).max(6).default([]),
+    imageUrl: z.string().url().or(z.literal("")).default(""),
+    imageAlt: z.string().max(200).default(""),
+    imagePosition: z.enum(["left", "right"]).default("right"),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("feature-grid"),
+    heading: z.string().max(200).default(""),
+    subhead: z.string().max(500).default(""),
+    columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(4),
+    items: z
+      .array(
+        z.object({
+          id: z.string(),
+          iconUrl: z.string().url().or(z.literal("")).default(""),
+          title: z.string().max(120).default(""),
+          body: z.string().max(500).default(""),
+        }),
+      )
+      .max(8)
+      .default([]),
+  }),
+  z.object({
+    id: z.string(),
+    type: z.literal("image-text"),
+    imageUrl: z.string().url().or(z.literal("")).default(""),
+    imageAlt: z.string().max(200).default(""),
+    imagePosition: z.enum(["left", "right"]).default("right"),
+    heading: z.string().max(200).default(""),
+    body: z.string().max(2000).default(""),
+    ctaLabel: z.string().max(80).default(""),
+    ctaUrl: z.string().url().or(z.literal("")).default(""),
+  }),
 ]);
 
 const putSchema = z.object({

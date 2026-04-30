@@ -35,6 +35,40 @@ function substituteBlocks(blocks: Block[], ctx: Record<string, string>): Block[]
     if (b.type === "button") {
       return { ...b, label: sub(b.label, ctx), url: sub(b.url, ctx) };
     }
+    if (b.type === "score-display") {
+      return { ...b, label: sub(b.label, ctx) };
+    }
+    if (b.type === "hero-split") {
+      return {
+        ...b,
+        headline: sub(b.headline, ctx),
+        body: sub(b.body, ctx),
+        ctaLabel: sub(b.ctaLabel, ctx),
+        ctaUrl: sub(b.ctaUrl, ctx),
+        bullets: b.bullets.map((x) => sub(x, ctx)),
+      };
+    }
+    if (b.type === "image-text") {
+      return {
+        ...b,
+        heading: sub(b.heading, ctx),
+        body: sub(b.body, ctx),
+        ctaLabel: sub(b.ctaLabel, ctx),
+        ctaUrl: sub(b.ctaUrl, ctx),
+      };
+    }
+    if (b.type === "feature-grid") {
+      return {
+        ...b,
+        heading: sub(b.heading, ctx),
+        subhead: sub(b.subhead, ctx),
+        items: b.items.map((it) => ({
+          ...it,
+          title: sub(it.title, ctx),
+          body: sub(it.body, ctx),
+        })),
+      };
+    }
     return b;
   });
 }
