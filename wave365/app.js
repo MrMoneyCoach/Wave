@@ -20,11 +20,32 @@
   let METRICS = loadJSON(LS_METRIC, {});
 
   // ---------- Calendar / day lookup -----------------------------------------
-  // The plan's day 1 is Mon 27 Apr 2026.
-  const DAY1 = new Date(2026, 3, 27); // months are 0-indexed
+  // The plan's default day 1 is Mon 27 Apr 2026 (from the spreadsheet).
+  // The user can override this in Settings → Start date.
+  const LS_START   = 'wave365.startDate';   // ISO YYYY-MM-DD
+  const DEFAULT_START = new Date(2026, 3, 27); // months are 0-indexed
 
   function pad2(n) { return String(n).padStart(2, '0'); }
   function isoDate(d) { return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+
+  function getStartDate() {
+    const raw = localStorage.getItem(LS_START);
+    if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const [y, m, d] = raw.split('-').map(Number);
+      const out = new Date(y, m - 1, d);
+      out.setHours(0, 0, 0, 0);
+      return out;
+    }
+    const d = new Date(DEFAULT_START);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  function setStartDate(iso) {
+    if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) localStorage.setItem(LS_START, iso);
+    else localStorage.removeItem(LS_START);
+  }
+  // Back-compat: a "DAY1" property recomputed each access.
+  Object.defineProperty(window, '__W365_START__', { get: getStartDate, configurable: true });
 
   function effectiveToday() {
     const override = localStorage.getItem(LS_OVRIDE);
@@ -38,7 +59,8 @@
   }
 
   function dayIndexFor(date) {
-    const ms = date - DAY1;
+    const start = getStartDate();
+    const ms = date - start;
     return Math.floor(ms / 86400000) + 1; // 1-based
   }
 
@@ -174,7 +196,7 @@
     if (!day) {
       $('#heroDay').textContent = idx < 1 ? '—' : '✓';
       $('#heroDate').textContent = fmtDateLong(today);
-      $('#heroWeek').textContent = idx < 1 ? `Year starts ${fmtDateLong(DAY1)}` : 'Year complete';
+      $('#heroWeek').textContent = idx < 1 ? `Year starts ${fmtDateLong(getStartDate())}` : 'Year complete';
       $('#heroMonth').textContent = '';
       $('#heroRule').textContent = '';
       $('#nextUp').innerHTML = '';
@@ -373,8 +395,8 @@
     el, $, $$, toast,
     isDone, setDone, totals, streakDays,
     renderToday, drawProgressWave, taskRow,
-    LS_DONE, LS_METRIC, LS_OVRIDE,
+    LS_DONE, LS_METRIC, LS_OVRIDE, LS_START,
     saveJSON, loadJSON,
-    DAY1,
+    getStartDate, setStartDate, DEFAULT_START,
   };
 })();
