@@ -84,9 +84,24 @@ export default function QuizSidebar({
     {
       heading: "Distribute",
       items: [
-        { label: "Embed & share", comingSoon: true, icon: "🔗" },
-        { label: "Integrate", comingSoon: true, icon: "🔌" },
-        { label: "Settings", comingSoon: true, icon: "⚙️" },
+        {
+          label: "Embed & share",
+          href: `${base}/share`,
+          match: (p) => p.startsWith(`${base}/share`),
+          icon: "🔗",
+        },
+        {
+          label: "Integrate",
+          href: `${base}/integrate`,
+          match: (p) => p.startsWith(`${base}/integrate`),
+          icon: "🔌",
+        },
+        {
+          label: "Settings",
+          href: `${base}/settings`,
+          match: (p) => p.startsWith(`${base}/settings`),
+          icon: "⚙️",
+        },
       ],
     },
   ];
