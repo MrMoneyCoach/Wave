@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { TIERS, computeUsage, findTier } from "@/lib/tiers";
 import UpgradeButton from "@/components/UpgradeButton";
+import UpgradeOptions from "@/components/UpgradeOptions";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function AccountPage() {
             </h2>
             <p className="mt-1 max-w-xl text-sm text-slate-600">{tier.tagline}</p>
           </div>
-          {tier.id !== "agency" && <UpgradeButton currentTier={tier.id} />}
+          {tier.id !== "unlimited" && <UpgradeButton currentTier={tier.id} />}
         </div>
 
         <div className="grid gap-6 px-6 py-6 md:grid-cols-2">
@@ -130,46 +131,20 @@ export default async function AccountPage() {
       </section>
 
       {/* Upgrade options */}
-      {tier.id !== "agency" && (
+      {tier.id !== "unlimited" && (
         <section className="mt-10">
           <h2 className="text-lg font-semibold">Upgrade options</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Higher tiers unlock more scorecards and remove Flowscore branding
-            from public pages.
+            Higher tiers unlock more scorecards, more responses, more team
+            seats, and remove Flowscore branding from public pages. Save 20%
+            when you pay annually.
           </p>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            {TIERS.filter((t) => t.id !== tier.id && tierIndex(t.id) > tierIndex(tier.id)).map(
-              (t) => (
-                <div
-                  key={t.id}
-                  className="card flex flex-col"
-                >
-                  <h3 className="text-lg font-semibold">{t.name}</h3>
-                  <p className="mt-1 text-sm text-slate-500">{t.tagline}</p>
-                  <p className="mt-3 text-2xl font-bold text-slate-900">
-                    {t.price}
-                    <span className="text-sm font-medium text-slate-500">
-                      {t.priceSuffix}
-                    </span>
-                  </p>
-                  <ul className="mt-4 flex-1 space-y-2 text-sm text-slate-700">
-                    {t.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span
-                          aria-hidden
-                          className="mt-1 inline-flex h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500"
-                        />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-5">
-                    <UpgradeButton currentTier={tier.id} targetTier={t.id} block />
-                  </div>
-                </div>
-              ),
+          <UpgradeOptions
+            currentTier={tier.id}
+            options={TIERS.filter(
+              (t) => tierIndex(t.id) > tierIndex(tier.id),
             )}
-          </div>
+          />
         </section>
       )}
 

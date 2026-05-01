@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
-import { TIERS, findTier } from "@/lib/tiers";
+import { TIERS, findTier, tierTone } from "@/lib/tiers";
 
 export const dynamic = "force-dynamic";
 
@@ -164,17 +164,9 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 function TierPill({ tierId }: { tierId: string }) {
   const tier = findTier(tierId);
-  const tone =
-    tier.id === "free"
-      ? "bg-slate-100 text-slate-700"
-      : tier.id === "starter"
-      ? "bg-sky-100 text-sky-800"
-      : tier.id === "pro"
-      ? "bg-violet-100 text-violet-800"
-      : "bg-amber-100 text-amber-800";
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tierTone(tier.id)}`}
     >
       {tier.name}
     </span>

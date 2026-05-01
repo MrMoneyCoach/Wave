@@ -6,11 +6,14 @@ import { findTier, nextTier } from "@/lib/tiers";
 export default function UpgradeButton({
   currentTier,
   targetTier,
+  cycle = "monthly",
   block = false,
 }: {
   currentTier: string;
-  /** Optional explicit target. If omitted, uses the next tier above current. */
+  /** Optional explicit target. If omitted, uses the next non-contact-sales tier above current. */
   targetTier?: string;
+  /** Billing cycle preference, included in the contact email. */
+  cycle?: "monthly" | "yearly";
   /** Render full-width. */
   block?: boolean;
 }) {
@@ -19,29 +22,32 @@ export default function UpgradeButton({
 
   if (!target) return null;
 
-  async function upgrade() {
+  async function go() {
     if (!target) return;
     setBusy(true);
-    // Billing isn't wired up yet — surface a friendly notice so the chrome is
-    // useful end-to-end. Real Stripe checkout will replace this.
-    const subject = `Flowscore upgrade — ${target.name}`;
-    const body = `Hi, I'd like to upgrade to the ${target.name} plan.`;
-    window.location.href = `mailto:billing@flowscore.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    // Billing isn't wired up yet — surface a friendly contact email so the
+    // chrome is useful end-to-end. Real Stripe checkout will replace this.
+    const inbox = target.contactSales ? "sales" : "billing";
+    const subject = target.contactSales
+      ? `Flowscore — Unlimited plan enquiry`
+      : `Flowscore upgrade — ${target.name} (${cycle})`;
+    const body = target.contactSales
+      ? `Hi, I'd like to talk about the Unlimited plan for my organisation.`
+      : `Hi, I'd like to upgrade to the ${target.name} plan, billed ${cycle}.`;
+    window.location.href = `mailto:${inbox}@flowscore.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setTimeout(() => setBusy(false), 800);
   }
 
-  const cls =
-    block
-      ? "btn-primary w-full"
-      : "btn-primary";
+  const cls = block ? "btn-primary w-full" : "btn-primary";
+  const label = busy
+    ? "Opening…"
+    : target.contactSales
+    ? `Talk to sales`
+    : `Upgrade to ${target.name}`;
 
   return (
-    <button type="button" onClick={upgrade} disabled={busy} className={cls}>
-      {busy
-        ? "Opening…"
-        : target.contactSales
-        ? `Talk to us about ${target.name}`
-        : `Upgrade to ${target.name}`}
+    <button type="button" onClick={go} disabled={busy} className={cls}>
+      {label}
     </button>
   );
 }

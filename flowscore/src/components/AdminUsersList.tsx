@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { findTier, TIERS } from "@/lib/tiers";
+import { findTier, TIERS, tierTone } from "@/lib/tiers";
 
 type Item = {
   id: string;
@@ -13,16 +13,6 @@ type Item = {
   createdAt: string;
   scorecardCount: number;
 };
-
-function tierTone(id: string) {
-  return id === "free"
-    ? "bg-slate-100 text-slate-700"
-    : id === "starter"
-    ? "bg-sky-100 text-sky-800"
-    : id === "pro"
-    ? "bg-violet-100 text-violet-800"
-    : "bg-amber-100 text-amber-800";
-}
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
