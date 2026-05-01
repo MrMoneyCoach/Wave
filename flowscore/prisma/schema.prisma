@@ -16,6 +16,11 @@ model User {
   isAdmin      Boolean  @default(false)
   tier         String   @default("free")
   tierUpdatedAt DateTime?
+  stripeCustomerId         String?  @unique
+  stripeSubscriptionId     String?
+  stripeSubscriptionStatus String?
+  subscriptionCycle        String?
+  currentPeriodEnd         DateTime?
   quizzes      Quiz[]
 }
 

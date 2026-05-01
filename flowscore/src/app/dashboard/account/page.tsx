@@ -2,13 +2,21 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { TIERS, computeUsage, findTier } from "@/lib/tiers";
+import { isActiveStatus } from "@/lib/stripe";
 import UpgradeButton from "@/components/UpgradeButton";
 import UpgradeOptions from "@/components/UpgradeOptions";
+import ManageSubscriptionButton from "@/components/ManageSubscriptionButton";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage() {
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams?: { upgraded?: string };
+}) {
   const user = await requireUser();
+  const justUpgraded = searchParams?.upgraded === "1";
+  const cancelledCheckout = searchParams?.upgraded === "0";
 
   const [scorecardCount, submissionCount] = await Promise.all([
     prisma.quiz.count({ where: { userId: user.id } }),
@@ -34,6 +42,26 @@ export default async function AccountPage() {
         <p className="mt-1 text-sm text-slate-500">{user.email}</p>
       </div>
 
+      {justUpgraded && (
+        <div className="mt-6 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <span aria-hidden className="mt-0.5">✓</span>
+          <div>
+            <p className="font-semibold">You're on a new plan — welcome!</p>
+            <p className="mt-0.5 text-emerald-800">
+              Your subscription is being activated. If your plan still shows as
+              the old tier in a moment, give it a few seconds to sync from Stripe
+              and refresh the page.
+            </p>
+          </div>
+        </div>
+      )}
+      {cancelledCheckout && (
+        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          Checkout cancelled. No payment was taken — try again whenever you're
+          ready.
+        </div>
+      )}
+
       {/* Current plan */}
       <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-6 py-5">
@@ -50,7 +78,13 @@ export default async function AccountPage() {
             </h2>
             <p className="mt-1 max-w-xl text-sm text-slate-600">{tier.tagline}</p>
           </div>
-          {tier.id !== "unlimited" && <UpgradeButton currentTier={tier.id} />}
+          <div className="flex gap-2">
+            {user.stripeSubscriptionId &&
+              isActiveStatus(user.stripeSubscriptionStatus) && (
+                <ManageSubscriptionButton />
+              )}
+            {tier.id !== "unlimited" && <UpgradeButton currentTier={tier.id} />}
+          </div>
         </div>
 
         <div className="grid gap-6 px-6 py-6 md:grid-cols-2">
