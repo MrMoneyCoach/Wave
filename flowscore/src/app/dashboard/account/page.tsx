@@ -1,13 +1,48 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { TIERS, computeUsage, findTier } from "@/lib/tiers";
+import { computeUsage, findTier } from "@/lib/tiers";
 import { isActiveStatus } from "@/lib/stripe";
-import UpgradeButton from "@/components/UpgradeButton";
-import UpgradeOptions from "@/components/UpgradeOptions";
+import PlanOptions from "@/components/PlanOptions";
 import ManageSubscriptionButton from "@/components/ManageSubscriptionButton";
+import CancelSubscriptionButton from "@/components/CancelSubscriptionButton";
 
 export const dynamic = "force-dynamic";
+
+function formatDate(d: Date | null | undefined): string | null {
+  if (!d) return null;
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function statusLabel(status: string | null): {
+  label: string;
+  tone: string;
+} {
+  switch (status) {
+    case "active":
+      return { label: "Active", tone: "bg-emerald-100 text-emerald-700" };
+    case "trialing":
+      return { label: "Trialing", tone: "bg-sky-100 text-sky-700" };
+    case "past_due":
+      return { label: "Past due", tone: "bg-amber-100 text-amber-800" };
+    case "unpaid":
+      return { label: "Unpaid", tone: "bg-red-100 text-red-700" };
+    case "canceled":
+      return { label: "Cancelled", tone: "bg-slate-200 text-slate-700" };
+    case "incomplete":
+    case "incomplete_expired":
+      return { label: "Incomplete", tone: "bg-amber-100 text-amber-800" };
+    default:
+      return {
+        label: status ?? "Free",
+        tone: "bg-slate-100 text-slate-600",
+      };
+  }
+}
 
 export default async function AccountPage({
   searchParams,
@@ -30,6 +65,17 @@ export default async function AccountPage({
       ? 0
       : Math.min(100, (scorecardCount / tier.scorecardLimit) * 100);
 
+  const hasActiveSubscription =
+    !!user.stripeSubscriptionId &&
+    isActiveStatus(user.stripeSubscriptionStatus);
+  const cycle =
+    user.subscriptionCycle === "monthly" || user.subscriptionCycle === "yearly"
+      ? user.subscriptionCycle
+      : null;
+  const periodEnd = formatDate(user.currentPeriodEnd);
+  const status = statusLabel(user.stripeSubscriptionStatus);
+  const cancelScheduled = user.subscriptionCancelAtPeriodEnd;
+
   return (
     <div className="mx-auto max-w-5xl">
       <div>
@@ -49,8 +95,8 @@ export default async function AccountPage({
             <p className="font-semibold">You're on a new plan — welcome!</p>
             <p className="mt-0.5 text-emerald-800">
               Your subscription is being activated. If your plan still shows as
-              the old tier in a moment, give it a few seconds to sync from Stripe
-              and refresh the page.
+              the old tier in a moment, give it a few seconds to sync from
+              Stripe and refresh the page.
             </p>
           </div>
         </div>
@@ -62,7 +108,7 @@ export default async function AccountPage({
         </div>
       )}
 
-      {/* Current plan */}
+      {/* Current plan summary */}
       <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-6 py-5">
           <div>
@@ -78,13 +124,7 @@ export default async function AccountPage({
             </h2>
             <p className="mt-1 max-w-xl text-sm text-slate-600">{tier.tagline}</p>
           </div>
-          <div className="flex gap-2">
-            {user.stripeSubscriptionId &&
-              isActiveStatus(user.stripeSubscriptionStatus) && (
-                <ManageSubscriptionButton />
-              )}
-            {tier.id !== "unlimited" && <UpgradeButton currentTier={tier.id} />}
-          </div>
+          {hasActiveSubscription && <ManageSubscriptionButton />}
         </div>
 
         <div className="grid gap-6 px-6 py-6 md:grid-cols-2">
@@ -138,8 +178,8 @@ export default async function AccountPage({
             </div>
             <p className="mt-2 text-xs text-slate-500">
               {tier.leadsPerMonth === -1
-                ? "Unlimited leads on this plan."
-                : `Soft cap of ${tier.leadsPerMonth} leads / month on this plan.`}
+                ? "Unlimited responses on this plan."
+                : `Soft cap of ${tier.leadsPerMonth} responses / month on this plan.`}
             </p>
           </div>
         </div>
@@ -164,23 +204,80 @@ export default async function AccountPage({
         </div>
       </section>
 
-      {/* Upgrade options */}
-      {tier.id !== "unlimited" && (
-        <section className="mt-10">
-          <h2 className="text-lg font-semibold">Upgrade options</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Higher tiers unlock more scorecards, more responses, more team
-            seats, and remove Flowscore branding from public pages. Save 20%
-            when you pay annually.
-          </p>
-          <UpgradeOptions
-            currentTier={tier.id}
-            options={TIERS.filter(
-              (t) => tierIndex(t.id) > tierIndex(tier.id),
-            )}
-          />
+      {/* Subscription details — only when subscribed */}
+      {hasActiveSubscription && (
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4">
+            <h2 className="text-base font-semibold text-slate-900">
+              Subscription details
+            </h2>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${status.tone}`}
+            >
+              {status.label}
+            </span>
+          </div>
+          <div className="grid gap-4 px-6 py-5 md:grid-cols-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Billing cycle
+              </p>
+              <p className="mt-1 text-sm text-slate-900">
+                {cycle === "yearly" ? "Annual" : cycle === "monthly" ? "Monthly" : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {cancelScheduled ? "Access ends" : "Next renewal"}
+              </p>
+              <p className="mt-1 text-sm text-slate-900">{periodEnd ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Manage
+              </p>
+              <p className="mt-1 text-sm text-slate-900">
+                Open the Stripe portal for invoices and payment method.
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-slate-200 px-6 py-5">
+            <CancelSubscriptionButton
+              scheduledToCancel={cancelScheduled}
+              periodEndIso={
+                user.currentPeriodEnd
+                  ? user.currentPeriodEnd.toISOString()
+                  : null
+              }
+            />
+          </div>
         </section>
       )}
+
+      {/* Plan options */}
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold">Choose your plan</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Switch up or down at any time. Stripe handles proration automatically
+          — upgrades charge the prorated difference today, downgrades credit
+          unused time on your current plan against your next invoice. Save 20%
+          when you pay annually.
+        </p>
+        <PlanOptions
+          currentTier={tier.id}
+          currentCycle={cycle}
+          hasSubscription={hasActiveSubscription}
+        />
+        <p className="mt-4 text-sm text-slate-500">
+          Need something bigger?{" "}
+          <a
+            href="mailto:sales@flowscore.app?subject=Flowscore%20%E2%80%94%20Unlimited%20plan%20enquiry"
+            className="font-medium text-brand-600 hover:underline"
+          >
+            Talk to sales about Unlimited.
+          </a>
+        </p>
+      </section>
 
       {/* Sign-in info */}
       <section className="mt-10">
@@ -211,8 +308,4 @@ export default async function AccountPage({
       </section>
     </div>
   );
-}
-
-function tierIndex(id: string): number {
-  return TIERS.findIndex((t) => t.id === id);
 }

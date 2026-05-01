@@ -50,6 +50,7 @@ async function syncSubscription(sub: Stripe.Subscription) {
       stripeSubscriptionId: sub.id,
       stripeSubscriptionStatus: sub.status,
       subscriptionCycle: cycle,
+      subscriptionCancelAtPeriodEnd: !!sub.cancel_at_period_end,
       currentPeriodEnd: sub.current_period_end
         ? new Date(sub.current_period_end * 1000)
         : null,

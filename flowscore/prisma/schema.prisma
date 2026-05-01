@@ -20,6 +20,7 @@ model User {
   stripeSubscriptionId     String?
   stripeSubscriptionStatus String?
   subscriptionCycle        String?
+  subscriptionCancelAtPeriodEnd Boolean @default(false)
   currentPeriodEnd         DateTime?
   quizzes      Quiz[]
 }
