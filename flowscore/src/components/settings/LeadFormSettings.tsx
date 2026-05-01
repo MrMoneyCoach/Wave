@@ -75,7 +75,7 @@ export default function LeadFormSettings({
     >
       <Row
         label="Form fields"
-        description="First name and email are required by default. Add extra fields if you need them."
+        description="First name and email are required by default. Custom fields are saved with the scorecard but are not yet rendered on the public form — coming next."
       >
         <div className="overflow-hidden rounded-lg border border-slate-200">
           <table className="w-full text-sm">
@@ -249,8 +249,8 @@ export default function LeadFormSettings({
               ],
               [
                 "after",
-                "After questions",
-                "People answer the questions first, then fill in the form to see results.",
+                "After questions (coming next)",
+                "People answer the questions first, then fill in the form to see results. Setting saves now but the flip is rolling out — currently the form always shows before questions.",
               ],
             ] as const
           ).map(([value, label, hint]) => (
@@ -292,7 +292,7 @@ export default function LeadFormSettings({
         >
           <option value="none">None — accept any email</option>
           <option value="basic">Basic — reject obviously invalid syntax</option>
-          <option value="strict">Strict — also block disposable / role addresses</option>
+          <option value="strict">Strict — also block disposable / role addresses (coming next)</option>
         </select>
       </Row>
     </SettingsForm>

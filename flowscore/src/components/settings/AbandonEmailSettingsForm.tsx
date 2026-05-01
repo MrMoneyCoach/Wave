@@ -100,10 +100,10 @@ export default function AbandonEmailSettingsForm({
         />
       </Row>
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-        Note: actually sending the abandon email requires a background scheduler
-        we'll add as the next step. The settings save now, but the send loop
-        isn't wired up yet.
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+        Sent automatically within an hour of a respondent dropping off. The
+        scheduler runs every 30 minutes and only emails people who left an
+        email address on the lead form.
       </div>
     </SettingsForm>
   );

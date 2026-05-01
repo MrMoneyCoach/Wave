@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ResultView from "@/components/ResultView";
+import TrackingScripts from "@/components/TrackingScripts";
 import type { Block } from "@/components/ResultPageBuilder";
 
 export const dynamic = "force-dynamic";
@@ -130,6 +131,13 @@ export default async function ResultPage({
     submission.quiz.user.email.split("@")[0];
 
   return (
+    <>
+      <TrackingScripts
+        facebookPixelId={submission.quiz.facebookPixelId}
+        googleAnalyticsCode={submission.quiz.googleAnalyticsCode}
+        googleTagManagerId={submission.quiz.googleTagManagerId}
+        customTrackingScript={submission.quiz.customTrackingScript}
+      />
     <ResultView
       slug={submission.quiz.slug}
       quizTitle={submission.quiz.title}
@@ -155,5 +163,6 @@ export default async function ResultPage({
       brandColor={submission.quiz.brandColor || "#345ff2"}
       blocks={renderedBlocks}
     />
+    </>
   );
 }

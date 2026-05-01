@@ -64,6 +64,10 @@ type Quiz = {
   videoUrl?: string | null;
   highlights?: string[];
   blocks?: Block[];
+  optinConsent?: "implied" | "optional" | "required";
+  optinWording?: string | null;
+  privacyStatement?: string | null;
+  privacyPolicyUrl?: string | null;
   questions: Question[];
 };
 
@@ -85,23 +89,48 @@ type Lead = {
   jobTitle: string;
 };
 
-export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
+type Resume = {
+  submissionId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company: string;
+  jobTitle: string;
+};
+
+export default function QuizPlayer({
+  quiz,
+  resume = null,
+}: {
+  quiz: Quiz;
+  resume?: Resume | null;
+}) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("intro");
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [lead, setLead] = useState<Lead>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    company: "",
-    jobTitle: "",
+    firstName: resume?.firstName ?? "",
+    lastName: resume?.lastName ?? "",
+    email: resume?.email ?? "",
+    phone: resume?.phone ?? "",
+    company: resume?.company ?? "",
+    jobTitle: resume?.jobTitle ?? "",
   });
-  const [consent, setConsent] = useState(false);
+  // If the visitor is resuming via an abandon-email link, treat them as
+  // already-consented (they consented the first time) and skip straight to
+  // the capture screen so they only need to confirm + click continue.
+  const [consent, setConsent] = useState(!!resume);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Resume flow: jump straight to the lead form on first render.
+  useEffect(() => {
+    if (resume) setStage("capture");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const total = quiz.questions.length;
   const question = quiz.questions[current];
@@ -166,7 +195,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
       setError("Please enter a valid email.");
       return;
     }
-    if (!consent) {
+    if (quiz.optinConsent === "required" && !consent) {
       setError("Please tick the consent box to continue.");
       return;
     }
@@ -187,6 +216,7 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
         company: lead.company.trim(),
         jobTitle: lead.jobTitle.trim(),
         consent: true,
+        resumeId: resume?.submissionId,
       }),
     });
     setStarting(false);
@@ -413,6 +443,13 @@ export default function QuizPlayer({ quiz }: { quiz: Quiz }) {
             <CaptureScreen
               lead={lead}
               consent={consent}
+              optinConsent={quiz.optinConsent ?? "optional"}
+              optinWording={
+                quiz.optinWording ||
+                "Check this box so that we can send you your free report"
+              }
+              privacyStatement={quiz.privacyStatement || ""}
+              privacyPolicyUrl={quiz.privacyPolicyUrl || ""}
               onChange={(patch) => setLead((l) => ({ ...l, ...patch }))}
               onConsent={setConsent}
               onBack={() => setStage("intro")}
@@ -831,6 +868,10 @@ function TextAnswer({
 function CaptureScreen({
   lead,
   consent,
+  optinConsent,
+  optinWording,
+  privacyStatement,
+  privacyPolicyUrl,
   onChange,
   onConsent,
   onBack,
@@ -840,6 +881,10 @@ function CaptureScreen({
 }: {
   lead: Lead;
   consent: boolean;
+  optinConsent: "implied" | "optional" | "required";
+  optinWording: string;
+  privacyStatement: string;
+  privacyPolicyUrl: string;
   onChange: (patch: Partial<Lead>) => void;
   onConsent: (v: boolean) => void;
   onBack: () => void;
@@ -930,22 +975,45 @@ function CaptureScreen({
           className="md:col-span-2"
         />
 
-        <div className="md:col-span-2">
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-              checked={consent}
-              onChange={(e) => onConsent(e.target.checked)}
-              required
-            />
-            <span>
-              I agree that my answers and contact details may be processed to
-              generate my personalised result and to be contacted about it.{" "}
-              <span className="text-brand-600">(required)</span>
-            </span>
-          </label>
-        </div>
+        {optinConsent !== "implied" && (
+          <div className="md:col-span-2">
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                checked={consent}
+                onChange={(e) => onConsent(e.target.checked)}
+                required={optinConsent === "required"}
+              />
+              <span>
+                {optinWording}
+                {optinConsent === "required" && (
+                  <span className="text-brand-600"> (required)</span>
+                )}
+              </span>
+            </label>
+          </div>
+        )}
+
+        {(privacyStatement || privacyPolicyUrl) && (
+          <div className="md:col-span-2 text-xs text-slate-500">
+            {privacyStatement && (
+              <p className="whitespace-pre-wrap">{privacyStatement}</p>
+            )}
+            {privacyPolicyUrl && (
+              <p className={privacyStatement ? "mt-1" : ""}>
+                <a
+                  href={privacyPolicyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-slate-600 underline hover:text-slate-900"
+                >
+                  Privacy policy
+                </a>
+              </p>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="md:col-span-2 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -974,10 +1042,6 @@ function CaptureScreen({
           </button>
         </div>
       </form>
-      <p className="mt-6 text-xs text-slate-400">
-        Your details are only shared with the quiz owner. You can request removal at
-        any time.
-      </p>
     </div>
   );
 }

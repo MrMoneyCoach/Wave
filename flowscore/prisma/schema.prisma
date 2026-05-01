@@ -183,4 +183,5 @@ model Submission {
   marketingConsent  Boolean   @default(false)
   verifiedPhone     String?
   pdfSentAt         DateTime?
+  abandonEmailSentAt DateTime?
 }
