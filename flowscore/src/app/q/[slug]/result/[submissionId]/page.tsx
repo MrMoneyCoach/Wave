@@ -10,7 +10,18 @@ function parseBlocks(raw: string | null): Block[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    const valid = ["heading", "paragraph", "image", "list", "button", "divider"];
+    const valid = [
+      "heading",
+      "paragraph",
+      "image",
+      "list",
+      "button",
+      "divider",
+      "score-display",
+      "hero-split",
+      "feature-grid",
+      "image-text",
+    ];
     return parsed.filter((b: unknown): b is Block => {
       if (!b || typeof b !== "object" || !("type" in b) || !("id" in b)) return false;
       return valid.includes((b as { type: string }).type);

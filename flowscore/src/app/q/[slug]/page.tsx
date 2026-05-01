@@ -23,7 +23,17 @@ function parseBlocks(raw: string | null): Block[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    const valid = ["heading", "paragraph", "image", "list", "button", "divider"];
+    const valid = [
+      "heading",
+      "paragraph",
+      "image",
+      "list",
+      "button",
+      "divider",
+      "hero-split",
+      "feature-grid",
+      "image-text",
+    ];
     return parsed.filter(
       (b: unknown): b is Block =>
         !!b &&

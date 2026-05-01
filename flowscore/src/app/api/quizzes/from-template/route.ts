@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { findTemplate } from "@/lib/templates";
+import {
+  DEFAULT_LANDING_BLOCKS,
+  DEFAULT_PDF_BLOCKS,
+  DEFAULT_RESULT_BLOCKS,
+  findTemplate,
+} from "@/lib/templates";
 import { slugify } from "@/lib/slug";
 
 export async function POST(req: Request) {
@@ -45,15 +50,20 @@ export async function POST(req: Request) {
     description: o.description,
   }));
 
-  const landingBlocksJson = template.landingBlocks?.length
-    ? JSON.stringify(template.landingBlocks)
-    : null;
-  const resultBlocksJson = template.resultBlocks?.length
-    ? JSON.stringify(template.resultBlocks)
-    : null;
-  const pdfBlocksJson = template.pdfBlocks?.length
-    ? JSON.stringify(template.pdfBlocks)
-    : null;
+  // Templates can override the default design; fall back to the system-wide
+  // defaults so every quiz ends up with a polished landing/result/PDF flow.
+  const landingBlocks = template.landingBlocks?.length
+    ? template.landingBlocks
+    : DEFAULT_LANDING_BLOCKS;
+  const resultBlocks = template.resultBlocks?.length
+    ? template.resultBlocks
+    : DEFAULT_RESULT_BLOCKS;
+  const pdfBlocks = template.pdfBlocks?.length
+    ? template.pdfBlocks
+    : DEFAULT_PDF_BLOCKS;
+  const landingBlocksJson = JSON.stringify(landingBlocks);
+  const resultBlocksJson = JSON.stringify(resultBlocks);
+  const pdfBlocksJson = JSON.stringify(pdfBlocks);
 
   try {
     await prisma.$transaction([
@@ -86,30 +96,22 @@ export async function POST(req: Request) {
       ...(outcomeRows.length
         ? [prisma.outcome.createMany({ data: outcomeRows })]
         : []),
-      ...(resultBlocksJson
-        ? [
-            prisma.resultPage.create({
-              data: {
-                quizId,
-                name: "Default result page",
-                isDefault: true,
-                blocks: resultBlocksJson,
-              },
-            }),
-          ]
-        : []),
-      ...(pdfBlocksJson
-        ? [
-            prisma.pdfReport.create({
-              data: {
-                quizId,
-                name: "Default PDF report",
-                isDefault: true,
-                blocks: pdfBlocksJson,
-              },
-            }),
-          ]
-        : []),
+      prisma.resultPage.create({
+        data: {
+          quizId,
+          name: "Default result page",
+          isDefault: true,
+          blocks: resultBlocksJson,
+        },
+      }),
+      prisma.pdfReport.create({
+        data: {
+          quizId,
+          name: "Default PDF report",
+          isDefault: true,
+          blocks: pdfBlocksJson,
+        },
+      }),
     ]);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

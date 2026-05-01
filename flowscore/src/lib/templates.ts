@@ -3036,8 +3036,704 @@ export const TEMPLATES: Template[] = [
       },
     ],
   },
+
+  // ---------------------------------------------------------------------------
+  // SJP — The Financial Clarity Scorecard
+  // Copy supplied by Scott Mackey / Legacy Capital Management (SJP Appointed
+  // Representative). Used verbatim under SJP partnership.
+  // ---------------------------------------------------------------------------
+  {
+    id: "financial-clarity-scorecard",
+    name: "The Financial Clarity Scorecard",
+    category: "Finance",
+    emoji: "🧭",
+    description:
+      "Measure your current Financial Clarity across the four key areas which underpin long-term financial prosperity: Income Generation, Investments & Assets, Tax Planning & Minimisation, and Security & Retirement Planning.",
+    intro:
+      "Our scorecard technology measures your current Financial Clarity across the four key areas which underpin the long-term financial prosperity for most of the population. Take 4 minutes to find out where you stand.",
+    ctaLabel: "Take the scorecard",
+    theme: "card",
+    brandColor: "#1d2d5c",
+    bookingLabel: "Book your no-obligation consultation",
+    email: {
+      subject: "Your Financial Clarity Scorecard report",
+      greeting: "Hi {{firstName}},",
+      intro:
+        "Thank you for completing The Financial Clarity Scorecard. Your personalised report is attached as a PDF.\n\nYou scored {{percent}}% — {{outcomeTitle}}.",
+      bullets:
+        "How you scored across the four key areas\nKey points to consider for each\nThe most useful next steps for someone in your position",
+      bookingLine:
+        "Making important decisions about what to do with your money can seem like a daunting task, especially with the ever-increasing options available these days. As a thanks for completing this assessment, we'd like to offer you the opportunity to review your report with us, to help you realise your financial goals.",
+      signoff: "Speak soon,\n— {{ownerName}}",
+    },
+    landingBlocks: [
+      {
+        id: "hero",
+        type: "hero-split",
+        headline: "How financially clear are you, really?",
+        body: "Our scorecard technology measures your current Financial Clarity across the four key areas which underpin the long-term financial prosperity for most of the population.",
+        ctaLabel: "Take the scorecard",
+        ctaUrl: "#start",
+        bullets: [
+          "Personalised PDF report sent to your inbox",
+          "Optional no-obligation consultation",
+          "Takes around 4 minutes",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      },
+      {
+        id: "areas",
+        type: "feature-grid",
+        heading: "Your Report Overview",
+        subhead:
+          "We measure your Financial Clarity across the below 4 key areas which underpin the long-term financial prosperity for most of the population.",
+        columns: 2,
+        items: [
+          {
+            id: "a1",
+            iconUrl: "",
+            title: "Income Generation",
+            body: "How you earn your income and the attitudes you hold towards the management of it.",
+          },
+          {
+            id: "a2",
+            iconUrl: "",
+            title: "Investments & Assets",
+            body: "The ways in which you actively allocate funds throughout your personal finances.",
+          },
+          {
+            id: "a3",
+            iconUrl: "",
+            title: "Tax Planning & Minimisation",
+            body: "Your current circumstances from a strategic tax planning and optimisation perspective.",
+          },
+          {
+            id: "a4",
+            iconUrl: "",
+            title: "Security & Retirement Planning",
+            body: "The overall picture around your long-term financial plan and its impact on retirement.",
+          },
+        ],
+      },
+      { id: "div1", type: "divider" },
+      {
+        id: "cta-h",
+        type: "heading",
+        text: "Ready to find your Financial Clarity?",
+        level: 2,
+      },
+      {
+        id: "cta-p",
+        type: "paragraph",
+        text: "Take 4 minutes now and get a personalised PDF report — followed by the option of a no-obligation consultation.",
+      },
+      {
+        id: "cta-btn",
+        type: "button",
+        label: "Take the scorecard →",
+        url: "#start",
+        style: "primary",
+      },
+    ],
+    resultBlocks: [
+      {
+        id: "score",
+        type: "score-display",
+        align: "center",
+        label: "Your Financial Clarity score",
+        showBar: true,
+      },
+      { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+      { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "div1", type: "divider" },
+      { id: "h2", type: "heading", text: "Your full report", level: 3 },
+      {
+        id: "p-full",
+        type: "paragraph",
+        text: "Your personalised PDF report has been emailed to you, with a breakdown across all four key areas plus practical points to consider for each.",
+      },
+      { id: "h3", type: "heading", text: "An invitation for you", level: 3 },
+      {
+        id: "p-inv",
+        type: "paragraph",
+        text: "Making important decisions about what to do with your money can seem like a daunting task. As a thanks to you for completing this assessment, we'd like to offer you the opportunity to review your report with us, to help you realise your financial goals.",
+      },
+      {
+        id: "btn",
+        type: "button",
+        label: "Book your no-obligation consultation →",
+        url: "",
+        style: "primary",
+      },
+    ],
+    pdfBlocks: [
+      { id: "h-cover", type: "heading", text: "Your Report Overview", level: 1 },
+      {
+        id: "p-cover",
+        type: "paragraph",
+        text: "Our scorecard technology has measured your current Financial Clarity across the below 4 key areas which underpin the long-term financial prosperity for most of the population:",
+      },
+      { id: "h-c1", type: "heading", text: "Income Generation", level: 3 },
+      {
+        id: "p-c1",
+        type: "paragraph",
+        text: "How you earn your income and the attitudes you hold towards the management of it.",
+      },
+      { id: "h-c2", type: "heading", text: "Investments & Assets", level: 3 },
+      {
+        id: "p-c2",
+        type: "paragraph",
+        text: "The ways in which you actively allocate funds throughout your personal finances.",
+      },
+      {
+        id: "h-c3",
+        type: "heading",
+        text: "Tax Planning & Minimisation",
+        level: 3,
+      },
+      {
+        id: "p-c3",
+        type: "paragraph",
+        text: "Your current circumstances from a strategic tax planning and optimisation perspective.",
+      },
+      {
+        id: "h-c4",
+        type: "heading",
+        text: "Security & Retirement Planning",
+        level: 3,
+      },
+      {
+        id: "p-c4",
+        type: "paragraph",
+        text: "The overall picture around your long-term financial plan and its impact on retirement.",
+      },
+      { id: "div-1", type: "divider" },
+      {
+        id: "h-quote",
+        type: "heading",
+        text: "Financially stressed people are more likely to face physical and mental health challenges.",
+        level: 2,
+      },
+      { id: "h-howscored", type: "heading", text: "How you scored", level: 2 },
+      {
+        id: "p-howscored1",
+        type: "paragraph",
+        text: "Financial clarity is measured by how you earn, manage, distribute, and protect money. This scorecard looks specifically at income, investments/assets, tax and long-term financial planning to gauge your financial clarity.",
+      },
+      {
+        id: "p-howscored2",
+        type: "paragraph",
+        text: "In your custom report to follow, we're going to show you how to address any concerns you may have surrounding your finances and guide you to take the consistent, little actions, which over time build considerable wealth.",
+      },
+      { id: "h-invite", type: "heading", text: "An invitation for you", level: 2 },
+      {
+        id: "p-invite1",
+        type: "paragraph",
+        text: "Making important decisions about what to do with your money can seem like a daunting task, especially with the ever-increasing options available for investors from the market these days.",
+      },
+      {
+        id: "p-invite2",
+        type: "paragraph",
+        text: "That's why, as a thanks to you for completing this assessment, we'd like to offer you the opportunity to review your report with us, to help you realise your financial goals.",
+      },
+      {
+        id: "p-invite3",
+        type: "paragraph",
+        text: "Book a no-obligation consultation with our advisors below to discuss your financial future in alignment to your Financial Clarity score.",
+      },
+      {
+        id: "btn-book-1",
+        type: "button",
+        label: "Book your no-obligation consultation",
+        url: "",
+        style: "primary",
+      },
+      { id: "div-2", type: "divider" },
+      {
+        id: "h-overall",
+        type: "heading",
+        text: "Your overall result: {{outcomeTitle}}",
+        level: 2,
+      },
+      { id: "p-overall", type: "paragraph", text: "{{outcomeDescription}}" },
+      {
+        id: "p-overall2",
+        type: "paragraph",
+        text: "How you did overall paints a picture of your understanding and application of best practices across how you earn your income, manage and invest it, efficiently prepare your tax and how you plan for the future.",
+      },
+      { id: "div-3", type: "divider" },
+
+      {
+        id: "h-cat1-deep",
+        type: "heading",
+        text: "Category 1: Income Generation",
+        level: 2,
+      },
+      {
+        id: "p-cat1-deep",
+        type: "paragraph",
+        text: "Income is undoubtedly a crucial component of building your wealth, but it isn't necessarily the sole determining factor. While it's true that having a higher income provides you with a stronger capacity to allocate funds towards growing your wealth, it doesn't always guarantee financial success. In the UK, there are households with a combined income exceeding £100,000 per annum, yet they may not effectively allocate these funds to secure their financial future. Conversely, there are also households with a combined income of less than £100,000 per annum who successfully plan for a comfortable and enjoyable retirement.",
+      },
+      {
+        id: "p-cat1-key",
+        type: "paragraph",
+        text: "Key point to consider: Always remember, wealth is built by compounding little steps made consistently, rarely by taking large quantum leaps.",
+      },
+      {
+        id: "h-cat1-tips",
+        type: "heading",
+        text: "4 fast ways to instantly strengthen your income score",
+        level: 3,
+      },
+      {
+        id: "list-cat1",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Cut expenditure — minimise unnecessary outgoings. Brits collectively spend billions annually on things they don't need or even realise. Hunt for cuttable costs.",
+          "Explore your worth — you may be undervaluing yourself in your professional life without realising it. Recognise and harness your true worth to uncover opportunities for higher income.",
+          "Pitch your worth — if you in fact could and should be earning more, pitch that worth to relevant decision makers. If you're an entrepreneur, focus on marketing, sales and leverage.",
+          "Allocate funds better — as you gradually earn more, get wise on how you allocate it. Wealth is about earning, saving with discipline and investing with patience.",
+        ],
+      },
+      { id: "div-4", type: "divider" },
+
+      {
+        id: "h-cat2-deep",
+        type: "heading",
+        text: "Category 2: Investments & Assets",
+        level: 2,
+      },
+      {
+        id: "p-cat2-deep",
+        type: "paragraph",
+        text: "Whilst income is a vital piece to building wealth, how income is invested is just as important. Cash, as you know, is a depreciating asset. Even the highest interest savings accounts are unlikely to fuel your retirement.\n\nSo whilst building cash reserves for savings is important, sitting on too much cash itself does not provide the potential to be as impactful as tactfully investing it. Often, people don't realise they are sitting on a cash position beyond what they need.",
+      },
+      {
+        id: "p-cat2-deep2",
+        type: "paragraph",
+        text: "Enjoying your later years in life is in large part due to the assets you can accumulate and ultimately liquidate come the right time. To do this it takes years of discipline where consistent, inch-by-inch progress over the course of a career matters over anything else. The worst thing anyone can do is try to make a panicked sprint right at the end as retirement draws nearer.",
+      },
+      {
+        id: "h-cat2-tips",
+        type: "heading",
+        text: "Boosting your investment smarts",
+        level: 3,
+      },
+      {
+        id: "list-cat2",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Talk about money — have conversations with the people in your life who are directly impactful to or impacted by your financial circumstances: your spouse, commercial partners, peers and even your children.",
+          "Figure out your questions — as money conversations become a focal point, your key questions around finances will start to surface and inform where your knowledge gaps are.",
+          "Seek expert advice — bring your money questions and heightened awareness to an expert who can go through them with you and guide your decisions.",
+        ],
+      },
+      {
+        id: "p-cat2-disc",
+        type: "paragraph",
+        text: "The value of an investment with St. James's Place will be directly linked to the performance of the funds you select and the value can therefore go down as well as up. You may get back less than you invested. An investment in equities does not provide the security of capital associated with a deposit account with a bank or building society.",
+      },
+      { id: "div-5", type: "divider" },
+
+      {
+        id: "h-cat3-deep",
+        type: "heading",
+        text: "Category 3: Tax Planning & Minimisation",
+        level: 2,
+      },
+      {
+        id: "p-cat3-deep",
+        type: "paragraph",
+        text: "Tax and your obligations to HMRC can create unfortunate surprises for some and pleasant, completely legal financial wins for others. Just because you may be in a higher tax bracket or have a significant estate, doesn't mean you necessarily need to forfeit as much as you think.\n\nIn this category, scoring as highly as possible is most desired as it can mean minimising liabilities and retaining value for yourself and your family.",
+      },
+      {
+        id: "p-cat3-deep2",
+        type: "paragraph",
+        text: "If you are in a high tax bracket, and have an investment portfolio, being up to date and compliant with your tax planning could be worth significant sums of money to you both now and in the longer term. The wealth you build over the course of your life fully deserves to be enjoyed by you and your family to the fullest. The right advice here is worth the weight of all the comfort and freedom you deserve in your golden years.",
+      },
+      {
+        id: "h-cat3-tips",
+        type: "heading",
+        text: "Two basic yet overlooked factors that can keep your tax liabilities lower",
+        level: 3,
+      },
+      {
+        id: "list-cat3",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Know your tax-free allowances — don't simply assume you know what your tax-free allowances are. Get expert advice based on your unique circumstances; you might qualify for significant relief based on various factors.",
+          "Property loopholes — you don't have to be an HMO landlord to earn money through property or benefit from tax relief. If you simply rent a room in your home, you could be eligible for a £7,500 tax exemption.",
+        ],
+      },
+      {
+        id: "p-cat3-disc",
+        type: "paragraph",
+        text: "The levels and bases of taxation and relief from taxation can change at any time. The value of any tax relief depends on individual circumstances.",
+      },
+      { id: "div-6", type: "divider" },
+
+      {
+        id: "h-cat4-deep",
+        type: "heading",
+        text: "Category 4: Security & Retirement Planning",
+        level: 2,
+      },
+      {
+        id: "p-cat4-deep",
+        type: "paragraph",
+        text: "Last but certainly not least in terms of importance, we come to how ready you are for your later years — the time in which you'll be ready to slow down, begin enjoying life and soaking up the benefits of a successful career.\n\nThe challenge is that many of us start thinking about our retirement planning too late in life. The longer you leave it, the more challenging this becomes and the more pressure it can bring. There's a lot of pain here that can be avoided with some simple, early strategising.",
+      },
+      {
+        id: "p-cat4-deep2",
+        type: "paragraph",
+        text: "This category is important to do well in advance and have forward-facing momentum throughout — it determines quality of life and financial safety in the years where our income typically slows down the most. Simply relying on an inheritance is not a solid wealth strategy. In life, and particularly when it comes to finances, we need to be our own leaders and proactively set about establishing solid foundations and surefire safety nets.",
+      },
+      {
+        id: "h-cat4-tips",
+        type: "heading",
+        text: "Taking control of your financial future",
+        level: 3,
+      },
+      {
+        id: "list-cat4",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Don't panic — don't dwell on what you don't have or haven't done. Make a decision to take control of this important area of your finances ASAP.",
+          "Focus on yourself — avoid the temptation of looking at others to see what they've done that you haven't. Now's the time to focus on you and get clear on your next steps.",
+          "Take action soon — commit to taking appropriate action to get this area of your finances into alignment with your goals, even if that means asking for help.",
+        ],
+      },
+      { id: "div-7", type: "divider" },
+
+      {
+        id: "h-cta-final",
+        type: "heading",
+        text: "Let's get there together",
+        level: 2,
+      },
+      {
+        id: "p-cta-final1",
+        type: "paragraph",
+        text: "We make it our purpose to ensure that your money is our worry, not yours. When the time comes to wind down and focus on the finer things in life, your finances shouldn't be the determining factor in how you lead that lifestyle.",
+      },
+      {
+        id: "p-cta-final2",
+        type: "paragraph",
+        text: "Thanks to the insights we've learned from the information in your assessment, we have been able to build a useful profile that can assist us to assist you to make money the least of your worries going forward. Take us up on a no-obligation consultation and we can talk you through what we've seen from your results and what you should be doing next to safeguard the financial futures of both yourself and your family.",
+      },
+      {
+        id: "h-cta-final2",
+        type: "heading",
+        text: "It's all just a conversation away",
+        level: 3,
+      },
+      {
+        id: "p-cta-final3",
+        type: "paragraph",
+        text: "Say yes to financial clarity and join one of our expert, friendly advisers for a no-obligation call where the focus will be you, your goals and the most effective path to get there sooner.",
+      },
+      {
+        id: "btn-book-final",
+        type: "button",
+        label: "Book your no-obligation consultation",
+        url: "",
+        style: "primary",
+      },
+      { id: "div-8", type: "divider" },
+      {
+        id: "p-disclaimer",
+        type: "paragraph",
+        text: "Scott Mackey and Legacy Capital Management is an Appointed Representative of and represents only St. James's Place Wealth Management plc (which is authorised and regulated by the Financial Conduct Authority) for the purpose of advising solely on the Group's wealth management products and services, more details of which are set out on the Group's website www.sjp.co.uk/products. The 'St. James's Place Partnership' and the titles 'Partner' and 'Partner Practice' are marketing terms used to describe St. James's Place representatives. Legacy Capital Management is a trading name of Scott Mackey.",
+      },
+    ],
+    questions: [
+      {
+        text: "How aware are you of where your monthly discretionary income actually goes?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Very aware — I track it", score: 10 },
+          { text: "Roughly aware", score: 5 },
+          { text: "Not really", score: 0 },
+        ],
+      },
+      {
+        text: "Do you actively manage your career or business to maximise your earning potential?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — actively and intentionally", score: 10 },
+          { text: "Sometimes", score: 5 },
+          { text: "I take what comes", score: 0 },
+        ],
+      },
+      {
+        text: "When extra cash arrives (bonus, sale, raise), how do you typically allocate it?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Plan-led split between save / invest / spend", score: 10 },
+          { text: "A bit of saving, mostly spending", score: 5 },
+          { text: "I usually find it spent without realising", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have a written investment plan tied to a long-term goal?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — written and regularly reviewed", score: 10 },
+          { text: "It's in my head but not written down", score: 5 },
+          { text: "No plan — I just hold what I've got", score: 0 },
+        ],
+      },
+      {
+        text: "How often do you review your investments and discuss them with someone you trust?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "At least once a year, with a professional", score: 10 },
+          { text: "When I remember", score: 5 },
+          { text: "Hardly ever", score: 0 },
+        ],
+      },
+      {
+        text: "Do you know your tax-free allowances and reliefs (ISA, pension, gift, residence nil-rate band)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — and I use them deliberately", score: 10 },
+          { text: "I know the headlines but don't optimise", score: 5 },
+          { text: "Not really", score: 0 },
+        ],
+      },
+      {
+        text: "Have you taken professional, strategic tax advice in the last 24 months?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — full review", score: 10 },
+          { text: "An accountant for filings, but not strategic planning", score: 5 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have a documented plan for what retirement looks like for you (income, lifestyle, when)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — clear and modelled", score: 10 },
+          { text: "Rough numbers in my head", score: 5 },
+          { text: "Not really thought about it", score: 0 },
+        ],
+      },
+      {
+        text: "How comfortable are you that, at your current pace, you'll retire when and how you want?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "Optional — what's the single biggest financial worry on your mind right now?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥80 chars", score: 5, minChars: 80 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Searching for Clarity",
+        description:
+          "Right now your financial picture has more questions than answers, and that uncertainty is doing more damage than it might seem. The good news: a single proper conversation usually surfaces the two or three highest-impact moves to make first. Making important decisions about your money can seem daunting, especially with the ever-increasing options available — that's exactly where good advice earns its keep.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Building Clarity",
+        description:
+          "You've got the basics in place across most of the four areas, but the picture is uneven and there's meaningful room to tighten the plan. Wealth is built by compounding little steps made consistently, rarely by taking large quantum leaps. From here, working with someone independent to put a written plan together usually pays for itself many times over.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Strong Clarity",
+        description:
+          "You're doing the hard things well across income, investments, tax and retirement planning. The next step from here is optimisation — making sure your tax wrappers, allowances and protections are all working as hard as they can, and that your plan keeps pace with life changes. A regular annual review with someone who knows your full picture is usually all that's needed.",
+      },
+    ],
+  },
 ];
 
 export function findTemplate(id: string): Template | null {
   return TEMPLATES.find((t) => t.id === id) ?? null;
 }
+
+// -----------------------------------------------------------------------------
+// Default design — applied to every new quiz (blank or template-without-blocks)
+// so respondents always land on a polished, branded report flow rather than a
+// bare title/intro. Mirrors the structure of a typical scorecard-report PDF
+// (overview → score → category breakdown → next steps → booking CTA) with
+// editable placeholder copy.
+// -----------------------------------------------------------------------------
+
+export const DEFAULT_LANDING_BLOCKS: TemplateBlock[] = [
+  {
+    id: "hero",
+    type: "hero-split",
+    headline: "Take the scorecard",
+    body: "A short, structured audit that gives you a personalised score across the areas that matter — plus a PDF report you can keep.",
+    ctaLabel: "Start the scorecard",
+    ctaUrl: "#start",
+    bullets: [
+      "Personalised result based on your answers",
+      "Full PDF report sent straight to your inbox",
+      "Optional free follow-up consultation",
+    ],
+    imageUrl: "",
+    imageAlt: "",
+    imagePosition: "right",
+  },
+  {
+    id: "areas",
+    type: "feature-grid",
+    heading: "What we'll measure",
+    subhead:
+      "Edit these to match the four areas your scorecard covers. Most strong reports break their assessment into 3–5 distinct categories.",
+    columns: 4,
+    items: [
+      {
+        id: "a1",
+        iconUrl: "",
+        title: "Area one",
+        body: "A short description of what this area covers and why it matters.",
+      },
+      {
+        id: "a2",
+        iconUrl: "",
+        title: "Area two",
+        body: "A short description of what this area covers and why it matters.",
+      },
+      {
+        id: "a3",
+        iconUrl: "",
+        title: "Area three",
+        body: "A short description of what this area covers and why it matters.",
+      },
+      {
+        id: "a4",
+        iconUrl: "",
+        title: "Area four",
+        body: "A short description of what this area covers and why it matters.",
+      },
+    ],
+  },
+  { id: "div1", type: "divider" },
+  {
+    id: "cta-h",
+    type: "heading",
+    text: "Ready to see where you stand?",
+    level: 2,
+  },
+  {
+    id: "cta-p",
+    type: "paragraph",
+    text: "Take 3 minutes now and get a personalised PDF report — no sign-up wall, no pressure.",
+  },
+  {
+    id: "cta-btn",
+    type: "button",
+    label: "Start the scorecard →",
+    url: "#start",
+    style: "primary",
+  },
+];
+
+export const DEFAULT_RESULT_BLOCKS: TemplateBlock[] = [
+  {
+    id: "score",
+    type: "score-display",
+    align: "center",
+    label: "Your score",
+    showBar: true,
+  },
+  { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+  { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+  { id: "div1", type: "divider" },
+  { id: "h2", type: "heading", text: "Your next-step checklist", level: 3 },
+  {
+    id: "list",
+    type: "list",
+    checkmark: true,
+    items: [
+      "Edit this list to match the actions someone in your audience should take next.",
+      "Keep each item short and concrete — one sentence, one action.",
+      "Aim for 4–6 items. More than that and people skim.",
+      "Lead with the highest-impact action first.",
+    ],
+  },
+  {
+    id: "cta",
+    type: "button",
+    label: "Book your free consultation →",
+    url: "",
+    style: "primary",
+  },
+];
+
+export const DEFAULT_PDF_BLOCKS: TemplatePdfBlock[] = [
+  { id: "h1", type: "heading", text: "Your scorecard report", level: 1 },
+  {
+    id: "p1",
+    type: "paragraph",
+    text: "Hi {{firstName}}, thank you for taking the time to complete the scorecard. This report walks you through your overall result, what it means in practical terms, and the most useful steps to take next.",
+  },
+  { id: "div1", type: "divider" },
+  { id: "h2", type: "heading", text: "Your overall result", level: 2 },
+  {
+    id: "h3-outcome",
+    type: "heading",
+    text: "{{outcomeTitle}}",
+    level: 3,
+  },
+  { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+  { id: "div2", type: "divider" },
+  { id: "h2-next", type: "heading", text: "Your next-step checklist", level: 2 },
+  {
+    id: "p-next",
+    type: "paragraph",
+    text: "Edit this checklist to match the actions someone in your audience should take next. Lead with the highest-impact one.",
+  },
+  {
+    id: "checklist",
+    type: "list",
+    checkmark: true,
+    items: [
+      "Action one — short, concrete, one sentence.",
+      "Action two — the next most useful thing to do.",
+      "Action three — the small habit that compounds over time.",
+      "Action four — the one most people skip but shouldn't.",
+    ],
+  },
+  { id: "div3", type: "divider" },
+  { id: "h2-cta", type: "heading", text: "An invitation", level: 2 },
+  {
+    id: "p-cta",
+    type: "paragraph",
+    text: "If you'd like to walk through your result one-to-one, book a free no-obligation consultation. We'll go through your score, where you can move the needle most, and what good looks like for someone in your position.",
+  },
+  {
+    id: "btn-cta",
+    type: "button",
+    label: "Book your free consultation",
+    url: "",
+    style: "primary",
+  },
+];
