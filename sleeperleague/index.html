@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Sleeper League Analysis</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icon.svg" alt="" class="brand-logo" />
+      <div>
+        <div class="brand-title">Sleeper League Analysis</div>
+        <div class="brand-sub">Stats. Trades. Receipts.</div>
+      </div>
+    </div>
+    <nav class="topnav" id="topnav" hidden>
+      <button class="nav-btn" data-tab="overview">Overview</button>
+      <button class="nav-btn" data-tab="trades">Trades</button>
+      <button class="nav-btn" data-tab="matchups">Matchups</button>
+      <button class="nav-btn" data-tab="rosters">Rosters</button>
+      <button class="nav-btn ghost" id="switchLeagueBtn">Switch league</button>
+      <button class="nav-btn ghost" id="logoutBtn">Sign out</button>
+    </nav>
+  </header>
+
+  <main id="main">
+
+    <!-- LOGIN VIEW -->
+    <section class="view" id="view-login">
+      <div class="hero">
+        <h1>Analyze your Sleeper league</h1>
+        <p class="lede">
+          Enter your Sleeper username to pull standings, weekly matchups, and a full
+          history of every trade in your leagues. No signup, no password — Sleeper data is public.
+        </p>
+        <form class="login-form" id="loginForm" autocomplete="off">
+          <label class="field">
+            <span>Sleeper username</span>
+            <input type="text" id="usernameInput" placeholder="e.g. mrmoneycoach" required spellcheck="false" autocapitalize="off" />
+          </label>
+          <label class="field">
+            <span>Season</span>
+            <select id="seasonInput"></select>
+          </label>
+          <button class="primary" type="submit" id="loginBtn">Find my leagues</button>
+        </form>
+        <p class="error" id="loginError" hidden></p>
+      </div>
+      <ul class="features">
+        <li><strong>Standings &amp; records</strong><br/>Wins, losses, points for/against, expected wins.</li>
+        <li><strong>Trade tracker</strong><br/>Every trade in the league, who got what, with player names.</li>
+        <li><strong>Weekly matchups</strong><br/>Biggest blowouts and closest finishes at a glance.</li>
+        <li><strong>Roster snapshots</strong><br/>Inspect every team's current roster.</li>
+      </ul>
+    </section>
+
+    <!-- LEAGUE PICKER -->
+    <section class="view" id="view-leagues" hidden>
+      <div class="page-head">
+        <div>
+          <h2>Pick a league</h2>
+          <p class="muted" id="leaguesUserHello"></p>
+        </div>
+        <button class="ghost" id="changeUserBtn">Change user</button>
+      </div>
+      <div class="grid league-grid" id="leagueList"></div>
+      <p class="empty" id="leagueEmpty" hidden>No leagues found for that user in that season.</p>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="view" id="view-dashboard" hidden>
+      <div class="page-head">
+        <div>
+          <h2 id="leagueName">League</h2>
+          <p class="muted" id="leagueMeta"></p>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-overview"></div>
+      <div class="tab-panel" id="tab-trades" hidden></div>
+      <div class="tab-panel" id="tab-matchups" hidden></div>
+      <div class="tab-panel" id="tab-rosters" hidden></div>
+    </section>
+
+    <!-- LOADING -->
+    <div class="loader" id="loader" hidden>
+      <div class="spinner"></div>
+      <div class="loader-text" id="loaderText">Loading…</div>
+    </div>
+
+  </main>
+
+  <footer class="foot">
+    <span>Built on the public <a href="https://docs.sleeper.com/" target="_blank" rel="noopener">Sleeper API</a>. Not affiliated with Sleeper.</span>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
