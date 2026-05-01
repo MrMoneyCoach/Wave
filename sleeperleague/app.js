@@ -5,10 +5,10 @@ import {
   state, saveSession, loadSession, clearSession, resetLeagueState,
   savePrefs, loadPrefs, syncPrimary,
 } from './src/state.js';
-import { $, $$, el, showLoader, hideLoader, avatarUrl } from './src/helpers.js';
+import { $, $$, el, showLoader, hideLoader, avatarUrl, toast } from './src/helpers.js';
 import { initRouter, setActiveTab } from './src/router.js';
 import {
-  discoverAvailableSeasons, setScopeLeagues, clearValues,
+  discoverAvailableSeasons, setScopeLeagues, clearValues, refreshAllScope,
 } from './src/data.js';
 
 // ------ Helpers ------
@@ -245,6 +245,26 @@ async function applyScope(leagueIds) {
   }
 }
 
+// ------ Refresh ------
+
+async function handleRefresh() {
+  const btn = $('#refreshBtn');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add('refreshing');
+  try {
+    await refreshAllScope();
+    renderDashboardHead();
+    setActiveTab(state.activeTab || 'overview');
+    toast('Updated from Sleeper');
+  } catch (err) {
+    toast('Refresh failed: ' + (err.message || 'unknown error'));
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('refreshing');
+  }
+}
+
 // ------ Settings (values source) ------
 
 function initValuesSource() {
@@ -281,6 +301,7 @@ function wireUp() {
   $('#sidebarToggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
+  $('#refreshBtn').addEventListener('click', handleRefresh);
 
   // Theme toggles in three places: login, picker, sidebar.
   ['themeToggleLogin', 'themeTogglePicker', 'themeToggleSidebar'].forEach(id => {

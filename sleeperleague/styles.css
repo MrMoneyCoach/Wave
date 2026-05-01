@@ -400,6 +400,16 @@ button.card:hover {
 .content-head-tools { display: flex; gap: 8px; align-items: center; }
 .sidebar-toggle { display: none; }
 
+.refresh-icon {
+  display: inline-block;
+  font-size: 18px;
+  line-height: 1;
+}
+.icon-btn.refreshing .refresh-icon {
+  animation: spin 0.7s linear infinite;
+}
+.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* Scope bar (multi-year picker) */
 .scope-bar {
   display: flex;

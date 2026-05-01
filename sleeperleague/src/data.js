@@ -199,6 +199,32 @@ export async function loadScopeFor(leagueId) {
   return makeScope({ leagueId, league, users, rosters });
 }
 
+// Force a refetch of every scope's live data: league config, users, rosters,
+// matchups, transactions. Leaves players + dynasty values caches alone (they
+// have their own TTLs). After this completes, tabs should re-render.
+export async function refreshAllScope() {
+  await Promise.all(state.scope.map(async sc => {
+    const [league, users, rosters] = await Promise.all([
+      sleeper.league(sc.leagueId),
+      sleeper.leagueUsers(sc.leagueId),
+      sleeper.rosters(sc.leagueId),
+    ]);
+    sc.league = league;
+    sc.users = users;
+    sc.rosters = rosters;
+    sc.matchupsByWeek = {};
+    sc.transactionsByWeek = {};
+    // Drop draft picks cache for this scope too — slot maps & metadata can shift mid-draft.
+    sc.drafts = [];
+    sc.draftPicks = {};
+  }));
+  // Also refresh the global NFL state (current week may have advanced).
+  try { state.nflState = await sleeper.nflState(); } catch {}
+  // Re-mirror the primary scope into the legacy top-level fields.
+  syncPrimary();
+  // History is regenerated on next visit if user clears it; we'll leave it.
+}
+
 // Set the scope to exactly these league IDs (in the given order, newest first).
 // Loads any missing ones, drops any not in the list. Updates state.league mirror.
 export async function setScopeLeagues(leagueIds) {
