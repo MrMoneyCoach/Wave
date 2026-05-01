@@ -18,6 +18,74 @@ export type TemplateOutcome = {
   description: string;
 };
 
+/** Block shape for landing pages and result pages. Mirrors the live block
+ *  unions in QuizPlayer/ResultView so JSON.stringify'd blocks render directly.
+ *  `score-display` is only meaningful on result pages. */
+export type TemplateBlock =
+  | { id: string; type: "heading"; text: string; level: 1 | 2 | 3 }
+  | { id: string; type: "paragraph"; text: string }
+  | { id: string; type: "image"; url: string; alt: string }
+  | { id: string; type: "list"; items: string[]; checkmark: boolean }
+  | { id: string; type: "button"; label: string; url: string; style: "primary" | "secondary" }
+  | { id: string; type: "divider" }
+  | {
+      id: string;
+      type: "score-display";
+      align: "left" | "center" | "right";
+      label: string;
+      showBar: boolean;
+    }
+  | {
+      id: string;
+      type: "hero-split";
+      headline: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+      bullets: string[];
+      imageUrl: string;
+      imageAlt: string;
+      imagePosition: "left" | "right";
+    }
+  | {
+      id: string;
+      type: "feature-grid";
+      heading: string;
+      subhead: string;
+      columns: 2 | 3 | 4;
+      items: { id: string; iconUrl: string; title: string; body: string }[];
+    }
+  | {
+      id: string;
+      type: "image-text";
+      imageUrl: string;
+      imageAlt: string;
+      imagePosition: "left" | "right";
+      heading: string;
+      body: string;
+      ctaLabel: string;
+      ctaUrl: string;
+    };
+
+/** PDF body blocks support a smaller subset (no layout primitives — react-pdf
+ *  doesn't render them yet). */
+export type TemplatePdfBlock =
+  | { id: string; type: "heading"; text: string; level: 1 | 2 | 3 }
+  | { id: string; type: "paragraph"; text: string }
+  | { id: string; type: "image"; url: string; alt: string }
+  | { id: string; type: "list"; items: string[]; checkmark: boolean }
+  | { id: string; type: "button"; label: string; url: string; style: "primary" | "secondary" }
+  | { id: string; type: "divider" };
+
+export type TemplateEmail = {
+  subject?: string;
+  greeting?: string;
+  intro?: string;
+  bullets?: string;
+  bookingLine?: string;
+  signoff?: string;
+};
+
 export type Template = {
   id: string;
   name: string;
@@ -27,6 +95,19 @@ export type Template = {
   intro: string;
   ctaLabel: string;
   theme?: "minimal" | "card";
+  /** Optional brand colour to seed the new quiz with. */
+  brandColor?: string;
+  /** Optional CTA label for the booking button (used in PDF + emails). */
+  bookingLabel?: string;
+  /** Optional landing-page blocks. When set, the new quiz's primary landing
+   *  page renders these instead of the bare title/intro. */
+  landingBlocks?: TemplateBlock[];
+  /** Optional default result-page blocks. */
+  resultBlocks?: TemplateBlock[];
+  /** Optional default PDF report body blocks. */
+  pdfBlocks?: TemplatePdfBlock[];
+  /** Optional pre-filled email copy. */
+  email?: TemplateEmail;
   questions: TemplateQuestion[];
   outcomes: TemplateOutcome[];
 };
@@ -1571,6 +1652,1387 @@ export const TEMPLATES: Template[] = [
         title: "Surgical",
         description:
           "Your communication is precise. Keep it that way — when work gets busy, comms is the first thing to bloat. Less words, sharper structure.",
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  // FINANCE — fully ready-made templates (landing, result, PDF, email all set)
+  // ---------------------------------------------------------------------------
+  {
+    id: "financial-wellbeing-scorecard",
+    name: "Financial Wellbeing Scorecard",
+    category: "Finance",
+    emoji: "💷",
+    description:
+      "Where do you stand across spending, saving, investing, protection and planning? A 7-question audit with a personalised PDF report.",
+    intro:
+      "This 3-minute scorecard rates your financial wellbeing across the five areas that drive long-term security. You'll get a personalised result and a PDF with concrete next steps.",
+    ctaLabel: "Start the scorecard",
+    theme: "card",
+    brandColor: "#1e3a8a",
+    bookingLabel: "Book your free clarity call",
+    email: {
+      subject: "Your Financial Wellbeing Scorecard results",
+      greeting: "Hi {{firstName}},",
+      intro:
+        "Thank you for completing the Financial Wellbeing Scorecard. Your personalised report is attached as a PDF.\n\nYou scored {{percent}}% — {{outcomeTitle}}.",
+      bullets:
+        "Where you're already strong\nWhere you have room to grow\nThe single most important next step",
+      bookingLine:
+        "Want to walk through your result with me one-to-one? Book a no-obligation 30-minute clarity call.",
+      signoff: "Looking forward to chatting,\n— {{ownerName}}",
+    },
+    landingBlocks: [
+      {
+        id: "hero",
+        type: "hero-split",
+        headline: "How financially well are you, really?",
+        body: "A 3-minute scorecard that rates your spending, saving, investing, protection and planning. You'll get a personalised PDF report and a clear next step.",
+        ctaLabel: "Take the scorecard",
+        ctaUrl: "#start",
+        bullets: [
+          "Five-area, 7-question audit",
+          "Personalised PDF report sent by email",
+          "Free no-pressure clarity call afterwards",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      },
+      {
+        id: "features",
+        type: "feature-grid",
+        heading: "What you'll learn",
+        subhead:
+          "Most people we work with assume their finances are 'fine' — until they see them mapped out across all five areas.",
+        columns: 3,
+        items: [
+          {
+            id: "f1",
+            iconUrl: "",
+            title: "Where you're strong",
+            body: "The areas you've already nailed, so we don't waste time on what isn't broken.",
+          },
+          {
+            id: "f2",
+            iconUrl: "",
+            title: "Hidden gaps",
+            body: "The blind spots — usually around protection or estate planning — that catch most people out.",
+          },
+          {
+            id: "f3",
+            iconUrl: "",
+            title: "Your single next step",
+            body: "One concrete action that makes the biggest difference for someone in your position.",
+          },
+        ],
+      },
+    ],
+    resultBlocks: [
+      {
+        id: "score",
+        type: "score-display",
+        align: "center",
+        label: "Your Financial Wellbeing score",
+        showBar: true,
+      },
+      { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+      { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "div1", type: "divider" },
+      { id: "h2", type: "heading", text: "What good looks like", level: 3 },
+      {
+        id: "list",
+        type: "list",
+        checkmark: true,
+        items: [
+          "An emergency fund of 3–6 months of essential outgoings",
+          "Pension contributions of at least 12–15% of gross income",
+          "An up-to-date will and a registered power of attorney",
+          "Income protection covering at least 60% of take-home pay",
+          "A long-term plan reviewed at least once a year",
+        ],
+      },
+      {
+        id: "cta",
+        type: "button",
+        label: "Book your free clarity call →",
+        url: "",
+        style: "primary",
+      },
+    ],
+    pdfBlocks: [
+      {
+        id: "h1",
+        type: "heading",
+        text: "Your Financial Wellbeing report",
+        level: 1,
+      },
+      {
+        id: "p1",
+        type: "paragraph",
+        text: "Hi {{firstName}}, thank you for taking the time to complete the Financial Wellbeing Scorecard. Below is a brief interpretation of your result and a checklist of where most people in your position go next.",
+      },
+      {
+        id: "h2",
+        type: "heading",
+        text: "Your result: {{outcomeTitle}}",
+        level: 2,
+      },
+      { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "h3", type: "heading", text: "Your next-step checklist", level: 3 },
+      {
+        id: "checklist",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Confirm you have an emergency fund covering 3–6 months of essential outgoings",
+          "Check pension contributions are at least 12–15% of gross income",
+          "Make sure you have an up-to-date will and a registered power of attorney",
+          "Review your income-protection cover (target: 60%+ of take-home pay)",
+          "Schedule an annual financial review with a regulated adviser",
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: "Do you have an emergency fund covering 3–6 months of essential outgoings?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — held in an easy-access account", score: 10 },
+          { text: "Some savings but not 3 months' worth", score: 5 },
+          { text: "Less than a month, or none", score: 0 },
+        ],
+      },
+      {
+        text: "How much of your gross income are you putting into a pension or long-term investments each month?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "15% or more", score: 10 },
+          { text: "Between 8 and 15%", score: 7 },
+          { text: "Less than 8%", score: 3 },
+          { text: "Nothing right now", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have an up-to-date will and a registered power of attorney?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — both, reviewed in the last 3 years", score: 10 },
+          { text: "I have a will but no power of attorney", score: 5 },
+          { text: "Neither, or both are out of date", score: 0 },
+        ],
+      },
+      {
+        text: "If you couldn't work for 6 months due to illness, would you still be able to cover your essential outgoings?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — through income protection or savings", score: 10 },
+          { text: "Probably for a few months, then it would get tight", score: 5 },
+          { text: "No — I'd be in real trouble within weeks", score: 0 },
+        ],
+      },
+      {
+        text: "How clear are you on what 'enough' looks like for you in retirement (income, lifestyle, when)?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "When did you last sit down with someone independent to review your overall financial plan?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Within the last 12 months", score: 10 },
+          { text: "1–3 years ago", score: 5 },
+          { text: "More than 3 years ago, or never", score: 0 },
+        ],
+      },
+      {
+        text: "What's the single biggest financial worry on your mind right now? (optional — helps me prepare if you book a call)",
+        type: "text",
+        required: false,
+        options: [{ text: "≥80 chars", score: 5, minChars: 80 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Exposed",
+        description:
+          "There are some significant gaps in your current setup — most likely around protection or planning — that could hit hard if life threw you a curveball. The good news: a single conversation usually surfaces the two or three highest-impact moves to make first.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Building",
+        description:
+          "You've got the basics in place but there's meaningful room to tighten the plan. Most people in this band benefit from clarifying their long-term goal first, then working back to a contribution and protection plan that actually gets them there.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "On track",
+        description:
+          "You're doing the hard things well. From here it's about staying disciplined, optimising tax wrappers, and making sure your plan keeps pace with life changes. A regular annual review is usually all that's needed.",
+      },
+    ],
+  },
+
+  {
+    id: "retirement-readiness-score",
+    name: "Retirement Readiness Score",
+    category: "Finance",
+    emoji: "🏖️",
+    description:
+      "Are you on track to retire when you want — and to live the lifestyle you've planned for? An 8-question check with a personalised report.",
+    intro:
+      "Most people don't know if they're on track for retirement until it's almost too late to course-correct. This 4-minute scorecard gives you a clear answer and a personalised PDF.",
+    ctaLabel: "Check my readiness",
+    theme: "card",
+    brandColor: "#0d9488",
+    bookingLabel: "Book your retirement clarity call",
+    email: {
+      subject: "Your Retirement Readiness Score",
+      greeting: "Hi {{firstName}},",
+      intro:
+        "Thanks for completing the Retirement Readiness Score. Your personalised PDF is attached.\n\nYou scored {{percent}}% — {{outcomeTitle}}.",
+      bullets:
+        "How realistic your current pace is\nThe single biggest risk to your plan\nWhat someone in your position usually does next",
+      bookingLine:
+        "Want to talk through your result? Book a free 30-minute call — no pressure, no jargon.",
+      signoff: "Speak soon,\n— {{ownerName}}",
+    },
+    landingBlocks: [
+      {
+        id: "hero",
+        type: "hero-split",
+        headline: "Are you actually on track to retire when you want?",
+        body: "An 8-question, 4-minute readiness check across savings rate, pension pots, tax position and risk. You'll get a personalised PDF and a clear next step.",
+        ctaLabel: "Check my readiness",
+        ctaUrl: "#start",
+        bullets: [
+          "Built for people 10+ years from retirement",
+          "Personalised PDF emailed straight to you",
+          "Optional free clarity call afterwards",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      },
+      {
+        id: "features",
+        type: "feature-grid",
+        heading: "Why this matters",
+        subhead:
+          "Small course-corrections made 10 years out are worth ten times the same change made 1 year out. The earlier you know where you stand, the easier it is to fix.",
+        columns: 3,
+        items: [
+          {
+            id: "f1",
+            iconUrl: "",
+            title: "Honest answer",
+            body: "Not 'looks fine' — a numerical readiness score and what it really means.",
+          },
+          {
+            id: "f2",
+            iconUrl: "",
+            title: "Pension consolidation",
+            body: "Most people lose track of pots after 2 job changes. We'll flag whether yours need rounding up.",
+          },
+          {
+            id: "f3",
+            iconUrl: "",
+            title: "Sequence-of-returns risk",
+            body: "The most under-discussed risk for anyone within 5 years of stopping work.",
+          },
+        ],
+      },
+    ],
+    resultBlocks: [
+      {
+        id: "score",
+        type: "score-display",
+        align: "center",
+        label: "Your Retirement Readiness score",
+        showBar: true,
+      },
+      { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+      { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "div1", type: "divider" },
+      { id: "h2", type: "heading", text: "Your priority list", level: 3 },
+      {
+        id: "list",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Get a clear annual income target for retirement",
+          "Round up every pension pot you've ever contributed to",
+          "Stress-test your plan against a 25% market drop near retirement",
+          "Confirm your investment risk matches your time horizon",
+          "Check your tax-efficient drawdown plan",
+        ],
+      },
+      {
+        id: "cta",
+        type: "button",
+        label: "Book your retirement clarity call →",
+        url: "",
+        style: "primary",
+      },
+    ],
+    pdfBlocks: [
+      {
+        id: "h1",
+        type: "heading",
+        text: "Your Retirement Readiness report",
+        level: 1,
+      },
+      {
+        id: "p1",
+        type: "paragraph",
+        text: "Hi {{firstName}}, here's a brief interpretation of your readiness score and the actions most useful for someone in your position.",
+      },
+      {
+        id: "h2",
+        type: "heading",
+        text: "Your result: {{outcomeTitle}}",
+        level: 2,
+      },
+      { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "h3", type: "heading", text: "Your priority list", level: 3 },
+      {
+        id: "checklist",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Define a clear annual income target for retirement",
+          "Round up every pension pot from previous jobs",
+          "Stress-test against a 25% market drop near retirement",
+          "Confirm your investment risk matches your time horizon",
+          "Build a tax-efficient drawdown plan",
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: "Do you know roughly how much annual income you'll want in retirement?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — to within £5k", score: 10 },
+          { text: "I have a rough range", score: 6 },
+          { text: "No idea", score: 0 },
+        ],
+      },
+      {
+        text: "How would you describe your current pension contribution rate?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Above 15% of gross income", score: 10 },
+          { text: "Around 10–15%", score: 7 },
+          { text: "Just the auto-enrolment minimum", score: 3 },
+          { text: "Not currently contributing", score: 0 },
+        ],
+      },
+      {
+        text: "Have you had a forecast showing when your money would actually run out at your current pace?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — within the last 2 years", score: 10 },
+          { text: "Years ago, but not since", score: 5 },
+          { text: "Never", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have a clear view of all the pension pots you've accumulated across previous jobs?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — all consolidated or tracked", score: 10 },
+          { text: "Most of them — one or two unaccounted for", score: 5 },
+          { text: "No idea where the older ones are", score: 0 },
+        ],
+      },
+      {
+        text: "How comfortable are you with the level of investment risk in your retirement money?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "Do you understand how your retirement income will be taxed when you start drawing it?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — fully", score: 10 },
+          { text: "The basics, but not the optimisation", score: 5 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "If markets fell 25% the year before you wanted to retire, what would you do?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Stick with the plan — I'd already have a buffer", score: 10 },
+          { text: "Delay retirement by a year or two", score: 5 },
+          { text: "Panic and reach out to someone urgently", score: 0 },
+        ],
+      },
+      {
+        text: "Optional — what's the lifestyle you're picturing for retirement?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥100 chars", score: 5, minChars: 100 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Off-track",
+        description:
+          "At your current pace, the retirement you want and the retirement you're funding aren't the same thing yet. The gap is usually closeable but the longer you leave it, the harder the maths gets. The single highest-impact action is almost always defining the income target first — everything else flows from that.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "On the road",
+        description:
+          "You're doing more than most. The gaps tend to be around pension consolidation, tax efficiency, or risk levels that don't match your time horizon. A 30-minute review usually pays for itself many times over from this band.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "On schedule",
+        description:
+          "You're in good shape. Focus shifts to optimisation: tax-efficient drawdown, sequence-of-returns risk, and making sure the plan still matches the lifestyle you actually want — not the one you set out for 10 years ago.",
+      },
+    ],
+  },
+
+  {
+    id: "wealth-protection-audit",
+    name: "Wealth Protection Audit",
+    category: "Finance",
+    emoji: "🛡️",
+    description:
+      "How well protected are you and the people you love against death, illness and the taxman? A 7-question audit.",
+    intro:
+      "Most people pay close attention to growing their wealth and almost no attention to protecting it. This 3-minute audit shows you where the dangerous gaps are.",
+    ctaLabel: "Audit my protection",
+    theme: "card",
+    brandColor: "#15803d",
+    bookingLabel: "Book your protection review",
+    email: {
+      subject: "Your Wealth Protection Audit results",
+      greeting: "Hi {{firstName}},",
+      intro:
+        "Thanks for completing the Wealth Protection Audit. Your personalised PDF report is attached.\n\nYou scored {{percent}}% — {{outcomeTitle}}.",
+      bullets:
+        "The gaps that would hurt most\nWhat you've already done well\nThe one thing to fix first",
+      bookingLine:
+        "Want to walk through your result? Book a free 30-minute review with no obligation.",
+      signoff: "Talk soon,\n— {{ownerName}}",
+    },
+    landingBlocks: [
+      {
+        id: "hero",
+        type: "hero-split",
+        headline: "What happens to your family if life doesn't go to plan?",
+        body: "A 3-minute audit across life cover, income protection, critical illness, IHT and estate planning. Personalised PDF, plain English, no jargon.",
+        ctaLabel: "Audit my protection",
+        ctaUrl: "#start",
+        bullets: [
+          "Covers the 5 areas that matter most",
+          "Personalised PDF emailed within minutes",
+          "Optional free 30-minute review",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      },
+      {
+        id: "features",
+        type: "feature-grid",
+        heading: "What we'll look at",
+        subhead: "",
+        columns: 3,
+        items: [
+          {
+            id: "f1",
+            iconUrl: "",
+            title: "Income protection",
+            body: "If you couldn't work for a year, would your family still be OK?",
+          },
+          {
+            id: "f2",
+            iconUrl: "",
+            title: "Estate & IHT",
+            body: "Without a plan, HMRC can take 40% of what you leave behind.",
+          },
+          {
+            id: "f3",
+            iconUrl: "",
+            title: "Critical illness",
+            body: "1 in 2 of us will face a serious illness. Most aren't covered for the financial fallout.",
+          },
+        ],
+      },
+    ],
+    resultBlocks: [
+      {
+        id: "score",
+        type: "score-display",
+        align: "center",
+        label: "Your Protection score",
+        showBar: true,
+      },
+      { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+      { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "div1", type: "divider" },
+      { id: "h2", type: "heading", text: "Your protection checklist", level: 3 },
+      {
+        id: "list",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Life cover at least 10× your annual income",
+          "Income protection covering 60%+ of your take-home pay",
+          "Critical illness cover for any major dependants",
+          "An up-to-date will and registered power of attorney",
+          "An IHT plan if your estate is likely to exceed thresholds",
+        ],
+      },
+      {
+        id: "cta",
+        type: "button",
+        label: "Book your protection review →",
+        url: "",
+        style: "primary",
+      },
+    ],
+    pdfBlocks: [
+      {
+        id: "h1",
+        type: "heading",
+        text: "Your Wealth Protection report",
+        level: 1,
+      },
+      {
+        id: "p1",
+        type: "paragraph",
+        text: "Hi {{firstName}}, here's a brief interpretation of your protection audit and the steps most worth taking next.",
+      },
+      {
+        id: "h2",
+        type: "heading",
+        text: "Your result: {{outcomeTitle}}",
+        level: 2,
+      },
+      { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "h3", type: "heading", text: "Your protection checklist", level: 3 },
+      {
+        id: "checklist",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Life cover at least 10× your annual income",
+          "Income protection covering 60%+ of your take-home pay",
+          "Critical illness cover for major dependants",
+          "An up-to-date will and registered power of attorney",
+          "An IHT plan if your estate is likely to exceed thresholds",
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: "Do you have life insurance worth at least 10× your annual income?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — and it's in trust", score: 10 },
+          { text: "Yes, but not in trust", score: 7 },
+          { text: "Some cover, but less than 10×", score: 3 },
+          { text: "No life cover", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have income protection that would replace at least 60% of your take-home pay if you couldn't work?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes", score: 10 },
+          { text: "I have some short-term cover (employer or otherwise)", score: 5 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have critical illness cover?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — for me and my partner", score: 10 },
+          { text: "Yes, just me", score: 6 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have an up-to-date will?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — reviewed in the last 3 years", score: 10 },
+          { text: "Yes, but it's older than that", score: 5 },
+          { text: "No will in place", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have a registered Lasting Power of Attorney (financial and/or health)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Both registered", score: 10 },
+          { text: "One of them", score: 5 },
+          { text: "Neither", score: 0 },
+        ],
+      },
+      {
+        text: "Do you know whether your estate is likely to face Inheritance Tax — and have you done anything about it?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — and we have an active plan", score: 10 },
+          { text: "Yes — but no plan in place", score: 4 },
+          { text: "Haven't checked", score: 0 },
+        ],
+      },
+      {
+        text: "Optional — what's the most important thing you'd want to know your money has done for your family?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥80 chars", score: 5, minChars: 80 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Exposed",
+        description:
+          "There are real gaps that could cause significant hardship for the people you love. Most can be closed in a few hours of work — but only if you actually do them. Start with whichever of life cover, income protection or a will is missing.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Partly covered",
+        description:
+          "You've taken some good steps but the picture isn't complete. The most common gaps in this band are income protection, critical illness, or a will that hasn't been reviewed since circumstances changed.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Well-protected",
+        description:
+          "You've done the hard work. The next step is making sure cover keeps pace with life changes (kids, mortgages, business interests) and that your IHT position is being actively managed.",
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  // RECRUITMENT — fully ready-made templates
+  // ---------------------------------------------------------------------------
+  {
+    id: "hiring-process-health-check",
+    name: "Hiring Process Health Check",
+    category: "Recruitment",
+    emoji: "🧲",
+    description:
+      "How well does your hiring process attract, qualify and close the right people? A 7-question audit.",
+    intro:
+      "Most hiring problems aren't about the candidates — they're about the process. This 3-minute scorecard rates yours and tells you what to fix first.",
+    ctaLabel: "Audit our hiring",
+    theme: "card",
+    brandColor: "#4f46e5",
+    bookingLabel: "Book your hiring review",
+    email: {
+      subject: "Your Hiring Process Health Check results",
+      greeting: "Hi {{firstName}},",
+      intro:
+        "Thanks for completing the Hiring Process Health Check. Your PDF report is attached.\n\nYou scored {{percent}}% — {{outcomeTitle}}.",
+      bullets:
+        "Where your process is leaking talent\nThe single biggest fix\nA simple framework you can use this week",
+      bookingLine:
+        "Want a fresh pair of eyes on your hiring funnel? Book a free 30-minute review.",
+      signoff: "Best,\n— {{ownerName}}",
+    },
+    landingBlocks: [
+      {
+        id: "hero",
+        type: "hero-split",
+        headline: "Hiring is brutal right now. Is your process making it harder?",
+        body: "A 3-minute audit of how you attract, qualify and close. You'll get a score across the 5 areas that decide whether great candidates say yes — and a personalised PDF.",
+        ctaLabel: "Start the audit",
+        ctaUrl: "#start",
+        bullets: [
+          "Built from 100+ hiring teardowns",
+          "Personalised PDF report in your inbox",
+          "Optional free 30-minute review",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      },
+      {
+        id: "features",
+        type: "feature-grid",
+        heading: "Why this matters",
+        subhead:
+          "Companies blame the market for hiring pain. The truth is the process — from job spec to offer — is usually doing 80% of the damage.",
+        columns: 3,
+        items: [
+          {
+            id: "f1",
+            iconUrl: "",
+            title: "Attract",
+            body: "If your job spec doesn't sell the role, even the best sourcer can't help.",
+          },
+          {
+            id: "f2",
+            iconUrl: "",
+            title: "Qualify",
+            body: "Structured interviews 2–3× the predictive validity vs unstructured ones.",
+          },
+          {
+            id: "f3",
+            iconUrl: "",
+            title: "Close",
+            body: "Most offers fail at compensation conversations that should have happened weeks earlier.",
+          },
+        ],
+      },
+    ],
+    resultBlocks: [
+      {
+        id: "score",
+        type: "score-display",
+        align: "center",
+        label: "Your Hiring Process score",
+        showBar: true,
+      },
+      { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+      { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "div1", type: "divider" },
+      {
+        id: "h2",
+        type: "heading",
+        text: "What strong hiring teams do",
+        level: 3,
+      },
+      {
+        id: "list",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Define a written ideal-candidate scorecard before posting any role",
+          "Use structured interviews with the same questions for every candidate",
+          "Set time-to-first-response targets (best teams aim for 24h)",
+          "Sell the role at every stage, not just the final offer call",
+          "Debrief every loss to find the actual reason candidates passed",
+        ],
+      },
+      {
+        id: "cta",
+        type: "button",
+        label: "Book your hiring review →",
+        url: "",
+        style: "primary",
+      },
+    ],
+    pdfBlocks: [
+      {
+        id: "h1",
+        type: "heading",
+        text: "Your Hiring Process report",
+        level: 1,
+      },
+      {
+        id: "p1",
+        type: "paragraph",
+        text: "Hi {{firstName}}, here's a brief interpretation of your score and the highest-leverage actions most teams in your position can take this week.",
+      },
+      {
+        id: "h2",
+        type: "heading",
+        text: "Your result: {{outcomeTitle}}",
+        level: 2,
+      },
+      { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+      {
+        id: "h3",
+        type: "heading",
+        text: "What strong hiring teams do",
+        level: 3,
+      },
+      {
+        id: "checklist",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Write an ideal-candidate scorecard before posting the role",
+          "Use structured interviews with consistent questions across candidates",
+          "Aim for first-response within 24 hours",
+          "Sell the role at every stage, not just at offer",
+          "Debrief every loss to learn the real reason",
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: "Before opening a role, do you write down what 'great' looks like for it (skills, outcomes, must-haves)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — every time, in a shared scorecard", score: 10 },
+          { text: "Sometimes, in a job description but not a scorecard", score: 5 },
+          { text: "No — we usually just post a JD", score: 0 },
+        ],
+      },
+      {
+        text: "How structured are your interviews? (same questions, same scoring across all candidates)",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Fully structured with shared rubrics", score: 10 },
+          { text: "Loosely structured", score: 5 },
+          { text: "Mostly conversational / interviewer's choice", score: 0 },
+        ],
+      },
+      {
+        text: "What's your typical time from application to first human response?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Within 24 hours", score: 10 },
+          { text: "2–4 days", score: 6 },
+          { text: "A week or more", score: 2 },
+          { text: "Often never, if they're not a fit", score: 0 },
+        ],
+      },
+      {
+        text: "Do you have a clear, written employee value proposition (EVP) candidates see early in the process?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — distinct, specific, used everywhere", score: 10 },
+          { text: "We have one, but it's generic", score: 5 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "How predictable is your time-to-hire across roles?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "When a candidate turns you down at offer stage, do you know the real reason within a week?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — we always debrief", score: 10 },
+          { text: "Sometimes", score: 5 },
+          { text: "Rarely or never", score: 0 },
+        ],
+      },
+      {
+        text: "Optional — what's the role you're finding hardest to hire for right now?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥80 chars", score: 5, minChars: 80 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Reactive hiring",
+        description:
+          "Right now hiring happens to you, rather than the other way around. The single highest-impact change: write a one-page candidate scorecard before opening any role. It forces the hard conversations early and makes interviews dramatically more useful.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Working process",
+        description:
+          "You've built a lot of the right pieces but consistency is the gap. Locking down structured interviews and a 24h first-response standard will move the dial faster than any new sourcing channel.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "High-performing",
+        description:
+          "Your hiring is a real competitive advantage. From here, the leverage shifts to debriefs, calibration, and continually sharpening your EVP — small refinements compound across every role.",
+      },
+    ],
+  },
+
+  {
+    id: "employer-brand-strength",
+    name: "Employer Brand Strength",
+    category: "Recruitment",
+    emoji: "✨",
+    description:
+      "How easy is it for great people to find — and choose — your company? A 6-question audit of your employer brand.",
+    intro:
+      "Strong employer brands lower cost-per-hire and shorten time-to-fill. This 3-minute audit shows you where yours stands today.",
+    ctaLabel: "Audit our brand",
+    theme: "card",
+    brandColor: "#e11d48",
+    bookingLabel: "Book your employer-brand review",
+    email: {
+      subject: "Your Employer Brand Strength results",
+      greeting: "Hi {{firstName}},",
+      intro:
+        "Thanks for completing the Employer Brand Strength audit. Your PDF report is attached.\n\nYou scored {{percent}}% — {{outcomeTitle}}.",
+      bullets:
+        "Where you're already differentiated\nWhat candidates can't find about you\nThe single thing to publish next",
+      bookingLine:
+        "Want feedback on what to publish next? Book a free 30-minute review.",
+      signoff: "Cheers,\n— {{ownerName}}",
+    },
+    landingBlocks: [
+      {
+        id: "hero",
+        type: "hero-split",
+        headline: "Why do great people choose you over the competition?",
+        body: "If you can't answer that crisply, neither can your candidates. A 3-minute audit of the public signals that decide whether top talent applies, ghosts, or accepts.",
+        ctaLabel: "Audit our brand",
+        ctaUrl: "#start",
+        bullets: [
+          "6-question audit, takes 3 minutes",
+          "Personalised PDF in your inbox",
+          "Includes a publish-next checklist",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      },
+      {
+        id: "features",
+        type: "feature-grid",
+        heading: "What we'll check",
+        subhead: "",
+        columns: 3,
+        items: [
+          {
+            id: "f1",
+            iconUrl: "",
+            title: "Careers page",
+            body: "The single asset that converts intent into application.",
+          },
+          {
+            id: "f2",
+            iconUrl: "",
+            title: "EVP clarity",
+            body: "What candidates take away after 30 seconds on your site.",
+          },
+          {
+            id: "f3",
+            iconUrl: "",
+            title: "Public proof",
+            body: "Reviews, employee voices, content. The signals you can't fake.",
+          },
+        ],
+      },
+    ],
+    resultBlocks: [
+      {
+        id: "score",
+        type: "score-display",
+        align: "center",
+        label: "Your Employer Brand score",
+        showBar: true,
+      },
+      { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+      { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "div1", type: "divider" },
+      {
+        id: "h2",
+        type: "heading",
+        text: "Quick wins to publish this month",
+        level: 3,
+      },
+      {
+        id: "list",
+        type: "list",
+        checkmark: true,
+        items: [
+          "A 1-page careers landing with a written EVP and 3 employee voices",
+          "Active Glassdoor / Indeed presence with at least 10 recent reviews",
+          "Two-paragraph 'a day in the life' for each main role family",
+          "A short Loom from your founder explaining why this place exists",
+          "An open job-spec template that sells, not lists",
+        ],
+      },
+      {
+        id: "cta",
+        type: "button",
+        label: "Book your employer-brand review →",
+        url: "",
+        style: "primary",
+      },
+    ],
+    pdfBlocks: [
+      {
+        id: "h1",
+        type: "heading",
+        text: "Your Employer Brand report",
+        level: 1,
+      },
+      {
+        id: "p1",
+        type: "paragraph",
+        text: "Hi {{firstName}}, here's a quick interpretation of your score and a list of the highest-leverage things to publish next.",
+      },
+      {
+        id: "h2",
+        type: "heading",
+        text: "Your result: {{outcomeTitle}}",
+        level: 2,
+      },
+      { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "h3", type: "heading", text: "Quick wins", level: 3 },
+      {
+        id: "checklist",
+        type: "list",
+        checkmark: true,
+        items: [
+          "A 1-page careers landing with EVP + 3 employee voices",
+          "Active Glassdoor / Indeed presence (10+ recent reviews)",
+          "'A day in the life' for each main role family",
+          "Founder-led Loom explaining why the company exists",
+          "A job-spec template that sells the role, not lists tasks",
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: "Do you have a dedicated careers page (not just a list of open roles)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — with EVP, photos, employee voices", score: 10 },
+          { text: "Yes, but it's mostly a list of jobs", score: 5 },
+          { text: "No — we just post on job boards", score: 0 },
+        ],
+      },
+      {
+        text: "Could a candidate articulate, in one sentence, why someone would choose to work for you?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — and we say the same thing", score: 10 },
+          { text: "Probably, but it varies", score: 5 },
+          { text: "No — we haven't defined it", score: 0 },
+        ],
+      },
+      {
+        text: "How active is your presence on Glassdoor / Indeed (recent reviews, employer responses)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Very active — owners respond, recent reviews", score: 10 },
+          { text: "Some reviews but not actively managed", score: 5 },
+          { text: "Sparse or unclaimed", score: 0 },
+        ],
+      },
+      {
+        text: "Do you publish content showing what working at your company is actually like?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — at least monthly across platforms", score: 10 },
+          { text: "Occasionally", score: 5 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "How distinctive is your written job-spec compared to competitors?",
+        type: "scale",
+        required: true,
+        options: [],
+      },
+      {
+        text: "Optional — describe the type of person you want more of, in your own words.",
+        type: "text",
+        required: false,
+        options: [{ text: "≥80 chars", score: 5, minChars: 80 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Invisible",
+        description:
+          "Right now you're competing on salary because you're not competing on anything else. The fix isn't budget — it's giving candidates a clear, specific reason to choose you. A simple 1-page careers landing with a written EVP usually moves application quality more than any single channel change.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Recognised",
+        description:
+          "You're showing up — but the message is fragmented. Tightening your EVP and using it consistently across careers page, JDs and outreach is usually the single highest-leverage move from here.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Magnetic",
+        description:
+          "Candidates know who you are and why they'd want to be there. The next leverage point is depth — employee-generated content, podcasts, written stories — that turns interest into a steady stream of inbound applications.",
+      },
+    ],
+  },
+
+  {
+    id: "onboarding-readiness-audit",
+    name: "Onboarding Readiness Audit",
+    category: "Recruitment",
+    emoji: "🚀",
+    description:
+      "How quickly do new hires reach full productivity? An audit of your onboarding flow from offer accepted to month three.",
+    intro:
+      "The first 90 days decide whether a great hire stays great. This 3-minute audit shows you where your onboarding is leaking momentum.",
+    ctaLabel: "Audit onboarding",
+    theme: "card",
+    brandColor: "#d97706",
+    bookingLabel: "Book your onboarding review",
+    email: {
+      subject: "Your Onboarding Readiness Audit results",
+      greeting: "Hi {{firstName}},",
+      intro:
+        "Thanks for completing the Onboarding Readiness Audit. Your PDF report is attached.\n\nYou scored {{percent}}% — {{outcomeTitle}}.",
+      bullets:
+        "Where new hires lose momentum\nThe single biggest first-90-days fix\nA simple template to copy",
+      bookingLine:
+        "Want a structured walk-through of your first-90-days? Book a free review.",
+      signoff: "Cheers,\n— {{ownerName}}",
+    },
+    landingBlocks: [
+      {
+        id: "hero",
+        type: "hero-split",
+        headline: "Are your new hires productive in 30 days — or still lost at 90?",
+        body: "A 3-minute audit of the onboarding moments that decide whether a hire ramps up fast or quietly disengages. Personalised PDF, plain checklist.",
+        ctaLabel: "Audit onboarding",
+        ctaUrl: "#start",
+        bullets: [
+          "6-question audit, takes 3 minutes",
+          "Personalised PDF report",
+          "Includes a 30/60/90 template you can copy",
+        ],
+        imageUrl: "",
+        imageAlt: "",
+        imagePosition: "right",
+      },
+      {
+        id: "features",
+        type: "feature-grid",
+        heading: "Where most onboarding breaks",
+        subhead: "",
+        columns: 3,
+        items: [
+          {
+            id: "f1",
+            iconUrl: "",
+            title: "Pre-boarding silence",
+            body: "Three weeks of nothing between offer and start day kills momentum.",
+          },
+          {
+            id: "f2",
+            iconUrl: "",
+            title: "Day 1 admin",
+            body: "If laptops, accounts, and access aren't ready, the first impression is fixed for months.",
+          },
+          {
+            id: "f3",
+            iconUrl: "",
+            title: "Manager check-ins",
+            body: "Most managers go quiet at week 4. That's when new hires need them most.",
+          },
+        ],
+      },
+    ],
+    resultBlocks: [
+      {
+        id: "score",
+        type: "score-display",
+        align: "center",
+        label: "Your Onboarding score",
+        showBar: true,
+      },
+      { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+      { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+      { id: "div1", type: "divider" },
+      { id: "h2", type: "heading", text: "What good onboarding looks like", level: 3 },
+      {
+        id: "list",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Pre-boarding pack the day after offer is signed",
+          "Equipment + access ready before day 1",
+          "A named buddy who isn't the manager",
+          "A written 30/60/90 plan agreed in week 1",
+          "Manager check-ins every Friday for the first 8 weeks",
+          "A formal 90-day review, with two-way feedback",
+        ],
+      },
+      {
+        id: "cta",
+        type: "button",
+        label: "Book your onboarding review →",
+        url: "",
+        style: "primary",
+      },
+    ],
+    pdfBlocks: [
+      {
+        id: "h1",
+        type: "heading",
+        text: "Your Onboarding Readiness report",
+        level: 1,
+      },
+      {
+        id: "p1",
+        type: "paragraph",
+        text: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful actions for teams in your position.",
+      },
+      {
+        id: "h2",
+        type: "heading",
+        text: "Your result: {{outcomeTitle}}",
+        level: 2,
+      },
+      { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+      {
+        id: "h3",
+        type: "heading",
+        text: "What good onboarding looks like",
+        level: 3,
+      },
+      {
+        id: "checklist",
+        type: "list",
+        checkmark: true,
+        items: [
+          "Pre-boarding pack the day after offer is signed",
+          "Equipment + access ready before day 1",
+          "A named buddy who isn't the manager",
+          "A written 30/60/90 plan agreed in week 1",
+          "Manager check-ins every Friday for the first 8 weeks",
+          "A formal 90-day review, with two-way feedback",
+        ],
+      },
+    ],
+    questions: [
+      {
+        text: "Once a candidate accepts the offer, what happens between then and day 1?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Pre-boarding pack + regular touchpoints", score: 10 },
+          { text: "Some emails, but mostly silence", score: 4 },
+          { text: "Pretty much nothing until they walk in", score: 0 },
+        ],
+      },
+      {
+        text: "On day 1, are equipment, accounts and access all ready before the new hire arrives?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Always", score: 10 },
+          { text: "Usually — sometimes one or two delays", score: 5 },
+          { text: "Often a scramble", score: 0 },
+        ],
+      },
+      {
+        text: "Does every new hire get a named buddy (not their manager)?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — every time", score: 10 },
+          { text: "For some roles", score: 5 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "Is there a written 30/60/90 day plan agreed between manager and new hire in their first week?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — every hire, signed off", score: 10 },
+          { text: "Sometimes — informal", score: 5 },
+          { text: "No", score: 0 },
+        ],
+      },
+      {
+        text: "How regularly does the line manager check in during the first 8 weeks?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Weekly, structured", score: 10 },
+          { text: "Ad-hoc", score: 5 },
+          { text: "Only when there's a problem", score: 0 },
+        ],
+      },
+      {
+        text: "Do you run a formal 90-day review with two-way feedback?",
+        type: "single",
+        required: true,
+        options: [
+          { text: "Yes — every hire", score: 10 },
+          { text: "Sometimes", score: 5 },
+          { text: "Never", score: 0 },
+        ],
+      },
+      {
+        text: "Optional — what's the most common reason a new hire hasn't worked out for you in the past?",
+        type: "text",
+        required: false,
+        options: [{ text: "≥80 chars", score: 5, minChars: 80 }],
+      },
+    ],
+    outcomes: [
+      {
+        minScore: 0,
+        maxScore: 33,
+        title: "Sink or swim",
+        description:
+          "New hires are largely figuring it out alone. The good news is that fixing onboarding has one of the highest ROI of any people-system change — most teams see noticeable retention improvement within 90 days of putting a written plan in place.",
+      },
+      {
+        minScore: 34,
+        maxScore: 66,
+        title: "Decent",
+        description:
+          "You've got the bones in place but the experience is uneven. Standardising the 30/60/90 plan and protecting the weekly manager check-in for the first 8 weeks usually does more than any other change.",
+      },
+      {
+        minScore: 67,
+        maxScore: 100,
+        title: "Excellent",
+        description:
+          "Your onboarding is a real asset. From here, the leverage is in continuous improvement — measuring time-to-productivity, gathering systematic feedback, and feeding it back into role design.",
       },
     ],
   },
