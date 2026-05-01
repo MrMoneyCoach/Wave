@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { findTier } from "@/lib/tiers";
 
 const optionSchema = z.object({
   id: z.string().optional(),
@@ -91,6 +92,36 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 
   const data = parsed.data;
+
+  // Publishing a previously-draft scorecard counts against the user's tier
+  // limit (drafts are unlimited; only live scorecards are capped). Going
+  // from live → draft (unpublishing) and edits to an already-live quiz are
+  // always allowed.
+  const goingLive = data.published && !check.quiz.published;
+  if (goingLive) {
+    const tier = findTier(check.user.tier);
+    if (tier.scorecardLimit !== -1) {
+      const liveCount = await prisma.quiz.count({
+        where: {
+          userId: check.user.id,
+          published: true,
+          NOT: { id: params.id },
+        },
+      });
+      if (liveCount >= tier.scorecardLimit) {
+        return NextResponse.json(
+          {
+            error: `You're on the ${tier.name} plan, which allows ${tier.scorecardLimit} live scorecard${tier.scorecardLimit === 1 ? "" : "s"}. Unpublish another one or upgrade your plan to publish this.`,
+            code: "scorecard_limit",
+            tier: tier.id,
+            limit: tier.scorecardLimit,
+            currentCount: liveCount,
+          },
+          { status: 402 },
+        );
+      }
+    }
+  }
 
   const questionRows = data.questions.map((q, i) => ({
     id: randomUUID(),

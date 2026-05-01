@@ -19,10 +19,6 @@ export default function UseTemplateButton({ templateId }: { templateId: string }
     setBusy(false);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (res.status === 402) {
-        router.push("/dashboard/account");
-        return;
-      }
       setError(data.error || "Could not create quiz");
       return;
     }

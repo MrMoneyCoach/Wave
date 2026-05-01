@@ -27,7 +27,8 @@ export default async function DashboardHome() {
   );
 
   const tier = findTier(user.tier);
-  const usage = computeUsage(tier, quizzes.length);
+  const liveCount = quizzes.filter((q) => q.published).length;
+  const usage = computeUsage(tier, liveCount);
 
   const items = quizzes.map((q) => ({
     id: q.id,
@@ -42,8 +43,8 @@ export default async function DashboardHome() {
 
   const usageLine =
     tier.scorecardLimit === -1
-      ? `${quizzes.length} scorecard${quizzes.length === 1 ? "" : "s"}`
-      : `${quizzes.length} of ${tier.scorecardLimit} scorecard${tier.scorecardLimit === 1 ? "" : "s"} on the ${tier.name} plan`;
+      ? `${quizzes.length} scorecard${quizzes.length === 1 ? "" : "s"} (${liveCount} live)`
+      : `${quizzes.length} scorecard${quizzes.length === 1 ? "" : "s"} · ${liveCount} of ${tier.scorecardLimit} live on the ${tier.name} plan`;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -70,15 +71,9 @@ export default async function DashboardHome() {
           <Link href="/dashboard/templates" className="btn-secondary">
             Browse templates
           </Link>
-          {usage.atLimit ? (
-            <Link href="/dashboard/account" className="btn-primary">
-              Upgrade to add more
-            </Link>
-          ) : (
-            <Link href="/dashboard/quizzes/new" className="btn-primary">
-              + Create scorecard
-            </Link>
-          )}
+          <Link href="/dashboard/quizzes/new" className="btn-primary">
+            + Create scorecard
+          </Link>
         </div>
       </div>
 
@@ -87,7 +82,7 @@ export default async function DashboardHome() {
           <LimitBanner
             tierName={tier.name}
             scorecardLimit={tier.scorecardLimit}
-            currentCount={quizzes.length}
+            currentCount={liveCount}
           />
         </div>
       )}

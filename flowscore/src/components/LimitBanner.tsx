@@ -21,11 +21,11 @@ export default function LimitBanner({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-semibold">
-            You've used every scorecard on the {tierName} plan
+            You've used every live slot on the {tierName} plan
           </p>
           <p className="mt-0.5 text-amber-800">
-            {currentCount} of {scorecardLimit} used. Upgrade your plan to create
-            more — your existing scorecards stay live.
+            {currentCount} of {scorecardLimit} live. Drafts are still
+            unlimited — unpublish one or upgrade to publish more.
           </p>
         </div>
         <Link
