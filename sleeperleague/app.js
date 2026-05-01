@@ -1,9 +1,15 @@
 // Sleeper League Analysis - main entry.
 
 import { sleeper } from './src/api.js';
-import { state, saveSession, loadSession, clearSession, resetLeagueState } from './src/state.js';
+import {
+  state, saveSession, loadSession, clearSession, resetLeagueState,
+  savePrefs, loadPrefs, syncPrimary,
+} from './src/state.js';
 import { $, $$, el, showLoader, hideLoader, avatarUrl } from './src/helpers.js';
 import { initRouter, setActiveTab } from './src/router.js';
+import {
+  discoverAvailableSeasons, setScopeLeagues, clearValues,
+} from './src/data.js';
 
 // ------ Helpers ------
 
@@ -11,10 +17,24 @@ function showView(id) {
   $$('.view').forEach(v => { v.hidden = v.id !== id; });
 }
 
+// ------ Theme ------
+
+function applyTheme(theme) {
+  state.theme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',
+    theme === 'dark' ? '#0a0f1f' : '#ffffff');
+  savePrefs();
+}
+function toggleTheme() {
+  applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+}
+
 // ------ Login ------
 
 function fillSeasons() {
   const sel = $('#seasonInput');
+  sel.innerHTML = '';
   const now = new Date();
   const currentYear = now.getFullYear();
   for (let y = currentYear; y >= currentYear - 6; y--) {
@@ -91,6 +111,7 @@ function renderLeaguePicker() {
 
 async function loadLeague(leagueId) {
   resetLeagueState();
+  clearValues();
   showLoader('Loading league…');
   try {
     const [league, users, rosters, nflState] = await Promise.all([
@@ -99,17 +120,32 @@ async function loadLeague(leagueId) {
       sleeper.rosters(leagueId),
       state.nflState ? Promise.resolve(state.nflState) : sleeper.nflState(),
     ]);
-    state.league = league;
-    state.leagueUsers = users;
-    state.rosters = rosters;
     state.nflState = nflState;
+
+    // Seed the primary scope.
+    state.scope = [{
+      leagueId,
+      season: league.season,
+      league,
+      users,
+      rosters,
+      matchupsByWeek: {},
+      transactionsByWeek: {},
+      drafts: [],
+      draftPicks: {},
+      ready: true,
+    }];
+    syncPrimary();
     saveSession();
 
     renderDashboardHead();
-    initSeasonSwitcher();
+
+    // Discover linked past seasons (for the scope picker), then render scope bar.
+    discoverAvailableSeasons().then(renderScopeBar).catch(() => renderScopeBar());
+
     showView('view-dashboard');
 
-    // Default to overview unless URL hash specifies otherwise.
+    // Default tab.
     const hashTab = location.hash.replace(/^#/, '');
     setActiveTab(hashTab || 'overview');
   } catch (err) {
@@ -130,7 +166,6 @@ function renderDashboardHead() {
   ];
   $('#leagueMeta').textContent = meta.filter(Boolean).join(' · ');
 
-  // Sidebar league badge
   const sb = $('#sidebarLeague');
   sb.innerHTML = '';
   sb.appendChild(el('div', { class: 'league-avatar', style: 'width: 32px; height: 32px;' },
@@ -143,32 +178,85 @@ function renderDashboardHead() {
   ));
 }
 
-// Build season switcher: current league's season + any seasons reachable via previous_league_id.
-async function initSeasonSwitcher() {
-  const sw = $('#seasonSwitcher');
-  sw.innerHTML = '';
+// Render the multi-year scope bar (pills).
+function renderScopeBar() {
+  const bar = $('#scopeBar');
+  const pills = $('#scopePills');
+  pills.innerHTML = '';
 
-  // Always include the currently loaded league season.
-  const seasons = [{ season: state.league.season, leagueId: state.league.league_id }];
-  // Walk back lazily (don't await full history here, just chain previous_league_ids).
-  let prev = state.league.previous_league_id;
-  let safety = 25;
-  while (prev && prev !== '0' && safety-- > 0) {
-    try {
-      const lg = await sleeper.league(prev);
-      seasons.push({ season: lg.season, leagueId: lg.league_id });
-      prev = lg.previous_league_id;
-    } catch { break; }
+  const seasons = state.availableSeasons;
+  if (seasons.length <= 1) {
+    bar.hidden = true;
+    return;
   }
+  bar.hidden = false;
+
+  const activeIds = new Set(state.scope.map(s => s.leagueId));
 
   for (const s of seasons) {
-    const opt = el('option', { value: s.leagueId }, String(s.season));
-    if (s.leagueId === state.league.league_id) opt.selected = true;
-    sw.appendChild(opt);
+    const isActive = activeIds.has(s.leagueId);
+    const pill = el('button', {
+      class: `scope-pill${isActive ? ' active' : ''}`,
+      onclick: () => toggleScopeSeason(s.leagueId),
+    },
+      isActive ? el('span', { class: 'pill-check' }, '✓ ') : null,
+      String(s.season),
+    );
+    pills.appendChild(pill);
   }
-  sw.onchange = () => {
-    if (sw.value !== state.league.league_id) loadLeague(sw.value);
-  };
+
+  // "All" pill: when not all selected, click to select all; when all selected, click to keep only newest.
+  const allActive = activeIds.size === seasons.length;
+  pills.appendChild(el('button', {
+    class: `scope-pill${allActive ? ' active' : ''}`,
+    onclick: async () => {
+      if (allActive) {
+        await applyScope([seasons[0].leagueId]);
+      } else {
+        await applyScope(seasons.map(s => s.leagueId));
+      }
+    },
+  }, allActive ? '✓ All' : 'All'));
+}
+
+async function toggleScopeSeason(leagueId) {
+  const activeIds = state.scope.map(s => s.leagueId);
+  const next = activeIds.includes(leagueId)
+    ? activeIds.filter(id => id !== leagueId)
+    : [...activeIds, leagueId];
+  // Always keep at least one season active.
+  if (!next.length) return;
+  await applyScope(next);
+}
+
+async function applyScope(leagueIds) {
+  showLoader('Updating selection…');
+  try {
+    await setScopeLeagues(leagueIds);
+    renderDashboardHead();
+    renderScopeBar();
+    // Re-render the active tab with the new scope.
+    setActiveTab(state.activeTab || 'overview');
+  } catch (err) {
+    console.error(err);
+    alert('Failed to update selection: ' + err.message);
+  } finally {
+    hideLoader();
+  }
+}
+
+// ------ Settings (values source) ------
+
+function initValuesSource() {
+  const sel = $('#valuesSourceSelect');
+  sel.value = state.valuesSource;
+  sel.addEventListener('change', () => {
+    state.valuesSource = sel.value;
+    savePrefs();
+    clearValues();
+    // Re-render active tab so dependent tabs (Trades/Rosters/Drafts) refresh.
+    setActiveTab(state.activeTab || 'overview');
+  });
 }
 
 // ------ Wire up ------
@@ -193,10 +281,19 @@ function wireUp() {
   $('#sidebarToggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
+
+  // Theme toggles in three places: login, picker, sidebar.
+  ['themeToggleLogin', 'themeTogglePicker', 'themeToggleSidebar'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', toggleTheme);
+  });
+
+  initValuesSource();
   initRouter();
 }
 
 function bootstrap() {
+  loadPrefs();
+  applyTheme(state.theme || 'light');
   wireUp();
   const session = loadSession();
   if (session?.username) {

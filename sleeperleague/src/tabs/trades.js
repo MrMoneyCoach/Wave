@@ -1,84 +1,124 @@
 // Trade grader: every completed trade graded on three pillars:
-//  1) Dynasty value at trade (FantasyCalc current values as proxy - historical not available free)
-//  2) Value differential (proxy: current value diff between sides)
-//  3) Realized points: total fantasy points each side scored from received players in weeks AFTER the trade.
-// Winner = side with higher composite (50% value, 50% realized points if season has games after).
+//  1) Dynasty value of received assets (current values - FC, KTC, or combined)
+//  2) Realized fantasy points: sum of points scored by each received player from
+//     the week after the trade through the end of that season's regular season.
+//  3) Winner = side with higher composite (value + realized points).
+//
+// Aggregates across every season in state.scope.
 
-import { el, fmtNum, fmtInt, fmtDate, teamName, playerLabel, playerMeta, playerValue, pickLabel } from '../helpers.js';
+import { el, fmtNum, fmtInt, fmtDate, playerLabel, playerMeta, playerValue, pickLabel } from '../helpers.js';
 import { state } from '../state.js';
-import { ensureTransactions, ensurePlayers, ensureValues, ensureMatchups } from '../data.js';
+import {
+  ensurePlayers, ensureValues, ensureAllScopeMatchups, ensureAllScopeTransactions,
+} from '../data.js';
 
 export async function renderTrades(host) {
   const wrap = el('div', { class: 'tab-section' });
   host.appendChild(wrap);
-  wrap.appendChild(el('div', { class: 'muted small' }, 'Loading trades, players, and dynasty values…'));
-
-  const lg = state.league;
-  const playoffStart = lg.settings?.playoff_week_start || 15;
-  const currentWeek = state.nflState?.week || playoffStart - 1;
-  const maxWeek = String(state.nflState?.season) === String(lg.season)
-    ? Math.min(playoffStart - 1, currentWeek)
-    : playoffStart - 1;
+  wrap.appendChild(el('div', { class: 'muted small' }, 'Loading trades, players, and values…'));
 
   await Promise.all([
     ensurePlayers(),
-    ensureTransactions(),
+    ensureAllScopeTransactions(),
     ensureValues(),
-    ensureMatchups(maxWeek), // for realized points
+    ensureAllScopeMatchups(),
   ]);
   if (state.activeTab !== 'trades') return;
 
-  const trades = collectTrades();
+  const trades = collectAllScopeTrades();
 
   wrap.innerHTML = '';
 
   // Headline cards
   const counts = {};
   for (const t of trades) {
-    for (const rid of t.roster_ids || []) counts[rid] = (counts[rid] || 0) + 1;
+    for (const oid of t._participants) counts[oid] = (counts[oid] || 0) + 1;
   }
   const topTrader = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const seasons = [...new Set(state.scope.map(s => s.season))].sort();
   wrap.appendChild(el('div', { class: 'stat-row' },
-    statCard('Total trades', String(trades.length)),
+    statCard('Total trades', String(trades.length),
+      seasons.length > 1 ? `Across ${seasons.length} seasons` : null),
     statCard('Active traders', String(Object.keys(counts).length)),
-    statCard('Most active', topTrader ? teamName(Number(topTrader[0])) : '—', topTrader ? `${topTrader[1]} trades` : ''),
+    statCard('Most active', topTrader ? ownerLabel(topTrader[0]) : '—',
+      topTrader ? `${topTrader[1]} trades` : ''),
     statCard('Latest', trades[0] ? `Week ${trades[0]._week}` : '—',
-      trades[0]?.status_updated ? fmtDate(trades[0].status_updated) : ''),
+      trades[0] ? `${trades[0]._scope.season}${trades[0].status_updated ? ' · ' + fmtDate(trades[0].status_updated) : ''}` : ''),
   ));
 
   if (!trades.length) {
     wrap.appendChild(el('section', { class: 'panel empty-panel' },
       el('h3', {}, 'No trades yet'),
-      el('p', { class: 'muted' }, 'When teams complete a trade, each side will be graded by dynasty value and realized points.'),
+      el('p', { class: 'muted' }, 'When teams complete a trade in any selected season, they\'ll appear here graded by value and realized points.'),
     ));
     return;
   }
 
   const list = el('div', { class: 'trade-list' });
-  for (const t of trades) list.appendChild(renderTradeCard(t, maxWeek));
+  for (const t of trades) list.appendChild(renderTradeCard(t));
   wrap.appendChild(el('section', { class: 'panel' },
     el('div', { class: 'panel-head' },
       el('h3', {}, `All trades (${trades.length})`),
-      el('span', { class: 'muted small' }, 'Values powered by FantasyCalc'),
+      el('span', { class: 'muted small' },
+        `Values from ${valuesLabel(state.valuesSource)}`),
     ),
     list,
   ));
 }
 
-function collectTrades() {
-  const trades = [];
-  for (const [week, txns] of Object.entries(state.transactionsByWeek)) {
-    for (const t of txns) {
-      if (t.type === 'trade' && t.status === 'complete') {
-        trades.push({ ...t, _week: Number(week) });
+function valuesLabel(src) {
+  if (src === 'fc') return 'FantasyCalc';
+  if (src === 'ktc') return 'KeepTradeCut';
+  return 'Combined (FC + KTC)';
+}
+
+// Iterate every scope league, pull its trades, decorate with scope info + owner participants.
+// Owner-id (Sleeper user_id) is stable across seasons; roster_id is not.
+function collectAllScopeTrades() {
+  const all = [];
+  for (const sc of state.scope) {
+    for (const [week, txns] of Object.entries(sc.transactionsByWeek)) {
+      for (const t of (txns || [])) {
+        if (t.type !== 'trade' || t.status !== 'complete') continue;
+        const participants = (t.roster_ids || [])
+          .map(rid => sc.rosters.find(r => r.roster_id === rid)?.owner_id)
+          .filter(Boolean);
+        all.push({
+          ...t,
+          _week: Number(week),
+          _scope: sc,
+          _participants: participants,
+        });
       }
     }
   }
-  trades.sort((a, b) => (b.status_updated || 0) - (a.status_updated || 0));
-  return trades;
+  // Newest first: by season desc then status_updated desc.
+  all.sort((a, b) => {
+    const sa = Number(a._scope.season), sb = Number(b._scope.season);
+    if (sa !== sb) return sb - sa;
+    return (b.status_updated || 0) - (a.status_updated || 0);
+  });
+  return all;
 }
 
-function renderTradeCard(t, maxWeek) {
+function ownerLabel(ownerId) {
+  // Look up across any scope's users
+  for (const sc of state.scope) {
+    const u = sc.users.find(u => u.user_id === ownerId);
+    if (u) return u.display_name || `User ${ownerId}`;
+  }
+  return 'Unknown';
+}
+
+function teamLabelInScope(rosterId, sc) {
+  const r = sc.rosters.find(r => r.roster_id === rosterId);
+  if (!r) return `Team ${rosterId}`;
+  const u = sc.users.find(u => u.user_id === r.owner_id);
+  return u?.metadata?.team_name || u?.display_name || `Team ${rosterId}`;
+}
+
+function renderTradeCard(t) {
+  const sc = t._scope;
   const rosters = t.roster_ids || [];
   const received = {}; // rosterId -> { players: [pid], picks: [], faab: 0 }
   for (const rid of rosters) received[rid] = { players: [], picks: [], faab: 0 };
@@ -97,35 +137,43 @@ function renderTradeCard(t, maxWeek) {
     received[rid].faab += w.amount || 0;
   }
 
-  // Compute totals: dynasty value (current proxy) + realized points (from week+1 onward).
   const grades = {};
+  // Compute realized within the trade's own season scope.
+  const lg = sc.league;
+  const playoffStart = lg.settings?.playoff_week_start || 15;
+  const lastReg = playoffStart - 1;
+  const currentSeason = String(state.nflState?.season) === String(lg.season);
+  const maxWeek = currentSeason
+    ? Math.min(lastReg, state.nflState?.week || lastReg)
+    : lastReg;
+
   for (const rid of rosters) {
     const r = received[rid];
     const valueSum = r.players.reduce((s, pid) => s + playerValue(pid), 0);
-    const realized = r.players.reduce((s, pid) => s + realizedPointsForPlayer(pid, t._week, maxWeek), 0);
-    grades[rid] = { value: valueSum, realized, faab: r.faab };
+    const realized = r.players.reduce((s, pid) =>
+      s + realizedPointsForPlayer(pid, t._week, maxWeek, sc), 0);
+    grades[rid] = { value: valueSum, realized };
   }
 
-  // Winner: highest combined score (z-score of value + z-score of realized within this trade)
-  const ridList = rosters;
+  // Winner = highest (value + realized).
   let winnerRid = null;
-  if (ridList.length === 2) {
-    const [a, b] = ridList;
-    // Higher value AND/OR higher realized → winner; tie if equal
-    const aScore = grades[a].value + grades[a].realized;
-    const bScore = grades[b].value + grades[b].realized;
-    if (aScore > bScore) winnerRid = a;
-    else if (bScore > aScore) winnerRid = b;
+  if (rosters.length === 2) {
+    const [a, b] = rosters;
+    const aS = grades[a].value + grades[a].realized;
+    const bS = grades[b].value + grades[b].realized;
+    if (aS > bS) winnerRid = a;
+    else if (bS > aS) winnerRid = b;
   }
 
   const head = el('div', { class: 'trade-head' },
-    el('div', {},
-      el('div', { class: 'trade-week' }, `Week ${t._week}`),
-      t.status_updated ? el('div', { class: 'muted small' }, fmtDate(t.status_updated)) : null,
+    el('div', { style: 'display: flex; align-items: center; gap: 8px; flex-wrap: wrap;' },
+      el('span', { class: 'year-tag' }, String(sc.season)),
+      el('span', { class: 'trade-week' }, `Week ${t._week}`),
+      t.status_updated ? el('span', { class: 'muted small' }, fmtDate(t.status_updated)) : null,
     ),
     winnerRid != null
       ? el('div', { class: 'trade-grade' },
-          el('span', { class: 'chip good' }, `${teamName(winnerRid)} edge`))
+          el('span', { class: 'chip good' }, `${teamLabelInScope(winnerRid, sc)} edge`))
       : el('span', { class: 'chip' }, 'Even'),
   );
 
@@ -135,16 +183,10 @@ function renderTradeCard(t, maxWeek) {
     const g = grades[rid];
     const side = el('div', { class: `trade-side${rid === winnerRid ? ' winner' : ''}` },
       rid === winnerRid ? el('div', { class: 'winner-badge' }, 'Winner') : null,
-      el('div', { class: 'trade-team' }, teamName(rid)),
+      el('div', { class: 'trade-team' }, teamLabelInScope(rid, sc)),
       el('div', { class: 'trade-totals' },
-        el('span', {},
-          el('strong', {}, fmtInt(g.value)),
-          'Dynasty value',
-        ),
-        el('span', {},
-          el('strong', {}, fmtNum(g.realized, 1)),
-          'Realized pts',
-        ),
+        el('span', {}, el('strong', {}, fmtInt(g.value)), 'Dynasty value'),
+        el('span', {}, el('strong', {}, fmtNum(g.realized, 1)), 'Realized pts'),
       ),
       el('div', { class: 'trade-received' },
         ...r.players.map(pid => el('div', { class: 'asset asset-player', title: playerMeta(pid) },
@@ -161,11 +203,10 @@ function renderTradeCard(t, maxWeek) {
   return el('article', { class: 'trade-card' }, head, sides);
 }
 
-function realizedPointsForPlayer(pid, fromWeek, maxWeek) {
-  // Sum points from week (fromWeek+1) to maxWeek across all matchups (player only counts when on a roster).
+function realizedPointsForPlayer(pid, fromWeek, maxWeek, sc) {
   let total = 0;
   for (let w = fromWeek + 1; w <= maxWeek; w++) {
-    const ms = state.matchupsByWeek[w] || [];
+    const ms = sc.matchupsByWeek[w] || [];
     for (const m of ms) {
       const pp = m.players_points || {};
       if (pid in pp) total += pp[pid] || 0;

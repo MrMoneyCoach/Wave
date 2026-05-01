@@ -1,27 +1,62 @@
 // Central app state + session persistence.
 
 const SESSION_KEY = 'sla:session';
+const PREFS_KEY = 'sla:prefs';
 
 export const state = {
   user: null,
   season: null,           // currently-loaded league season
+
   leagues: [],            // user's leagues for selected season
-  league: null,           // currently-loaded league
+
+  // The "primary" league (the most-recent one in scope).
+  // These mirror state.scope[0] so existing tabs continue to work as-is.
+  league: null,
   leagueUsers: [],
   rosters: [],
+  matchupsByWeek: {},
+  transactionsByWeek: {},
+  drafts: [],
+  draftPicks: {},
+
+  // Multi-season scope: array of season scopes that the user has selected.
+  // Each scope: { leagueId, season, league, users, rosters, matchupsByWeek,
+  //              transactionsByWeek, drafts, draftPicks, ready, _loadingPromise }
+  // Newest season first.
+  scope: [],
+
+  // Available seasons reachable via previous_league_id walk.
+  // Each: { leagueId, season, name, avatar }
+  availableSeasons: [],
+
   players: null,
   playersPromise: null,
-  values: null,           // FantasyCalc values map (sleeperId -> value)
+
+  // Dynasty values (sleeperId -> number). Keyed by valuesSource for cache.
+  values: null,
   valuesPromise: null,
-  matchupsByWeek: {},     // week -> matchups
-  transactionsByWeek: {}, // week -> transactions
-  drafts: [],
-  draftPicks: {},         // draft_id -> picks
-  history: null,          // array of past leagues (most recent first), excluding current
+  valuesSource: 'combined', // 'combined' | 'ktc' | 'fc'
+
+  history: null,
   historyPromise: null,
   nflState: null,
   activeTab: 'overview',
+
+  theme: 'light',
 };
+
+// Mirror state.scope[0] into the back-compat top-level fields.
+export function syncPrimary() {
+  const primary = state.scope[0];
+  if (!primary) return;
+  state.league = primary.league;
+  state.leagueUsers = primary.users;
+  state.rosters = primary.rosters;
+  state.matchupsByWeek = primary.matchupsByWeek;
+  state.transactionsByWeek = primary.transactionsByWeek;
+  state.drafts = primary.drafts;
+  state.draftPicks = primary.draftPicks;
+}
 
 export function resetLeagueState() {
   state.league = null;
@@ -31,9 +66,13 @@ export function resetLeagueState() {
   state.transactionsByWeek = {};
   state.drafts = [];
   state.draftPicks = {};
+  state.scope = [];
+  state.availableSeasons = [];
   state.history = null;
   state.historyPromise = null;
 }
+
+// ---- Session persistence ----
 
 export function saveSession() {
   try {
@@ -52,4 +91,22 @@ export function loadSession() {
 }
 export function clearSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch {}
+}
+
+// ---- Prefs (theme, values source) ----
+
+export function savePrefs() {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify({
+      theme: state.theme,
+      valuesSource: state.valuesSource,
+    }));
+  } catch {}
+}
+export function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null') || {};
+    if (p.theme === 'dark' || p.theme === 'light') state.theme = p.theme;
+    if (['combined', 'ktc', 'fc'].includes(p.valuesSource)) state.valuesSource = p.valuesSource;
+  } catch {}
 }

@@ -1,7 +1,7 @@
 // Lazy data loaders. Each tab calls these as needed; caches per league/season.
 
-import { sleeper, fantasyCalc } from './api.js';
-import { state } from './state.js';
+import { sleeper, valuesApi } from './api.js';
+import { state, syncPrimary } from './state.js';
 
 export function ensurePlayers() {
   if (state.players) return Promise.resolve(state.players);
@@ -13,7 +13,7 @@ export function ensurePlayers() {
   return state.playersPromise;
 }
 
-export function ensureValues(leagueOpts = {}) {
+export function ensureValues() {
   if (state.values) return Promise.resolve(state.values);
   if (!state.valuesPromise) {
     const lg = state.league || {};
@@ -21,26 +21,43 @@ export function ensureValues(leagueOpts = {}) {
     const numTeams = lg.total_rosters || 12;
     const ppr = lg.scoring_settings?.rec === 1 ? 1 : lg.scoring_settings?.rec === 0.5 ? 0.5 : 0;
     const numQbs = (lg.roster_positions || []).filter(p => p === 'QB' || p === 'SUPER_FLEX').length || 1;
-    state.valuesPromise = fantasyCalc.values({ isDynasty, numQbs, numTeams, ppr, ...leagueOpts })
-      .then(v => { state.values = fantasyCalc.buildLookup(v); return state.values; })
-      .catch(err => { state.valuesPromise = null; state.values = new Map(); return state.values; });
+    state.valuesPromise = valuesApi.load({
+        source: state.valuesSource, isDynasty, numQbs, numTeams, ppr,
+      })
+      .then(v => { state.values = v; return v; })
+      .catch(() => { state.valuesPromise = null; state.values = new Map(); return state.values; });
   }
   return state.valuesPromise;
 }
 
-export async function ensureMatchups(maxWeek) {
+// Reset values cache when source changes; tabs will refetch on next render.
+export function clearValues() {
+  state.values = null;
+  state.valuesPromise = null;
+}
+
+// ---- Scope (multi-year) loaders ----
+
+// Make sure scope[idx] has matchups loaded for weeks 1..maxWeek.
+export async function ensureScopeMatchups(idx, maxWeek) {
+  const sc = state.scope[idx];
+  if (!sc) return;
   const weeks = [];
   for (let w = 1; w <= maxWeek; w++) {
-    if (!(w in state.matchupsByWeek)) weeks.push(w);
+    if (!(w in sc.matchupsByWeek)) weeks.push(w);
   }
   if (!weeks.length) return;
   await Promise.all(weeks.map(async w => {
-    state.matchupsByWeek[w] = await sleeper.matchups(state.league.league_id, w);
+    sc.matchupsByWeek[w] = await sleeper.matchups(sc.leagueId, w);
   }));
+  if (idx === 0) state.matchupsByWeek = sc.matchupsByWeek;
 }
 
-export async function ensureTransactions() {
-  const lg = state.league;
+// Same but for transactions, sized to season's last regular-season week.
+export async function ensureScopeTransactions(idx) {
+  const sc = state.scope[idx];
+  if (!sc) return;
+  const lg = sc.league;
   const seasonComplete = lg.status === 'complete';
   const playoffEnd = (lg.settings?.playoff_week_start || 15) + 3;
   const currentSeason = String(state.nflState?.season) === String(lg.season);
@@ -51,17 +68,42 @@ export async function ensureTransactions() {
       : playoffEnd;
   const weeks = [];
   for (let w = 1; w <= lastWeek; w++) {
-    if (!(w in state.transactionsByWeek)) weeks.push(w);
+    if (!(w in sc.transactionsByWeek)) weeks.push(w);
   }
   if (!weeks.length) return;
   await Promise.all(weeks.map(async w => {
-    state.transactionsByWeek[w] = await sleeper.transactions(state.league.league_id, w);
+    sc.transactionsByWeek[w] = await sleeper.transactions(sc.leagueId, w);
+  }));
+  if (idx === 0) state.transactionsByWeek = sc.transactionsByWeek;
+}
+
+// Convenience wrappers that use the primary scope (idx 0).
+export function ensureMatchups(maxWeek) { return ensureScopeMatchups(0, maxWeek); }
+export function ensureTransactions() { return ensureScopeTransactions(0); }
+
+// All-scope variants: load matchups/transactions across every selected season.
+export async function ensureAllScopeMatchups() {
+  await Promise.all(state.scope.map((sc, i) => {
+    const lg = sc.league;
+    const playoffStart = lg.settings?.playoff_week_start || 15;
+    const lastReg = playoffStart - 1;
+    const currentWeek = state.nflState?.week || lastReg;
+    const max = String(state.nflState?.season) === String(lg.season)
+      ? Math.min(lastReg, currentWeek)
+      : lastReg;
+    return ensureScopeMatchups(i, max);
   }));
 }
+export async function ensureAllScopeTransactions() {
+  await Promise.all(state.scope.map((_, i) => ensureScopeTransactions(i)));
+}
+
+// ---- Drafts ----
 
 export async function ensureDrafts() {
   if (state.drafts.length) return state.drafts;
   state.drafts = await sleeper.leagueDrafts(state.league.league_id);
+  if (state.scope[0]) state.scope[0].drafts = state.drafts;
   return state.drafts;
 }
 
@@ -69,11 +111,12 @@ export async function ensureDraftPicks(draftId) {
   if (state.draftPicks[draftId]) return state.draftPicks[draftId];
   const picks = await sleeper.draftPicks(draftId);
   state.draftPicks[draftId] = picks;
+  if (state.scope[0]) state.scope[0].draftPicks[draftId] = picks;
   return picks;
 }
 
-// Walk league.previous_league_id back through history.
-// Returns array of {league, users, rosters, brackets} for past seasons (most recent first).
+// ---- History (legacy: walk previous_league_id) ----
+
 export async function ensureHistory() {
   if (state.history) return state.history;
   if (state.historyPromise) return state.historyPromise;
@@ -81,7 +124,7 @@ export async function ensureHistory() {
   state.historyPromise = (async () => {
     const past = [];
     let prevId = state.league?.previous_league_id;
-    let safety = 25; // sane stop in case of cycles
+    let safety = 25;
     while (prevId && prevId !== '0' && safety-- > 0) {
       try {
         const [lg, users, rosters, winnersBracket] = await Promise.all([
@@ -92,12 +135,78 @@ export async function ensureHistory() {
         ]);
         past.push({ league: lg, users, rosters, winnersBracket });
         prevId = lg?.previous_league_id;
-      } catch {
-        break;
-      }
+      } catch { break; }
     }
     state.history = past;
     return past;
   })();
   return state.historyPromise;
+}
+
+// ---- Available seasons + scope management ----
+
+// Walk previous_league_id from the current league to discover all linked seasons.
+// Caches into state.availableSeasons. Each entry: { leagueId, season, name, avatar }.
+export async function discoverAvailableSeasons() {
+  if (state.availableSeasons.length) return state.availableSeasons;
+  const seasons = [{
+    leagueId: state.league.league_id,
+    season: state.league.season,
+    name: state.league.name,
+    avatar: state.league.avatar,
+  }];
+  let prev = state.league.previous_league_id;
+  let safety = 25;
+  while (prev && prev !== '0' && safety-- > 0) {
+    try {
+      const lg = await sleeper.league(prev);
+      seasons.push({
+        leagueId: lg.league_id, season: lg.season, name: lg.name, avatar: lg.avatar,
+      });
+      prev = lg.previous_league_id;
+    } catch { break; }
+  }
+  state.availableSeasons = seasons;
+  return seasons;
+}
+
+// Build a fresh scope object (without loading matchups/transactions yet).
+function makeScope({ leagueId, league, users, rosters }) {
+  return {
+    leagueId,
+    season: league.season,
+    league,
+    users,
+    rosters,
+    matchupsByWeek: {},
+    transactionsByWeek: {},
+    drafts: [],
+    draftPicks: {},
+    ready: true,
+  };
+}
+
+// Ensure the given leagueId is loaded into state.scope and returned.
+// If already in scope, returns it. Otherwise fetches league + users + rosters.
+export async function loadScopeFor(leagueId) {
+  const existing = state.scope.find(s => s.leagueId === leagueId);
+  if (existing) return existing;
+  const [league, users, rosters] = await Promise.all([
+    sleeper.league(leagueId),
+    sleeper.leagueUsers(leagueId),
+    sleeper.rosters(leagueId),
+  ]);
+  return makeScope({ leagueId, league, users, rosters });
+}
+
+// Set the scope to exactly these league IDs (in the given order, newest first).
+// Loads any missing ones, drops any not in the list. Updates state.league mirror.
+export async function setScopeLeagues(leagueIds) {
+  if (!leagueIds.length) return;
+  // Build new scope array, keeping existing entries when possible.
+  const next = await Promise.all(leagueIds.map(id => loadScopeFor(id)));
+  // Sort by season descending so newest is first regardless of input order.
+  next.sort((a, b) => Number(b.season) - Number(a.season));
+  state.scope = next;
+  syncPrimary();
 }
