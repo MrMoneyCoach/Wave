@@ -9,33 +9,21 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <img src="icon.svg" alt="" class="brand-logo" />
-      <div>
-        <div class="brand-title">Sleeper League Analysis</div>
+
+  <!-- LOGIN VIEW -->
+  <section class="view full-view" id="view-login">
+    <div class="login-shell">
+      <div class="brand-block">
+        <img src="icon.svg" class="brand-logo big" alt="" />
+        <div class="brand-title big">Sleeper League Analysis</div>
         <div class="brand-sub">Stats. Trades. Receipts.</div>
       </div>
-    </div>
-    <nav class="topnav" id="topnav" hidden>
-      <button class="nav-btn" data-tab="overview">Overview</button>
-      <button class="nav-btn" data-tab="trades">Trades</button>
-      <button class="nav-btn" data-tab="matchups">Matchups</button>
-      <button class="nav-btn" data-tab="rosters">Rosters</button>
-      <button class="nav-btn ghost" id="switchLeagueBtn">Switch league</button>
-      <button class="nav-btn ghost" id="logoutBtn">Sign out</button>
-    </nav>
-  </header>
-
-  <main id="main">
-
-    <!-- LOGIN VIEW -->
-    <section class="view" id="view-login">
       <div class="hero">
         <h1>Analyze your Sleeper league</h1>
         <p class="lede">
-          Enter your Sleeper username to pull standings, weekly matchups, and a full
-          history of every trade in your leagues. No signup, no password — Sleeper data is public.
+          Enter your Sleeper username. We'll pull every season your league has played
+          and grade every trade with dynasty values and realized fantasy points.
+          No signup, no password — Sleeper data is public.
         </p>
         <form class="login-form" id="loginForm" autocomplete="off">
           <label class="field">
@@ -51,15 +39,19 @@
         <p class="error" id="loginError" hidden></p>
       </div>
       <ul class="features">
-        <li><strong>Standings &amp; records</strong><br/>Wins, losses, points for/against, expected wins.</li>
-        <li><strong>Trade tracker</strong><br/>Every trade in the league, who got what, with player names.</li>
-        <li><strong>Weekly matchups</strong><br/>Biggest blowouts and closest finishes at a glance.</li>
-        <li><strong>Roster snapshots</strong><br/>Inspect every team's current roster.</li>
+        <li><strong>Trade grader</strong>Dynasty value at trade + value change + realized points scored after.</li>
+        <li><strong>Multi-season history</strong>We auto-walk every past season your league has played.</li>
+        <li><strong>Power rankings &amp; luck</strong>Expected wins, all-play record, schedule strength.</li>
+        <li><strong>Weekly recaps</strong>Best/worst lineups, biggest blowouts, MVPs of the week.</li>
+        <li><strong>Drafts &amp; players</strong>Pick-by-pick draft grades and league-wide player leaders.</li>
+        <li><strong>Awards &amp; rivalries</strong>Season trophies and head-to-head pages between any two teams.</li>
       </ul>
-    </section>
+    </div>
+  </section>
 
-    <!-- LEAGUE PICKER -->
-    <section class="view" id="view-leagues" hidden>
+  <!-- LEAGUE PICKER -->
+  <section class="view full-view" id="view-leagues" hidden>
+    <div class="picker-shell">
       <div class="page-head">
         <div>
           <h2>Pick a league</h2>
@@ -69,34 +61,75 @@
       </div>
       <div class="grid league-grid" id="leagueList"></div>
       <p class="empty" id="leagueEmpty" hidden>No leagues found for that user in that season.</p>
-    </section>
+    </div>
+  </section>
 
-    <!-- DASHBOARD -->
-    <section class="view" id="view-dashboard" hidden>
-      <div class="page-head">
-        <div>
-          <h2 id="leagueName">League</h2>
-          <p class="muted" id="leagueMeta"></p>
-        </div>
+  <!-- DASHBOARD -->
+  <section class="view dashboard" id="view-dashboard" hidden>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img src="icon.svg" class="brand-logo" alt="" />
+        <div class="sb-title">Sleeper Analysis</div>
       </div>
 
-      <div class="tab-panel" id="tab-overview"></div>
-      <div class="tab-panel" id="tab-trades" hidden></div>
-      <div class="tab-panel" id="tab-matchups" hidden></div>
-      <div class="tab-panel" id="tab-rosters" hidden></div>
-    </section>
+      <div class="sidebar-league" id="sidebarLeague"></div>
 
-    <!-- LOADING -->
-    <div class="loader" id="loader" hidden>
-      <div class="spinner"></div>
-      <div class="loader-text" id="loaderText">Loading…</div>
-    </div>
+      <nav class="sidebar-nav">
+        <div class="sb-section-title">League</div>
+        <button class="sb-link" data-tab="overview"><span class="sb-ico">●</span>Overview</button>
+        <button class="sb-link" data-tab="standings"><span class="sb-ico">▤</span>Standings</button>
+        <button class="sb-link" data-tab="power"><span class="sb-ico">▲</span>Power rankings</button>
+        <button class="sb-link" data-tab="luck"><span class="sb-ico">⚄</span>Luck &amp; all-play</button>
+        <button class="sb-link" data-tab="schedule"><span class="sb-ico">🗓</span>Schedule strength</button>
 
-  </main>
+        <div class="sb-section-title">Weeks</div>
+        <button class="sb-link" data-tab="matchups"><span class="sb-ico">⚔</span>Matchups</button>
+        <button class="sb-link" data-tab="players"><span class="sb-ico">★</span>Players</button>
+        <button class="sb-link" data-tab="awards"><span class="sb-ico">🏆</span>Awards</button>
 
-  <footer class="foot">
-    <span>Built on the public <a href="https://docs.sleeper.com/" target="_blank" rel="noopener">Sleeper API</a>. Not affiliated with Sleeper.</span>
-  </footer>
+        <div class="sb-section-title">Trades &amp; rosters</div>
+        <button class="sb-link" data-tab="trades"><span class="sb-ico">⇄</span>Trade grader</button>
+        <button class="sb-link" data-tab="partners"><span class="sb-ico">⬚</span>Trade partners</button>
+        <button class="sb-link" data-tab="rosters"><span class="sb-ico">▦</span>Rosters</button>
+        <button class="sb-link" data-tab="drafts"><span class="sb-ico">⌗</span>Drafts</button>
+
+        <div class="sb-section-title">Special</div>
+        <button class="sb-link" data-tab="h2h"><span class="sb-ico">⇋</span>Head-to-head</button>
+        <button class="sb-link" data-tab="history"><span class="sb-ico">⌛</span>League history</button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <button class="ghost block" id="switchLeagueBtn">Switch league</button>
+        <button class="ghost block" id="logoutBtn">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="content-head">
+        <button class="icon-btn sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+        <div class="content-head-titles">
+          <h2 id="leagueName">League</h2>
+          <p class="muted small" id="leagueMeta"></p>
+        </div>
+        <div class="content-head-tools">
+          <select id="seasonSwitcher" class="season-switcher" aria-label="Season"></select>
+        </div>
+      </header>
+
+      <div id="tabHost" class="tab-host"></div>
+    </main>
+
+  </section>
+
+  <!-- LOADING -->
+  <div class="loader" id="loader" hidden>
+    <div class="spinner"></div>
+    <div class="loader-text" id="loaderText">Loading…</div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast" hidden></div>
 
   <script type="module" src="app.js"></script>
 </body>
