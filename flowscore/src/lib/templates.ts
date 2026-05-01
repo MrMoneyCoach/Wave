@@ -112,6 +112,162 @@ export type Template = {
   outcomes: TemplateOutcome[];
 };
 
+// -----------------------------------------------------------------------------
+// Helpers — keep templates concise. Each helper returns block arrays / email
+// objects that match the live discriminated unions, so the result can be
+// assigned directly to a template field.
+// -----------------------------------------------------------------------------
+
+function makeEmail(
+  name: string,
+  bullets?: string,
+  bookingLine?: string,
+): TemplateEmail {
+  return {
+    subject: `Your ${name} results`,
+    greeting: "Hi {{firstName}},",
+    intro: `Thank you for completing the ${name}. Your personalised report is attached as a PDF.\n\nYou scored {{percent}}% — {{outcomeTitle}}.`,
+    bullets:
+      bullets ??
+      "Where you're already strong\nWhere you have room to grow\nThe single most important next step",
+    bookingLine:
+      bookingLine ??
+      "Want to walk through your result one-to-one? Book a no-obligation call.",
+    signoff: "Thanks,\n— {{ownerName}}",
+  };
+}
+
+function makeLanding(opts: {
+  headline: string;
+  body: string;
+  bullets: string[];
+  featuresHeading: string;
+  featuresSubhead?: string;
+  features: { title: string; body: string }[];
+  ctaHeading: string;
+  ctaBody: string;
+}): TemplateBlock[] {
+  const cols: 2 | 3 | 4 =
+    opts.features.length === 4 ? 4 : opts.features.length === 2 ? 2 : 3;
+  return [
+    {
+      id: "hero",
+      type: "hero-split",
+      headline: opts.headline,
+      body: opts.body,
+      ctaLabel: "Take the scorecard",
+      ctaUrl: "#start",
+      bullets: opts.bullets,
+      imageUrl: "",
+      imageAlt: "",
+      imagePosition: "right",
+    },
+    {
+      id: "features",
+      type: "feature-grid",
+      heading: opts.featuresHeading,
+      subhead: opts.featuresSubhead ?? "",
+      columns: cols,
+      items: opts.features.map((f, i) => ({
+        id: `f${i + 1}`,
+        iconUrl: "",
+        title: f.title,
+        body: f.body,
+      })),
+    },
+    { id: "div1", type: "divider" },
+    { id: "cta-h", type: "heading", text: opts.ctaHeading, level: 2 },
+    { id: "cta-p", type: "paragraph", text: opts.ctaBody },
+    {
+      id: "cta-btn",
+      type: "button",
+      label: "Take the scorecard →",
+      url: "#start",
+      style: "primary",
+    },
+  ];
+}
+
+function makeResult(opts: {
+  scoreLabel: string;
+  checklistHeading?: string;
+  checklist: string[];
+  bookingLabel: string;
+}): TemplateBlock[] {
+  return [
+    {
+      id: "score",
+      type: "score-display",
+      align: "center",
+      label: opts.scoreLabel,
+      showBar: true,
+    },
+    { id: "h1", type: "heading", text: "{{outcomeTitle}}", level: 2 },
+    { id: "p1", type: "paragraph", text: "{{outcomeDescription}}" },
+    { id: "div1", type: "divider" },
+    {
+      id: "h2",
+      type: "heading",
+      text: opts.checklistHeading ?? "Your next-step checklist",
+      level: 3,
+    },
+    { id: "list", type: "list", checkmark: true, items: opts.checklist },
+    {
+      id: "cta",
+      type: "button",
+      label: `${opts.bookingLabel} →`,
+      url: "",
+      style: "primary",
+    },
+  ];
+}
+
+function makePdf(opts: {
+  reportTitle: string;
+  intro: string;
+  checklistHeading?: string;
+  checklist: string[];
+  invitationCopy?: string;
+  bookingLabel: string;
+}): TemplatePdfBlock[] {
+  return [
+    { id: "h1", type: "heading", text: opts.reportTitle, level: 1 },
+    { id: "p1", type: "paragraph", text: opts.intro },
+    { id: "div1", type: "divider" },
+    {
+      id: "h2",
+      type: "heading",
+      text: "Your result: {{outcomeTitle}}",
+      level: 2,
+    },
+    { id: "p2", type: "paragraph", text: "{{outcomeDescription}}" },
+    { id: "div2", type: "divider" },
+    {
+      id: "h3",
+      type: "heading",
+      text: opts.checklistHeading ?? "Your next-step checklist",
+      level: 2,
+    },
+    { id: "checklist", type: "list", checkmark: true, items: opts.checklist },
+    { id: "div3", type: "divider" },
+    { id: "h-cta", type: "heading", text: "An invitation", level: 2 },
+    {
+      id: "p-cta",
+      type: "paragraph",
+      text:
+        opts.invitationCopy ??
+        "If you'd like to walk through your result one-to-one, book a free no-obligation consultation. We'll go through your score, where you can move the needle most, and what good looks like for someone in your position.",
+    },
+    {
+      id: "btn-cta",
+      type: "button",
+      label: opts.bookingLabel,
+      url: "",
+      style: "primary",
+    },
+  ];
+}
+
 export const TEMPLATES: Template[] = [
   {
     id: "marketing-health-check",
@@ -123,6 +279,47 @@ export const TEMPLATES: Template[] = [
     intro:
       "This 2-minute scorecard rates your marketing across audience clarity, channel performance, and measurement. You'll get a personalised result with concrete next steps.",
     ctaLabel: "Start the audit",
+    brandColor: "#6366f1",
+    bookingLabel: "Book your free strategy call",
+    email: makeEmail("Marketing Health Check"),
+    landingBlocks: makeLanding({
+      headline: "Is your marketing actually working — or just busy?",
+      body: "A 6-question audit across audience clarity, channels and measurement. You'll get a personalised PDF report with a clear next step.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free strategy call",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Audience clarity", body: "Are you crystal-clear on who you serve and what they actually care about?" },
+        { title: "Channel performance", body: "Are your channels driving qualified leads — or just activity?" },
+        { title: "Measurement discipline", body: "Do you know which marketing pounds are actually paying back?" },
+      ],
+      ctaHeading: "Ready to see where your marketing stands?",
+      ctaBody: "Take the audit and get a personalised report straight to your inbox.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Marketing Health score",
+      checklist: [
+        "Write a one-page customer profile and actively use it",
+        "Pick the single channel driving most qualified pipeline and double down",
+        "Set a weekly marketing KPI review and protect it",
+        "Drop two activities that aren't moving the needle",
+      ],
+      bookingLabel: "Book your strategy call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Marketing Health report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the highest-leverage actions for marketers in your position.",
+      checklist: [
+        "Write a one-page customer profile and actively use it",
+        "Pick the single channel driving most qualified pipeline and double down",
+        "Set a weekly marketing KPI review and protect it",
+        "Drop two activities that aren't moving the needle",
+      ],
+      bookingLabel: "Book your free strategy call",
+    }),
     questions: [
       {
         text: "Do you have a documented description of your ideal customer?",
@@ -218,6 +415,47 @@ export const TEMPLATES: Template[] = [
     intro:
       "This scorecard checks your homepage and key landing pages against the fundamentals of conversion design. Most sites lose money because of the same handful of issues — let's see where yours sits.",
     ctaLabel: "Score my site",
+    brandColor: "#0891b2",
+    bookingLabel: "Book your free CRO review",
+    email: makeEmail("Website Conversion Scorecard"),
+    landingBlocks: makeLanding({
+      headline: "Is your website actually converting — or just looking nice?",
+      body: "A 6-question audit of the parts of your site that decide whether visitors take action. You'll get a personalised PDF and a clear fix list.",
+      bullets: [
+        "Built from 100+ site teardowns",
+        "Personalised PDF report by email",
+        "Optional free CRO review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "First-impression clarity", body: "Can a stranger tell what you do and who for in 5 seconds?" },
+        { title: "Conversion path", body: "Is there a single, obvious next action on every page?" },
+        { title: "Measurement & speed", body: "Are you tracking the moments that matter — and is the site fast enough not to leak?" },
+      ],
+      ctaHeading: "Ready to find what's leaking conversions?",
+      ctaBody: "Take the audit and get a personalised report — plus a fix list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Website Conversion score",
+      checklist: [
+        "Pass a 5-second test on your homepage with a stranger",
+        "Audit your homepage for a single, obvious primary CTA",
+        "Run PageSpeed Insights and fix the largest LCP issue",
+        "Set up funnel tracking on your top 2 conversion goals",
+      ],
+      bookingLabel: "Book your CRO review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Website Conversion report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful fixes for sites in your position.",
+      checklist: [
+        "Pass a 5-second test on your homepage with a stranger",
+        "Audit your homepage for a single, obvious primary CTA",
+        "Run PageSpeed Insights and fix the largest LCP issue",
+        "Set up funnel tracking on your top 2 conversion goals",
+      ],
+      bookingLabel: "Book your free CRO review",
+    }),
     questions: [
       {
         text: "Is there a single, unmissable call-to-action above the fold on your homepage?",
@@ -328,6 +566,47 @@ export const TEMPLATES: Template[] = [
     intro:
       "Most businesses don't have a lead problem — they have a follow-up problem. This audit shows you where your sales process is leaking and what to fix first.",
     ctaLabel: "Audit my sales",
+    brandColor: "#059669",
+    bookingLabel: "Book your free sales review",
+    email: makeEmail("Sales Readiness Audit"),
+    landingBlocks: makeLanding({
+      headline: "How predictable is your sales pipeline, really?",
+      body: "A 6-question audit of how repeatably you turn opportunities into revenue. You'll get a personalised PDF and an action list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free sales review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Process clarity", body: "Is your sales process documented — or in someone's head?" },
+        { title: "Qualification discipline", body: "Do you know in 5 minutes whether a deal is real?" },
+        { title: "Pipeline math", body: "Can you forecast next quarter from today's pipeline?" },
+      ],
+      ctaHeading: "Ready to find where deals slip?",
+      ctaBody: "Take the audit and get a personalised report straight to your inbox.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Sales Readiness score",
+      checklist: [
+        "Document your sales process in one page (stages + exit criteria)",
+        "Adopt a 5-question qualification rubric and use it on every call",
+        "Set a weekly pipeline-coverage review",
+        "Make CRM hygiene non-negotiable",
+      ],
+      bookingLabel: "Book your sales review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Sales Readiness report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the highest-leverage actions for sales teams in your position.",
+      checklist: [
+        "Document your sales process in one page (stages + exit criteria)",
+        "Adopt a 5-question qualification rubric and use it on every call",
+        "Set a weekly pipeline-coverage review",
+        "Make CRM hygiene non-negotiable",
+      ],
+      bookingLabel: "Book your free sales review",
+    }),
     questions: [
       {
         text: "Do you have a written, repeatable sales process?",
@@ -423,6 +702,47 @@ export const TEMPLATES: Template[] = [
     intro:
       "Confused buyers don't buy. This scorecard rates how distinctly you stand out and how easily a stranger could explain what you do.",
     ctaLabel: "Score my brand",
+    brandColor: "#7c3aed",
+    bookingLabel: "Book your free brand review",
+    email: makeEmail("Brand Clarity Scorecard"),
+    landingBlocks: makeLanding({
+      headline: "Can people actually tell what makes you different?",
+      body: "A 6-question audit of how clearly your brand shows up — name, positioning, story, design. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free brand review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Positioning", body: "Can you state in one sentence why someone should choose you?" },
+        { title: "Visual clarity", body: "Does your visual identity feel coherent across every touchpoint?" },
+        { title: "Story discipline", body: "Do you tell the same story across web, social and sales?" },
+      ],
+      ctaHeading: "Ready to sharpen your brand?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Brand Clarity score",
+      checklist: [
+        "Write a one-sentence positioning statement and pressure-test it on customers",
+        "Audit your home, careers, and about pages for a single coherent story",
+        "Lock down 5 visual primitives (colour, type, photo style, logo lockup, layout grid)",
+        "Strip the corporate words your competitors also use",
+      ],
+      bookingLabel: "Book your brand review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Brand Clarity report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful brand moves for someone in your position.",
+      checklist: [
+        "Write a one-sentence positioning statement and pressure-test it on customers",
+        "Audit your home, careers, and about pages for a single coherent story",
+        "Lock down 5 visual primitives (colour, type, photo style, logo lockup, layout grid)",
+        "Strip the corporate words your competitors also use",
+      ],
+      bookingLabel: "Book your free brand review",
+    }),
     questions: [
       {
         text: "Could a typical customer of yours describe what you do in a single, accurate sentence?",
@@ -514,6 +834,47 @@ export const TEMPLATES: Template[] = [
     intro:
       "Lots of businesses publish; few build authority. This 6-question audit tells you which side of that line you sit on, and what to do next.",
     ctaLabel: "Audit my content",
+    brandColor: "#6366f1",
+    bookingLabel: "Book your free content strategy call",
+    email: makeEmail("Content Marketing Audit"),
+    landingBlocks: makeLanding({
+      headline: "Is your content building authority — or just filling a queue?",
+      body: "A 6-question audit of your content engine: strategy, cadence, distribution and measurement. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free content review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Strategy", body: "Is there a single content thesis everything rolls up to?" },
+        { title: "Cadence", body: "Do you publish reliably — or in fits and starts?" },
+        { title: "Distribution", body: "Are you getting more than search traffic out of the work?" },
+      ],
+      ctaHeading: "Ready to make content actually work?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Content Marketing score",
+      checklist: [
+        "Write a one-line content thesis and use it as a filter for every post",
+        "Lock a publishing cadence you can keep through Q4",
+        "Build a distribution checklist (newsletter, LinkedIn, podcast clips)",
+        "Set up tracking for content-driven pipeline",
+      ],
+      bookingLabel: "Book your content strategy call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Content Marketing report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the highest-leverage moves for content teams in your position.",
+      checklist: [
+        "Write a one-line content thesis and use it as a filter for every post",
+        "Lock a publishing cadence you can keep through Q4",
+        "Build a distribution checklist (newsletter, LinkedIn, podcast clips)",
+        "Set up tracking for content-driven pipeline",
+      ],
+      bookingLabel: "Book your free content strategy call",
+    }),
     questions: [
       {
         text: "Do you publish on a regular, predictable schedule?",
@@ -609,6 +970,47 @@ export const TEMPLATES: Template[] = [
     intro:
       "Most productivity advice treats symptoms. This audit looks at the design of your week — where the inputs and outputs actually live — and tells you which lever has the highest payoff for you specifically.",
     ctaLabel: "Audit my week",
+    brandColor: "#e11d48",
+    bookingLabel: "Book your free productivity coaching call",
+    email: makeEmail("Productivity Audit"),
+    landingBlocks: makeLanding({
+      headline: "Is your week designed — or just happening to you?",
+      body: "A 6-question audit of how you spend your week. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free coaching call",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Calendar", body: "Do you protect deep-work blocks — or fight for them?" },
+        { title: "Decisions", body: "Are your most important decisions made when fresh, not last?" },
+        { title: "Defaults", body: "Are your meetings, emails, and tools working for you, not against you?" },
+      ],
+      ctaHeading: "Ready to design a sharper week?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Productivity score",
+      checklist: [
+        "Block two 90-minute deep-work sessions every weekday — non-negotiable",
+        "Audit one week of meetings; cut or delegate anything not driving an outcome",
+        "Set a daily 'one important thing' before opening email",
+        "Pick a weekly review time and protect it",
+      ],
+      bookingLabel: "Book your coaching call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Productivity report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful changes for someone in your position.",
+      checklist: [
+        "Block two 90-minute deep-work sessions every weekday — non-negotiable",
+        "Audit one week of meetings; cut or delegate anything not driving an outcome",
+        "Set a daily 'one important thing' before opening email",
+        "Pick a weekly review time and protect it",
+      ],
+      bookingLabel: "Book your free coaching call",
+    }),
     questions: [
       {
         text: "How often do you start the day with a clear, written top three priorities?",
@@ -699,6 +1101,47 @@ export const TEMPLATES: Template[] = [
       "This scorecard maps your top-of-funnel against the four stages every working lead engine has — attract, capture, qualify, follow up — and tells you which is the weakest link.",
     ctaLabel: "Score my funnel",
     theme: "card",
+    brandColor: "#6366f1",
+    bookingLabel: "Book your free demand-gen review",
+    email: makeEmail("Lead Generation Audit"),
+    landingBlocks: makeLanding({
+      headline: "Is your lead engine reliable — or running on luck?",
+      body: "A 6-question audit of how repeatably you generate qualified leads. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free demand-gen review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Sources", body: "Do you have at least 2-3 channels driving qualified pipeline today?" },
+        { title: "Conversion", body: "Do leads turn into meetings — or just sit in the CRM?" },
+        { title: "Tracking", body: "Can you say with numbers where last quarter's pipeline came from?" },
+      ],
+      ctaHeading: "Ready to fix your lead funnel?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Lead Gen score",
+      checklist: [
+        "Map your funnel from impression to closed-won in one page",
+        "Identify the single weakest stage and run a 4-week experiment on it",
+        "Set a weekly demand-gen scoreboard with 3 metrics",
+        "Stop optimising channels you can't measure",
+      ],
+      bookingLabel: "Book your demand-gen review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Lead Generation report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the highest-leverage moves for demand-gen teams in your position.",
+      checklist: [
+        "Map your funnel from impression to closed-won in one page",
+        "Identify the single weakest stage and run a 4-week experiment on it",
+        "Set a weekly demand-gen scoreboard with 3 metrics",
+        "Stop optimising channels you can't measure",
+      ],
+      bookingLabel: "Book your free demand-gen review",
+    }),
     questions: [
       {
         text: "Do you know roughly how many people land on your site each week?",
@@ -785,6 +1228,47 @@ export const TEMPLATES: Template[] = [
       "Most SEO problems aren't algorithm problems — they're foundations problems. This scorecard checks the things that actually move the needle and will still matter in 5 years.",
     ctaLabel: "Score my SEO",
     theme: "minimal",
+    brandColor: "#0891b2",
+    bookingLabel: "Book your free SEO review",
+    email: makeEmail("SEO Foundations Audit"),
+    landingBlocks: makeLanding({
+      headline: "Are your SEO foundations actually solid?",
+      body: "A 6-question audit of the technical and on-page basics that decide whether you can rank. You'll get a personalised PDF and a fix list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free SEO review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Technical", body: "Speed, indexability, structure — the things Google actually weighs." },
+        { title: "On-page", body: "Titles, meta, internal linking — the parts you control directly." },
+        { title: "Authority", body: "Are you earning the kind of links and mentions that move rankings?" },
+      ],
+      ctaHeading: "Ready to fix what's holding rankings back?",
+      ctaBody: "Take the audit and get a personalised report and fix list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your SEO Foundations score",
+      checklist: [
+        "Run a Lighthouse audit and fix the largest performance issue this week",
+        "Make sure every important page has a unique, intent-led title and meta description",
+        "Build an internal linking map for your top 10 commercial pages",
+        "Earn one quality backlink per month for the next quarter",
+      ],
+      bookingLabel: "Book your SEO review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your SEO Foundations report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful technical and on-page moves for sites in your position.",
+      checklist: [
+        "Run a Lighthouse audit and fix the largest performance issue this week",
+        "Make sure every important page has a unique, intent-led title and meta description",
+        "Build an internal linking map for your top 10 commercial pages",
+        "Earn one quality backlink per month for the next quarter",
+      ],
+      bookingLabel: "Book your free SEO review",
+    }),
     questions: [
       {
         text: "Does every important page have a unique, intent-matching title tag?",
@@ -865,6 +1349,47 @@ export const TEMPLATES: Template[] = [
       "A healthy pipeline isn't about size — it's about predictability. This audit checks whether yours is signal or noise.",
     ctaLabel: "Audit my pipeline",
     theme: "card",
+    brandColor: "#059669",
+    bookingLabel: "Book your free pipeline review",
+    email: makeEmail("Sales Pipeline Health"),
+    landingBlocks: makeLanding({
+      headline: "Will this quarter's number land — or are you praying?",
+      body: "A 6-question audit of pipeline coverage, velocity and forecasting. You'll get a personalised PDF and a fix list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free pipeline review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Coverage", body: "Do you have 3-4× pipeline coverage on your number for this quarter?" },
+        { title: "Velocity", body: "How long does an average deal sit in each stage — and what's stuck?" },
+        { title: "Forecasting", body: "When you forecast, how often is reality within 10% of the call?" },
+      ],
+      ctaHeading: "Ready to take guesswork out of your forecast?",
+      ctaBody: "Take the audit and get a personalised report and fix list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Pipeline Health score",
+      checklist: [
+        "Calculate pipeline coverage today and the gap to 3-4×",
+        "Review every deal stuck >2× the average stage age and decide: progress or kill",
+        "Lock in weekly forecast calls with a consistent format",
+        "Set a single shared definition of stage exit criteria",
+      ],
+      bookingLabel: "Book your pipeline review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Sales Pipeline Health report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the highest-leverage actions for sales leaders in your position.",
+      checklist: [
+        "Calculate pipeline coverage today and the gap to 3-4×",
+        "Review every deal stuck >2× the average stage age and decide: progress or kill",
+        "Lock in weekly forecast calls with a consistent format",
+        "Set a single shared definition of stage exit criteria",
+      ],
+      bookingLabel: "Book your free pipeline review",
+    }),
     questions: [
       {
         text: "Does every deal in your pipeline have a clear next step with a date?",
@@ -950,6 +1475,47 @@ export const TEMPLATES: Template[] = [
       "A strong visual identity earns trust before a single word is read. This 5-question audit checks how much yours is doing for you.",
     ctaLabel: "Audit my visuals",
     theme: "minimal",
+    brandColor: "#7c3aed",
+    bookingLabel: "Book your free brand design review",
+    email: makeEmail("Visual Identity Audit"),
+    landingBlocks: makeLanding({
+      headline: "Does your visual identity actually feel like one brand?",
+      body: "A 6-question audit of consistency, distinctiveness and craft across your brand's visual touchpoints. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free design review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Consistency", body: "Does the visual feel coherent across web, social and decks?" },
+        { title: "Distinctiveness", body: "Could a customer pick you out of a line-up of three competitors?" },
+        { title: "Craft", body: "Are the small details — type, spacing, photography — actually loved?" },
+      ],
+      ctaHeading: "Ready to get your brand looking like one brand?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Visual Identity score",
+      checklist: [
+        "Lock down 5 visual primitives (colour, type, photo style, logo lockup, layout grid)",
+        "Audit your top 5 customer-facing assets against those primitives",
+        "Pick a single distinctive asset (illustration style, charts, typography) to lean into",
+        "Build a one-page brand do/don't reference for any contributor",
+      ],
+      bookingLabel: "Book your brand design review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Visual Identity report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful design moves for someone in your position.",
+      checklist: [
+        "Lock down 5 visual primitives (colour, type, photo style, logo lockup, layout grid)",
+        "Audit your top 5 customer-facing assets against those primitives",
+        "Pick a single distinctive asset (illustration style, charts, typography) to lean into",
+        "Build a one-page brand do/don't reference for any contributor",
+      ],
+      bookingLabel: "Book your free brand design review",
+    }),
     questions: [
       {
         text: "Do you have a documented brand guideline (colours, fonts, logo usage)?",
@@ -1027,6 +1593,47 @@ export const TEMPLATES: Template[] = [
       "This 5-question audit checks the experience real visitors have on a mobile screen — not just whether the site renders, but whether it actually works.",
     ctaLabel: "Audit my mobile site",
     theme: "card",
+    brandColor: "#0891b2",
+    bookingLabel: "Book your free mobile review",
+    email: makeEmail("Mobile Experience Audit"),
+    landingBlocks: makeLanding({
+      headline: "Is your mobile experience actually mobile-first?",
+      body: "A 6-question audit of how well your site performs on a phone. You'll get a personalised PDF and a fix list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free mobile review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Speed", body: "Does your site load in under 3 seconds on a real 4G phone?" },
+        { title: "Layout", body: "Are tap targets, forms and CTAs sized for thumbs?" },
+        { title: "Conversion path", body: "Is the path from landing to action as short as it can be on mobile?" },
+      ],
+      ctaHeading: "Ready to fix what mobile users actually see?",
+      ctaBody: "Take the audit and get a personalised report and fix list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Mobile Experience score",
+      checklist: [
+        "Run PageSpeed Insights on mobile and fix the biggest LCP issue",
+        "Audit your forms — single-column, large tap targets, autofill on",
+        "Cut steps from the mobile conversion path",
+        "Test on a real mid-tier Android phone, not the simulator",
+      ],
+      bookingLabel: "Book your mobile review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Mobile Experience report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful mobile fixes for sites in your position.",
+      checklist: [
+        "Run PageSpeed Insights on mobile and fix the biggest LCP issue",
+        "Audit your forms — single-column, large tap targets, autofill on",
+        "Cut steps from the mobile conversion path",
+        "Test on a real mid-tier Android phone, not the simulator",
+      ],
+      bookingLabel: "Book your free mobile review",
+    }),
     questions: [
       {
         text: "When was the last time you opened your own site on your phone, end-to-end, like a real visitor?",
@@ -1109,6 +1716,47 @@ export const TEMPLATES: Template[] = [
       "This scorecard rates how well your business holds onto customers after the first sale — and points to the highest-leverage retention move you're missing.",
     ctaLabel: "Score my retention",
     theme: "minimal",
+    brandColor: "#059669",
+    bookingLabel: "Book your free retention review",
+    email: makeEmail("Customer Retention Score"),
+    landingBlocks: makeLanding({
+      headline: "How leaky is your bucket — really?",
+      body: "A 6-question audit of churn, expansion, and the systems that drive both. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free retention review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Onboarding", body: "Do new customers reach value in their first 30 days — or drift?" },
+        { title: "Health signals", body: "Do you know which customers are at risk before they churn?" },
+        { title: "Expansion", body: "Is there a clear path from happy customer to bigger contract?" },
+      ],
+      ctaHeading: "Ready to plug the leaks?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Customer Retention score",
+      checklist: [
+        "Define a 'first-value moment' for new customers — measure time to it",
+        "Build a 5-signal customer health score and review weekly",
+        "Run a quarterly churn post-mortem on every lost account",
+        "Set a single owner for net revenue retention",
+      ],
+      bookingLabel: "Book your retention review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Customer Retention report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful retention moves for teams in your position.",
+      checklist: [
+        "Define a 'first-value moment' for new customers — measure time to it",
+        "Build a 5-signal customer health score and review weekly",
+        "Run a quarterly churn post-mortem on every lost account",
+        "Set a single owner for net revenue retention",
+      ],
+      bookingLabel: "Book your free retention review",
+    }),
     questions: [
       {
         text: "Do you know your churn rate (or repeat-purchase rate)?",
@@ -1194,6 +1842,47 @@ export const TEMPLATES: Template[] = [
       "Differentiation isn't about being better — it's about being unmistakably different. This check tells you whether yours holds up under scrutiny.",
     ctaLabel: "Check my edge",
     theme: "card",
+    brandColor: "#7c3aed",
+    bookingLabel: "Book your free positioning call",
+    email: makeEmail("Differentiation Check"),
+    landingBlocks: makeLanding({
+      headline: "Do you actually stand out — or just polite about being similar?",
+      body: "A 6-question audit of how distinctly your business is positioned. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free positioning call",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Sharpness", body: "Can a customer parrot back your unique angle after one conversation?" },
+        { title: "Pricing", body: "Do you charge differently than the field — and earn it?" },
+        { title: "Visibility", body: "Are you publicly making the case for your point of view, often?" },
+      ],
+      ctaHeading: "Ready to find your edge?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Differentiation score",
+      checklist: [
+        "Write a sharp 'we don't do X, we do Y' statement and stress-test it",
+        "Identify the one belief you hold that competitors don't — make it public",
+        "Audit pricing — does it tell the same story as your positioning?",
+        "Pick one distribution channel and become genuinely loud on it",
+      ],
+      bookingLabel: "Book your positioning call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Differentiation report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful positioning moves for someone in your position.",
+      checklist: [
+        "Write a sharp 'we don't do X, we do Y' statement and stress-test it",
+        "Identify the one belief you hold that competitors don't — make it public",
+        "Audit pricing — does it tell the same story as your positioning?",
+        "Pick one distribution channel and become genuinely loud on it",
+      ],
+      bookingLabel: "Book your free positioning call",
+    }),
     questions: [
       {
         text: "Could you finish this sentence in one specific phrase: 'We're the only ones who…'?",
@@ -1274,6 +1963,47 @@ export const TEMPLATES: Template[] = [
       "This audit looks at the conditions you create for deep work and the small habits that drain or restore focus. Honest answers, useful result.",
     ctaLabel: "Audit my focus",
     theme: "minimal",
+    brandColor: "#e11d48",
+    bookingLabel: "Book your free coaching call",
+    email: makeEmail("Energy & Focus Audit"),
+    landingBlocks: makeLanding({
+      headline: "Are you running hot and shallow — or deep and steady?",
+      body: "A 6-question audit of how sustainably you operate, day to day. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free coaching call",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Sleep & recovery", body: "Are you protecting the inputs that decide tomorrow's output?" },
+        { title: "Focus", body: "Can you go deep on a single problem for 90 minutes uninterrupted?" },
+        { title: "Boundaries", body: "Do you have meaningful 'off' time, or is it always background?" },
+      ],
+      ctaHeading: "Ready to play the long game?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Energy & Focus score",
+      checklist: [
+        "Pick a sleep target and protect it for 30 days",
+        "Block 2 deep-work sessions a day — phone in another room",
+        "Audit your default 'off-hours' rules and tighten them",
+        "Pick one weekly recovery activity and make it non-negotiable",
+      ],
+      bookingLabel: "Book your coaching call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Energy & Focus report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful changes for someone in your position.",
+      checklist: [
+        "Pick a sleep target and protect it for 30 days",
+        "Block 2 deep-work sessions a day — phone in another room",
+        "Audit your default 'off-hours' rules and tighten them",
+        "Pick one weekly recovery activity and make it non-negotiable",
+      ],
+      bookingLabel: "Book your free coaching call",
+    }),
     questions: [
       {
         text: "How many uninterrupted 90-minute focus blocks did you have in the last working week?",
@@ -1351,6 +2081,47 @@ export const TEMPLATES: Template[] = [
       "Most people don't have a decision problem — they have a process problem. This audit looks at how you actually make the calls that matter, and where the predictable mistakes come in.",
     ctaLabel: "Audit my decisions",
     theme: "card",
+    brandColor: "#e11d48",
+    bookingLabel: "Book your free coaching call",
+    email: makeEmail("Decision Making Audit"),
+    landingBlocks: makeLanding({
+      headline: "Are your big decisions structured — or just made under pressure?",
+      body: "A 6-question audit of how you make important decisions. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free coaching call",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Frameworks", body: "Do you have a default process for weighty decisions, or wing each one?" },
+        { title: "Reversibility", body: "Do you treat reversible and irreversible decisions differently?" },
+        { title: "Inputs", body: "Do you actively seek dissent before deciding — or just confirmation?" },
+      ],
+      ctaHeading: "Ready to make sharper calls?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Decision Making score",
+      checklist: [
+        "Adopt a one-page decision framework (one-way / two-way doors)",
+        "Write down the decision and your reasoning before acting on big calls",
+        "Find one trusted dissenter and use them on every weighty decision",
+        "Run a quarterly review of your top 5 decisions",
+      ],
+      bookingLabel: "Book your coaching call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Decision Making report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful upgrades for someone in your position.",
+      checklist: [
+        "Adopt a one-page decision framework (one-way / two-way doors)",
+        "Write down the decision and your reasoning before acting on big calls",
+        "Find one trusted dissenter and use them on every weighty decision",
+        "Run a quarterly review of your top 5 decisions",
+      ],
+      bookingLabel: "Book your free coaching call",
+    }),
     questions: [
       {
         text: "Before a meaningful decision, do you write down what you're choosing between and why?",
@@ -1432,6 +2203,47 @@ export const TEMPLATES: Template[] = [
       "This scorecard maps the practices that distinguish managers people thrive under from ones they merely tolerate. 5 minutes, useful answers.",
     ctaLabel: "Score my management",
     theme: "minimal",
+    brandColor: "#d97706",
+    bookingLabel: "Book your free leadership coaching call",
+    email: makeEmail("Manager Readiness Score"),
+    landingBlocks: makeLanding({
+      headline: "Are you a player still — or genuinely a multiplier?",
+      body: "A 6-question audit of how effectively you operate as a manager today. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free coaching call",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Time allocation", body: "Are you spending your time on what only a manager can do?" },
+        { title: "Coaching", body: "Do your reports leave 1:1s clearer, sharper and more energised?" },
+        { title: "Performance", body: "Do you handle low performance early — or hope it fixes itself?" },
+      ],
+      ctaHeading: "Ready to grow as a manager?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Manager Readiness score",
+      checklist: [
+        "Audit your week — flag every hour spent doing IC work that should be delegated",
+        "Set a weekly coaching prompt for every direct report",
+        "Address one underperformer this week with a clear, written plan",
+        "Stop being the smartest person in every meeting",
+      ],
+      bookingLabel: "Book your coaching call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Manager Readiness report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful next steps for managers in your position.",
+      checklist: [
+        "Audit your week — flag every hour spent doing IC work that should be delegated",
+        "Set a weekly coaching prompt for every direct report",
+        "Address one underperformer this week with a clear, written plan",
+        "Stop being the smartest person in every meeting",
+      ],
+      bookingLabel: "Book your free leadership coaching call",
+    }),
     questions: [
       {
         text: "Do you have regular 1:1s with every direct report, on a predictable cadence?",
@@ -1509,6 +2321,47 @@ export const TEMPLATES: Template[] = [
       "This audit checks whether your team's day-to-day behaviour matches what you'd say your culture is. 5 quick, candid questions.",
     ctaLabel: "Audit my culture",
     theme: "card",
+    brandColor: "#d97706",
+    bookingLabel: "Book your free team review",
+    email: makeEmail("Team Culture Audit"),
+    landingBlocks: makeLanding({
+      headline: "Is your team genuinely high-trust — or just polite?",
+      body: "A 6-question audit of how your team operates day-to-day. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free team review",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Trust", body: "Do people give and take real feedback — or sugarcoat it?" },
+        { title: "Standards", body: "Is the bar for performance clear, and visibly held?" },
+        { title: "Energy", body: "Do people leave team meetings more energised than they came in?" },
+      ],
+      ctaHeading: "Ready to upgrade how your team operates?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Team Culture score",
+      checklist: [
+        "Run a structured retrospective every 4-6 weeks — not just at year end",
+        "Set one team norm a quarter and reinforce it",
+        "Hold a quarterly performance calibration with peer managers",
+        "Reward in public, address in private — without exception",
+      ],
+      bookingLabel: "Book your team review",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Team Culture report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful moves for team leaders in your position.",
+      checklist: [
+        "Run a structured retrospective every 4-6 weeks — not just at year end",
+        "Set one team norm a quarter and reinforce it",
+        "Hold a quarterly performance calibration with peer managers",
+        "Reward in public, address in private — without exception",
+      ],
+      bookingLabel: "Book your free team review",
+    }),
     questions: [
       {
         text: "How safe is it for someone on your team to disagree with you in a meeting?",
@@ -1585,6 +2438,47 @@ export const TEMPLATES: Template[] = [
       "Most communication problems aren't about volume — they're about clarity, timing, and channel. This scorecard helps you see where yours fall over.",
     ctaLabel: "Check my comms",
     theme: "minimal",
+    brandColor: "#d97706",
+    bookingLabel: "Book your free comms coaching call",
+    email: makeEmail("Communication Clarity Check"),
+    landingBlocks: makeLanding({
+      headline: "Do your messages actually land — or do you just hope?",
+      body: "A 6-question audit of how clearly your written and spoken comms come across. You'll get a personalised PDF and a focus list.",
+      bullets: [
+        "6-question audit, takes 2 minutes",
+        "Personalised PDF report by email",
+        "Optional free coaching call",
+      ],
+      featuresHeading: "What we'll measure",
+      features: [
+        { title: "Lead with the ask", body: "Does every important message start with the action or decision needed?" },
+        { title: "Concision", body: "Are you cutting words, or padding to seem thorough?" },
+        { title: "Loop closing", body: "Do you confirm understanding instead of assuming it?" },
+      ],
+      ctaHeading: "Ready to sharpen your comms?",
+      ctaBody: "Take the audit and get a personalised report and focus list.",
+    }),
+    resultBlocks: makeResult({
+      scoreLabel: "Your Communication Clarity score",
+      checklist: [
+        "Open every important message with the action or decision needed",
+        "Cut 30% of words from your last 3 long messages and notice the difference",
+        "Adopt a habit of asking 'what did you take from that?' after important conversations",
+        "Match the format to the message — one paragraph, not a deck",
+      ],
+      bookingLabel: "Book your coaching call",
+    }),
+    pdfBlocks: makePdf({
+      reportTitle: "Your Communication Clarity report",
+      intro: "Hi {{firstName}}, here's a brief interpretation of your score and the most useful moves for leaders in your position.",
+      checklist: [
+        "Open every important message with the action or decision needed",
+        "Cut 30% of words from your last 3 long messages and notice the difference",
+        "Adopt a habit of asking 'what did you take from that?' after important conversations",
+        "Match the format to the message — one paragraph, not a deck",
+      ],
+      bookingLabel: "Book your free comms coaching call",
+    }),
     questions: [
       {
         text: "Before sending a long email or message, do you ask yourself 'what's the single thing the reader needs to do or know'?",
