@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import QuizPlayer from "@/components/QuizPlayer";
+import TrackingScripts from "@/components/TrackingScripts";
 import type { Block } from "@/components/LandingDesigner";
 
 export const dynamic = "force-dynamic";
@@ -75,7 +76,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function QuizPublicPage({ params }: { params: { slug: string } }) {
+export default async function QuizPublicPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams?: { resume?: string };
+}) {
   const quiz = await prisma.quiz.findUnique({
     where: { slug: params.slug },
     include: {
@@ -87,6 +94,36 @@ export default async function QuizPublicPage({ params }: { params: { slug: strin
   });
 
   if (!quiz || !quiz.published) return notFound();
+
+  // Resume flow: if the visitor came in via an abandon-email link, look up
+  // the original submission and pre-fill the lead form. We update that
+  // submission on lead-form submit instead of creating a duplicate.
+  const resumeId = searchParams?.resume?.trim();
+  let resume:
+    | {
+        submissionId: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        company: string;
+        jobTitle: string;
+      }
+    | null = null;
+  if (resumeId) {
+    const sub = await prisma.submission.findUnique({ where: { id: resumeId } });
+    if (sub && sub.quizId === quiz.id && !sub.completedAt) {
+      resume = {
+        submissionId: sub.id,
+        firstName: sub.firstName ?? "",
+        lastName: sub.lastName ?? "",
+        email: sub.email ?? "",
+        phone: sub.phone ?? "",
+        company: sub.company ?? "",
+        jobTitle: sub.jobTitle ?? "",
+      };
+    }
+  }
 
   const safe = {
     id: quiz.id,
@@ -102,6 +139,11 @@ export default async function QuizPublicPage({ params }: { params: { slug: strin
     videoUrl: quiz.videoUrl,
     highlights: parseHighlights(quiz.highlights),
     blocks: parseBlocks(quiz.landingBlocks),
+    optinConsent:
+      (quiz.optinConsent as "implied" | "optional" | "required") ?? "optional",
+    optinWording: quiz.optinWording,
+    privacyStatement: quiz.privacyStatement,
+    privacyPolicyUrl: quiz.privacyPolicyUrl,
     questions: quiz.questions.map((q) => ({
       id: q.id,
       text: q.text,
@@ -126,8 +168,14 @@ export default async function QuizPublicPage({ params }: { params: { slug: strin
         // eslint-disable-next-line react/no-danger
         <style dangerouslySetInnerHTML={{ __html: quiz.customCss }} />
       )}
+      <TrackingScripts
+        facebookPixelId={quiz.facebookPixelId}
+        googleAnalyticsCode={quiz.googleAnalyticsCode}
+        googleTagManagerId={quiz.googleTagManagerId}
+        customTrackingScript={quiz.customTrackingScript}
+      />
       <div style={wrapperStyle}>
-        <QuizPlayer quiz={safe} />
+        <QuizPlayer quiz={safe} resume={resume} />
       </div>
     </>
   );
