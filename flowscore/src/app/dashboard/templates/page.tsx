@@ -15,13 +15,10 @@ export default async function TemplatesPage() {
   }
 
   return (
-    <div>
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-700">
-        ← Dashboard
-      </Link>
-      <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+    <div className="mx-auto max-w-6xl">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Templates</h1>
+          <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">Templates</h1>
           <p className="mt-1 text-sm text-slate-500">
             Pick a starting point. You can edit everything after.
           </p>

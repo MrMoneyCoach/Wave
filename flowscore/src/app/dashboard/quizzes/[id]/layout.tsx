@@ -20,7 +20,7 @@ export default async function QuizLayout({
   if (!quiz || quiz.userId !== user.id) return notFound();
 
   return (
-    <div className="-mx-6 -my-8 flex min-h-[calc(100vh-65px)] flex-col md:flex-row">
+    <div className="-mx-4 -my-6 flex min-h-[calc(100vh-65px)] flex-col md:-mx-8 md:-my-10 md:flex-row">
       <QuizSidebar
         quizId={quiz.id}
         quizTitle={quiz.title}
