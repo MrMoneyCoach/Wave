@@ -19,10 +19,10 @@ export function getStripe(): Stripe {
       "STRIPE_SECRET_KEY is not set — Stripe billing is disabled.",
     );
   }
-  _stripe = new Stripe(key, {
-    apiVersion: "2024-12-18.acacia",
-    typescript: true,
-  });
+  // Don't pin apiVersion here — the SDK uses whatever version the Stripe
+  // account is pinned to, which avoids a TypeScript error every time we
+  // bump the stripe package and the literal type changes.
+  _stripe = new Stripe(key);
   return _stripe;
 }
 
