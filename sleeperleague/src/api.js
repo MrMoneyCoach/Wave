@@ -2,7 +2,17 @@
 
 const SLEEPER = 'https://api.sleeper.app/v1';
 const FANTASYCALC = 'https://api.fantasycalc.com';
-const DYNASTYPROCESS_CSV = 'https://raw.githubusercontent.com/dynastyprocess/data/master/files/values-players.csv';
+
+// DynastyProcess publishes various community CSVs to GitHub. We try them in
+// priority order, looking for one that includes KeepTradeCut values keyed by
+// Sleeper ID. The FantasyCalc-only file (values-players.csv) doesn't carry
+// KTC; db_ktc.csv (or similar) does. If they rename it, add the new path here.
+const DP_KTC_CANDIDATES = [
+  'https://raw.githubusercontent.com/dynastyprocess/data/master/files/db_ktc.csv',
+  'https://raw.githubusercontent.com/dynastyprocess/data/master/files/values_ktc.csv',
+  'https://raw.githubusercontent.com/dynastyprocess/data/master/files/ktc.csv',
+];
+const DP_VALUES_PLAYERS = 'https://raw.githubusercontent.com/dynastyprocess/data/master/files/values-players.csv';
 
 const PLAYERS_CACHE_KEY = 'sla:players:nfl';
 const PLAYERS_CACHE_MS = 24 * 60 * 60 * 1000;
@@ -96,110 +106,163 @@ function parseCSV(text) {
   return rows;
 }
 
-// DynastyProcess values CSV - has both KTC and FC columns.
-// Common columns include sleeper_id, ktc_value (or value), fc_value, etc.
-async function fetchDynastyProcessRaw() {
-  const text = await getTextSoft(DYNASTYPROCESS_CSV);
-  if (!text) return [];
-  return parseCSV(text);
+// Pick the most likely "value" column from a CSV row.
+// Prefers explicit KTC column names, then league-shape ones, then a plain "value".
+function pickValueColumn(headers, prefer = 'ktc') {
+  const lower = headers.map(h => h.toLowerCase());
+  const find = (...needles) => {
+    for (const n of needles) {
+      const i = lower.findIndex(h => h === n);
+      if (i >= 0) return headers[i];
+    }
+    for (const n of needles) {
+      const i = lower.findIndex(h => h.includes(n));
+      if (i >= 0) return headers[i];
+    }
+    return null;
+  };
+  if (prefer === 'ktc') {
+    return find('ktc_value', 'ktc_1qb', 'ktc_sf', 'ktc_2qb', 'ktc', 'value_1qb', 'value', '1qb');
+  }
+  return find('fc_value', 'fc_1qb', 'value_1qb', 'value_2qb', 'value', '1qb');
+}
+
+function pickIdColumn(headers) {
+  const lower = headers.map(h => h.toLowerCase());
+  const candidates = ['sleeper_id', 'sleeperid', 'sleeper'];
+  for (const c of candidates) {
+    const i = lower.indexOf(c);
+    if (i >= 0) return headers[i];
+  }
+  return null;
+}
+
+// Try each KTC candidate URL until one returns data with a usable
+// (sleeper_id, ktc-value) pair. Returns parsed rows + identified columns.
+async function fetchKtcRaw() {
+  for (const url of DP_KTC_CANDIDATES) {
+    const text = await getTextSoft(url);
+    if (!text) continue;
+    const rows = parseCSV(text);
+    if (!rows.length) continue;
+    const headers = Object.keys(rows[0]);
+    const idCol = pickIdColumn(headers);
+    const valCol = pickValueColumn(headers, 'ktc');
+    if (idCol && valCol) {
+      // Sanity-check: at least one row has a numeric value to avoid silently
+      // accepting a file that's not what we want.
+      const ok = rows.some(r => {
+        const v = parseFloat(r[valCol]);
+        return r[idCol] && !isNaN(v) && v > 0;
+      });
+      if (ok) {
+        // eslint-disable-next-line no-console
+        console.info(`[values] KTC loaded from ${url} via columns ${idCol}/${valCol} (${rows.length} rows)`);
+        return { rows, idCol, valCol, sourceUrl: url };
+      }
+    }
+  }
+  return { rows: [], idCol: null, valCol: null, sourceUrl: null };
+}
+
+// Same idea for the FantasyCalc-derived DynastyProcess CSV (used as a backup
+// FC source if the live FantasyCalc API is down).
+async function fetchDpFantasyCalcRaw() {
+  const text = await getTextSoft(DP_VALUES_PLAYERS);
+  if (!text) return { rows: [], idCol: null, valCol: null };
+  const rows = parseCSV(text);
+  if (!rows.length) return { rows: [], idCol: null, valCol: null };
+  const headers = Object.keys(rows[0]);
+  return {
+    rows,
+    idCol: pickIdColumn(headers),
+    valCol: pickValueColumn(headers, 'fc'),
+  };
 }
 
 // Build a player_id -> value map from a list of values, given a source.
 // source: 'fc' | 'ktc' | 'combined'
-//   - 'fc'      : FantasyCalc only (uses FantasyCalc API directly)
-//   - 'ktc'     : KeepTradeCut only (uses DynastyProcess CSV - column: value/ktc_value)
+//   - 'fc'      : FantasyCalc only (live FantasyCalc API)
+//   - 'ktc'     : KeepTradeCut only (DynastyProcess KTC mirror CSV)
 //   - 'combined': average of normalized KTC + FC values
 //
-// For league-aware tuning we still pass numQbs/ppr/etc. to FC.
+// Returns { map, loaded, source } where loaded is { fc, ktc } reporting which
+// sources actually returned non-empty data so the UI can show a truthful label.
 export const valuesApi = {
   async load({ source = 'combined', isDynasty = true, numQbs = 1, numTeams = 12, ppr = 1 } = {}) {
     const cacheKey = `${VALUES_CACHE_PREFIX}${source}:${isDynasty}:${numQbs}:${numTeams}:${ppr}`;
     try {
       const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
       if (cached && cached.t && Date.now() - cached.t < VALUES_CACHE_MS) {
-        return new Map(cached.d);
+        return { map: new Map(cached.d), loaded: cached.loaded || { fc: false, ktc: false }, source };
       }
     } catch {}
 
     let map = new Map();
+    const loaded = { fc: false, ktc: false };
 
-    if (source === 'fc') {
+    const buildFcMap = async () => {
       const list = await fetchFantasyCalcRaw({ isDynasty, numQbs, numTeams, ppr });
+      const m = new Map();
+      let max = 1;
       for (const v of list) {
-        const sid = v.player?.sleeperId || v.player?.sleeper_id;
-        if (sid) map.set(String(sid), Math.round(v.value || 0));
-      }
-    } else if (source === 'ktc') {
-      const rows = await fetchDynastyProcessRaw();
-      const valueCol = rows[0] && ('value' in rows[0]) ? 'value'
-                      : rows[0] && ('ktc_value' in rows[0]) ? 'ktc_value'
-                      : null;
-      const idCol = rows[0] && ('sleeper_id' in rows[0]) ? 'sleeper_id'
-                    : rows[0] && ('sleeperId' in rows[0]) ? 'sleeperId'
-                    : null;
-      if (valueCol && idCol) {
-        for (const r of rows) {
-          const id = r[idCol];
-          const v = parseFloat(r[valueCol]);
-          if (id && !isNaN(v)) map.set(String(id), Math.round(v));
-        }
-      }
-    } else {
-      // combined: get both, normalize each to its max, average.
-      const [fcList, dpRows] = await Promise.all([
-        fetchFantasyCalcRaw({ isDynasty, numQbs, numTeams, ppr }),
-        fetchDynastyProcessRaw(),
-      ]);
-
-      const fcMap = new Map();
-      let fcMax = 1;
-      for (const v of fcList) {
         const sid = v.player?.sleeperId || v.player?.sleeper_id;
         const val = v.value || 0;
         if (sid) {
-          fcMap.set(String(sid), val);
-          if (val > fcMax) fcMax = val;
+          m.set(String(sid), val);
+          if (val > max) max = val;
         }
       }
+      return { map: m, max };
+    };
 
-      const ktcMap = new Map();
-      let ktcMax = 1;
-      const valueCol = dpRows[0] && ('value' in dpRows[0]) ? 'value'
-                      : dpRows[0] && ('ktc_value' in dpRows[0]) ? 'ktc_value'
-                      : null;
-      const idCol = dpRows[0] && ('sleeper_id' in dpRows[0]) ? 'sleeper_id'
-                    : dpRows[0] && ('sleeperId' in dpRows[0]) ? 'sleeperId'
-                    : null;
-      if (valueCol && idCol) {
-        for (const r of dpRows) {
+    const buildKtcMap = async () => {
+      const { rows, idCol, valCol } = await fetchKtcRaw();
+      const m = new Map();
+      let max = 1;
+      if (rows.length && idCol && valCol) {
+        for (const r of rows) {
           const id = r[idCol];
-          const v = parseFloat(r[valueCol]);
-          if (id && !isNaN(v)) {
-            ktcMap.set(String(id), v);
-            if (v > ktcMax) ktcMax = v;
+          const v = parseFloat(r[valCol]);
+          if (id && !isNaN(v) && v > 0) {
+            m.set(String(id), v);
+            if (v > max) max = v;
           }
         }
       }
+      return { map: m, max };
+    };
 
-      // Combine: scale each to a common 0-10000 range, average where both present.
-      const allIds = new Set([...fcMap.keys(), ...ktcMap.keys()]);
+    if (source === 'fc') {
+      const { map: fcMap } = await buildFcMap();
+      for (const [id, v] of fcMap) map.set(id, Math.round(v));
+      loaded.fc = fcMap.size > 0;
+    } else if (source === 'ktc') {
+      const { map: ktcMap } = await buildKtcMap();
+      for (const [id, v] of ktcMap) map.set(id, Math.round(v));
+      loaded.ktc = ktcMap.size > 0;
+    } else {
+      const [fc, ktc] = await Promise.all([buildFcMap(), buildKtcMap()]);
       const SCALE = 10000;
+      const allIds = new Set([...fc.map.keys(), ...ktc.map.keys()]);
       for (const id of allIds) {
-        const fc = fcMap.has(id) ? (fcMap.get(id) / fcMax) * SCALE : null;
-        const k  = ktcMap.has(id) ? (ktcMap.get(id) / ktcMax) * SCALE : null;
+        const fcN  = fc.map.has(id)  ? (fc.map.get(id)  / fc.max)  * SCALE : null;
+        const ktcN = ktc.map.has(id) ? (ktc.map.get(id) / ktc.max) * SCALE : null;
         let val;
-        if (fc != null && k != null) val = (fc + k) / 2;
-        else if (fc != null) val = fc;
-        else val = k;
+        if (fcN != null && ktcN != null) val = (fcN + ktcN) / 2;
+        else if (fcN != null) val = fcN;
+        else val = ktcN;
         if (val != null) map.set(id, Math.round(val));
       }
-
-      // If we got nothing from either source, just bail with empty map.
+      loaded.fc = fc.map.size > 0;
+      loaded.ktc = ktc.map.size > 0;
     }
 
     try {
-      localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), d: [...map.entries()] }));
+      localStorage.setItem(cacheKey, JSON.stringify({
+        t: Date.now(), d: [...map.entries()], loaded,
+      }));
     } catch {}
-    return map;
+    return { map, loaded, source };
   },
 };

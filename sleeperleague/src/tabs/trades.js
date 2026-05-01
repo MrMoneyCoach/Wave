@@ -67,9 +67,17 @@ export async function renderTrades(host) {
 }
 
 function valuesLabel(src) {
-  if (src === 'fc') return 'FantasyCalc';
-  if (src === 'ktc') return 'KeepTradeCut';
-  return 'Combined (FC + KTC)';
+  const loaded = state.valuesLoaded || { fc: false, ktc: false };
+  if (src === 'fc') return loaded.fc ? 'FantasyCalc' : 'FantasyCalc (failed to load)';
+  if (src === 'ktc') {
+    if (loaded.ktc) return 'KeepTradeCut';
+    return 'KeepTradeCut (no data — falling back is disabled)';
+  }
+  // combined
+  if (loaded.fc && loaded.ktc) return 'Combined (FantasyCalc + KeepTradeCut)';
+  if (loaded.fc) return 'FantasyCalc only (KTC source unavailable)';
+  if (loaded.ktc) return 'KeepTradeCut only (FC source unavailable)';
+  return 'No values loaded';
 }
 
 // Iterate every scope league, pull its trades, decorate with scope info + owner participants.

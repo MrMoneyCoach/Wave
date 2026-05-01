@@ -363,6 +363,13 @@ button.card:hover {
   font-size: 12px;
   cursor: pointer;
 }
+.setting-status {
+  padding: 2px 8px 6px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.setting-status.warn { color: var(--warn); }
+.setting-status.bad { color: var(--bad); }
 
 .sidebar-foot {
   display: flex; flex-direction: column; gap: 6px;

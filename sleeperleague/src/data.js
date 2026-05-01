@@ -24,8 +24,17 @@ export function ensureValues() {
     state.valuesPromise = valuesApi.load({
         source: state.valuesSource, isDynasty, numQbs, numTeams, ppr,
       })
-      .then(v => { state.values = v; return v; })
-      .catch(() => { state.valuesPromise = null; state.values = new Map(); return state.values; });
+      .then(({ map, loaded }) => {
+        state.values = map;
+        state.valuesLoaded = loaded;
+        return map;
+      })
+      .catch(() => {
+        state.valuesPromise = null;
+        state.values = new Map();
+        state.valuesLoaded = { fc: false, ktc: false };
+        return state.values;
+      });
   }
   return state.valuesPromise;
 }
@@ -34,6 +43,7 @@ export function ensureValues() {
 export function clearValues() {
   state.values = null;
   state.valuesPromise = null;
+  state.valuesLoaded = { fc: false, ktc: false };
 }
 
 // ---- Scope (multi-year) loaders ----

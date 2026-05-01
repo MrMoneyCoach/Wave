@@ -274,9 +274,51 @@ function initValuesSource() {
     state.valuesSource = sel.value;
     savePrefs();
     clearValues();
+    updateValuesStatus();
     // Re-render active tab so dependent tabs (Trades/Rosters/Drafts) refresh.
     setActiveTab(state.activeTab || 'overview');
+    // Schedule a status refresh after a moment so we can show what loaded.
+    setTimeout(updateValuesStatus, 1500);
+    setTimeout(updateValuesStatus, 4000);
   });
+  updateValuesStatus();
+}
+
+function updateValuesStatus() {
+  const node = $('#valuesStatus');
+  if (!node) return;
+  const src = state.valuesSource;
+  const loaded = state.valuesLoaded || { fc: false, ktc: false };
+  let cls = '';
+  let msg;
+  if (!state.values) {
+    msg = 'Will load on next tab that needs it.';
+  } else if (src === 'fc') {
+    msg = loaded.fc
+      ? `Loaded: FantasyCalc (${state.values.size} players)`
+      : 'FantasyCalc returned no data.';
+    if (!loaded.fc) cls = 'bad';
+  } else if (src === 'ktc') {
+    msg = loaded.ktc
+      ? `Loaded: KeepTradeCut (${state.values.size} players)`
+      : 'KTC source unreachable. Try Combined or FC.';
+    if (!loaded.ktc) cls = 'warn';
+  } else {
+    if (loaded.fc && loaded.ktc) {
+      msg = `Loaded: FC + KTC (${state.values.size} players)`;
+    } else if (loaded.fc) {
+      msg = `FC only (KTC source unavailable, ${state.values.size} players)`;
+      cls = 'warn';
+    } else if (loaded.ktc) {
+      msg = `KTC only (FC source unavailable, ${state.values.size} players)`;
+      cls = 'warn';
+    } else {
+      msg = 'No values loaded.';
+      cls = 'bad';
+    }
+  }
+  node.textContent = msg;
+  node.className = `setting-status muted small ${cls}`;
 }
 
 // ------ Wire up ------

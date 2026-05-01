@@ -36,6 +36,8 @@ export const state = {
   values: null,
   valuesPromise: null,
   valuesSource: 'combined', // 'combined' | 'ktc' | 'fc'
+  // What actually loaded for the current values fetch — used for truthful UI labels.
+  valuesLoaded: { fc: false, ktc: false },
 
   history: null,
   historyPromise: null,
