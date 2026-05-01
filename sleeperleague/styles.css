@@ -21,6 +21,10 @@
 
 * { box-sizing: border-box; }
 
+/* Browser default [hidden]{display:none} loses to class selectors with display set
+   (e.g. .loader, .tab-panel, .topnav). Force it to win. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
