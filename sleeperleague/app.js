@@ -88,6 +88,7 @@ const state = {
   leagueUsers: [],
   rosters: [],
   players: null,
+  playersPromise: null, // in-flight fetch for the big player DB
   matchupsByWeek: {},   // week -> [matchups]
   transactionsByWeek: {}, // week -> [transactions]
   nflState: null,
@@ -279,20 +280,26 @@ async function loadLeague(leagueId) {
     state.transactionsByWeek = {};
     saveSession();
 
-    // Load players in background (cached, big file).
-    if (!state.players) {
-      showLoader('Loading player database (one-time, cached)…');
-      state.players = await api.players();
-    }
-
     renderDashboard();
     setActiveTab('overview');
     showView('view-dashboard');
+
+    // Kick off the big player DB fetch in the background (non-blocking).
+    // Trades/Rosters tabs await state.playersPromise before rendering.
+    ensurePlayersLoading();
   } catch (err) {
     alert(err.message || 'Failed to load league');
   } finally {
     hideLoader();
   }
+}
+
+function ensurePlayersLoading() {
+  if (state.players || state.playersPromise) return state.playersPromise;
+  state.playersPromise = api.players()
+    .then(p => { state.players = p; return p; })
+    .catch(err => { state.playersPromise = null; throw err; });
+  return state.playersPromise;
 }
 
 // -------------------- Dashboard shell --------------------
@@ -416,30 +423,34 @@ function statCard(label, value, sub = '') {
 // -------------------- TRADES tab --------------------
 
 async function ensureTransactionsLoaded() {
-  // Pull transactions for all played weeks (1..currentWeek or playoff_week_start - 1 + a buffer).
+  // Pull transactions only up to where the league has actually played.
+  // Sleeper returns [] for future weeks anyway, but skipping them saves ~10 round trips.
   const lg = state.league;
-  const lastWeek = Math.max(
-    lg.settings?.playoff_week_start ? lg.settings.playoff_week_start + 4 : 17,
-    state.nflState?.week || 0,
-    18,
-  );
+  const seasonComplete = lg.status === 'complete';
+  const playoffEnd = (lg.settings?.playoff_week_start || 15) + 3; // ~championship week
+  const currentSeason = String(state.nflState?.season) === String(lg.season);
+  const lastWeek = seasonComplete
+    ? playoffEnd
+    : currentSeason
+      ? Math.min(playoffEnd, (state.nflState?.week || 1))
+      : playoffEnd;
+
   const weeks = [];
   for (let w = 1; w <= lastWeek; w++) {
     if (!(w in state.transactionsByWeek)) weeks.push(w);
   }
   if (!weeks.length) return;
-  showLoader(`Loading transactions for ${weeks.length} weeks…`);
   await Promise.all(weeks.map(async w => {
     state.transactionsByWeek[w] = await api.transactions(state.league.league_id, w);
   }));
-  hideLoader();
 }
 
 async function renderTrades() {
   const panel = $('#tab-trades');
   panel.innerHTML = '';
-  panel.appendChild(el('div', { class: 'muted' }, 'Loading trades…'));
-  await ensureTransactionsLoaded();
+  panel.appendChild(el('div', { class: 'muted' }, 'Loading trades and player names…'));
+  // Need the players DB (for names) and transactions in parallel.
+  await Promise.all([ensurePlayersLoading(), ensureTransactionsLoaded()]);
 
   // Flatten all trades across weeks.
   const trades = [];
@@ -555,11 +566,9 @@ async function ensureMatchupsLoaded(maxWeek) {
     if (!(w in state.matchupsByWeek)) weeks.push(w);
   }
   if (!weeks.length) return;
-  showLoader(`Loading matchups for ${weeks.length} weeks…`);
   await Promise.all(weeks.map(async w => {
     state.matchupsByWeek[w] = await api.matchups(state.league.league_id, w);
   }));
-  hideLoader();
 }
 
 async function renderMatchups() {
@@ -661,9 +670,15 @@ function matchupRow(m, showWeek = false) {
 
 // -------------------- ROSTERS tab --------------------
 
-function renderRosters() {
+async function renderRosters() {
   const panel = $('#tab-rosters');
   panel.innerHTML = '';
+  if (!state.players) {
+    panel.appendChild(el('div', { class: 'muted' }, 'Loading player names…'));
+    try { await ensurePlayersLoading(); } catch {}
+    if (state.activeTab !== 'rosters') return; // user moved on
+    panel.innerHTML = '';
+  }
   const grid = el('div', { class: 'roster-grid' });
   const sorted = [...state.rosters].sort((a, b) => {
     const tnA = teamName(a.roster_id).toLowerCase();
