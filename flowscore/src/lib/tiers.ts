@@ -95,3 +95,30 @@ export function isWithinScorecardLimit(tier: Tier, currentCount: number): boolea
   if (tier.scorecardLimit === -1) return true;
   return currentCount < tier.scorecardLimit;
 }
+
+export type UsageState = {
+  currentCount: number;
+  limit: number; // -1 = unlimited
+  atLimit: boolean;
+  nearLimit: boolean; // 80%+ of limit
+};
+
+export function computeUsage(tier: Tier, currentCount: number): UsageState {
+  const limit = tier.scorecardLimit;
+  if (limit === -1) {
+    return { currentCount, limit, atLimit: false, nearLimit: false };
+  }
+  return {
+    currentCount,
+    limit,
+    atLimit: currentCount >= limit,
+    nearLimit: currentCount >= Math.max(1, Math.floor(limit * 0.8)),
+  };
+}
+
+/** Find the next tier above the given one, in display order. */
+export function nextTier(id: string): Tier | null {
+  const idx = TIERS.findIndex((t) => t.id === id);
+  if (idx === -1 || idx === TIERS.length - 1) return null;
+  return TIERS[idx + 1];
+}

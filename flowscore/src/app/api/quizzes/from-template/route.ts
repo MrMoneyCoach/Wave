@@ -9,6 +9,7 @@ import {
   findTemplate,
 } from "@/lib/templates";
 import { slugify } from "@/lib/slug";
+import { findTier, isWithinScorecardLimit } from "@/lib/tiers";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -19,6 +20,22 @@ export async function POST(req: Request) {
   const template = findTemplate(templateId);
   if (!template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
+  }
+
+  // Enforce scorecard limit per subscription tier.
+  const tier = findTier(user.tier);
+  const currentCount = await prisma.quiz.count({ where: { userId: user.id } });
+  if (!isWithinScorecardLimit(tier, currentCount)) {
+    return NextResponse.json(
+      {
+        error: `You're on the ${tier.name} plan, which includes ${tier.scorecardLimit} scorecard${tier.scorecardLimit === 1 ? "" : "s"}. Upgrade to add more.`,
+        code: "scorecard_limit",
+        tier: tier.id,
+        limit: tier.scorecardLimit,
+        currentCount,
+      },
+      { status: 402 },
+    );
   }
 
   const quizId = randomUUID();

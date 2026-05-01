@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { findTemplate } from "@/lib/templates";
+import { computeUsage, findTier } from "@/lib/tiers";
 import UseTemplateButton from "@/components/UseTemplateButton";
+import LimitBanner from "@/components/LimitBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +14,13 @@ export default async function TemplateDetailPage({
 }: {
   params: { id: string };
 }) {
-  await requireUser();
+  const user = await requireUser();
   const template = findTemplate(params.id);
   if (!template) return notFound();
+
+  const count = await prisma.quiz.count({ where: { userId: user.id } });
+  const tier = findTier(user.tier);
+  const usage = computeUsage(tier, count);
 
   return (
     <div>
@@ -35,8 +42,24 @@ export default async function TemplateDetailPage({
           </h1>
           <p className="mt-2 max-w-2xl text-slate-600">{template.description}</p>
         </div>
-        <UseTemplateButton templateId={template.id} />
+        {usage.atLimit ? (
+          <Link href="/dashboard/account" className="btn-primary">
+            Upgrade to use this
+          </Link>
+        ) : (
+          <UseTemplateButton templateId={template.id} />
+        )}
       </div>
+
+      {usage.atLimit && (
+        <div className="mt-6">
+          <LimitBanner
+            tierName={tier.name}
+            scorecardLimit={tier.scorecardLimit}
+            currentCount={count}
+          />
+        </div>
+      )}
 
       <section className="card mt-8">
         <h2 className="text-lg font-semibold">Intro</h2>
@@ -89,9 +112,11 @@ export default async function TemplateDetailPage({
         </div>
       </section>
 
-      <div className="mt-8">
-        <UseTemplateButton templateId={template.id} />
-      </div>
+      {!usage.atLimit && (
+        <div className="mt-8">
+          <UseTemplateButton templateId={template.id} />
+        </div>
+      )}
     </div>
   );
 }

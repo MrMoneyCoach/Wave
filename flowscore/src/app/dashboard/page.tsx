@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { computeUsage, findTier } from "@/lib/tiers";
 import ScorecardsList from "@/components/ScorecardsList";
+import LimitBanner from "@/components/LimitBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,9 @@ export default async function DashboardHome() {
     submissionLatest.map((s) => [s.quizId, s._max.createdAt as Date | null]),
   );
 
+  const tier = findTier(user.tier);
+  const usage = computeUsage(tier, quizzes.length);
+
   const items = quizzes.map((q) => ({
     id: q.id,
     title: q.title,
@@ -35,6 +40,11 @@ export default async function DashboardHome() {
     lastActivity: (lastByQuiz.get(q.id) ?? q.updatedAt).toISOString(),
   }));
 
+  const usageLine =
+    tier.scorecardLimit === -1
+      ? `${quizzes.length} scorecard${quizzes.length === 1 ? "" : "s"}`
+      : `${quizzes.length} of ${tier.scorecardLimit} scorecard${tier.scorecardLimit === 1 ? "" : "s"} on the ${tier.name} plan`;
+
   return (
     <div className="mx-auto max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -45,18 +55,42 @@ export default async function DashboardHome() {
           <p className="mt-1 text-sm text-slate-500">
             {quizzes.length === 0
               ? "Pick a starting point — start from a template, or build one from scratch."
-              : `${quizzes.length} scorecard${quizzes.length === 1 ? "" : "s"}`}
+              : usageLine}
+            {usage.atLimit && (
+              <Link
+                href="/dashboard/account"
+                className="ml-2 font-medium text-amber-700 hover:underline"
+              >
+                Upgrade →
+              </Link>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/dashboard/templates" className="btn-secondary">
             Browse templates
           </Link>
-          <Link href="/dashboard/quizzes/new" className="btn-primary">
-            + Create scorecard
-          </Link>
+          {usage.atLimit ? (
+            <Link href="/dashboard/account" className="btn-primary">
+              Upgrade to add more
+            </Link>
+          ) : (
+            <Link href="/dashboard/quizzes/new" className="btn-primary">
+              + Create scorecard
+            </Link>
+          )}
         </div>
       </div>
+
+      {usage.atLimit && (
+        <div className="mt-6">
+          <LimitBanner
+            tierName={tier.name}
+            scorecardLimit={tier.scorecardLimit}
+            currentCount={quizzes.length}
+          />
+        </div>
+      )}
 
       {quizzes.length === 0 ? (
         <div className="card mt-8 text-center">
