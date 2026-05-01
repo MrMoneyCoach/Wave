@@ -32,12 +32,12 @@ export const state = {
   players: null,
   playersPromise: null,
 
-  // Dynasty values (sleeperId -> number). Keyed by valuesSource for cache.
+  // FantasyCalc values (sleeperId -> number). Keyed by valuesSource for cache.
   values: null,
   valuesPromise: null,
-  valuesSource: 'combined', // 'combined' | 'ktc' | 'fc'
+  valuesSource: 'combined', // 'combined' | 'dynasty' | 'redraft'
   // What actually loaded for the current values fetch — used for truthful UI labels.
-  valuesLoaded: { fc: false, ktc: false },
+  valuesLoaded: { dynasty: false, redraft: false },
 
   history: null,
   historyPromise: null,
@@ -109,6 +109,10 @@ export function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null') || {};
     if (p.theme === 'dark' || p.theme === 'light') state.theme = p.theme;
-    if (['combined', 'ktc', 'fc'].includes(p.valuesSource)) state.valuesSource = p.valuesSource;
+    if (['combined', 'dynasty', 'redraft'].includes(p.valuesSource)) state.valuesSource = p.valuesSource;
+    // Migrate legacy values: anyone who'd previously chosen "ktc" or "fc" gets
+    // remapped to the closest new option.
+    if (p.valuesSource === 'ktc') state.valuesSource = 'combined';
+    if (p.valuesSource === 'fc') state.valuesSource = 'dynasty';
   } catch {}
 }

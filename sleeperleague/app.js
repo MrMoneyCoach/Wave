@@ -288,29 +288,29 @@ function updateValuesStatus() {
   const node = $('#valuesStatus');
   if (!node) return;
   const src = state.valuesSource;
-  const loaded = state.valuesLoaded || { fc: false, ktc: false };
+  const loaded = state.valuesLoaded || { dynasty: false, redraft: false };
   let cls = '';
   let msg;
   if (!state.values) {
     msg = 'Will load on next tab that needs it.';
-  } else if (src === 'fc') {
-    msg = loaded.fc
-      ? `Loaded: FantasyCalc (${state.values.size} players)`
-      : 'FantasyCalc returned no data.';
-    if (!loaded.fc) cls = 'bad';
-  } else if (src === 'ktc') {
-    msg = loaded.ktc
-      ? `Loaded: KeepTradeCut (${state.values.size} players)`
-      : 'KTC source unreachable. Try Combined or FC.';
-    if (!loaded.ktc) cls = 'warn';
+  } else if (src === 'dynasty') {
+    msg = loaded.dynasty
+      ? `Loaded: FantasyCalc dynasty (${state.values.size} players)`
+      : 'FantasyCalc dynasty returned no data.';
+    if (!loaded.dynasty) cls = 'bad';
+  } else if (src === 'redraft') {
+    msg = loaded.redraft
+      ? `Loaded: FantasyCalc redraft (${state.values.size} players)`
+      : 'FantasyCalc redraft returned no data.';
+    if (!loaded.redraft) cls = 'bad';
   } else {
-    if (loaded.fc && loaded.ktc) {
-      msg = `Loaded: FC + KTC (${state.values.size} players)`;
-    } else if (loaded.fc) {
-      msg = `FC only (KTC source unavailable, ${state.values.size} players)`;
+    if (loaded.dynasty && loaded.redraft) {
+      msg = `Loaded: dynasty + redraft (${state.values.size} players)`;
+    } else if (loaded.dynasty) {
+      msg = `Dynasty only — redraft fetch failed (${state.values.size} players)`;
       cls = 'warn';
-    } else if (loaded.ktc) {
-      msg = `KTC only (FC source unavailable, ${state.values.size} players)`;
+    } else if (loaded.redraft) {
+      msg = `Redraft only — dynasty fetch failed (${state.values.size} players)`;
       cls = 'warn';
     } else {
       msg = 'No values loaded.';

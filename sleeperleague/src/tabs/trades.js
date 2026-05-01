@@ -67,16 +67,13 @@ export async function renderTrades(host) {
 }
 
 function valuesLabel(src) {
-  const loaded = state.valuesLoaded || { fc: false, ktc: false };
-  if (src === 'fc') return loaded.fc ? 'FantasyCalc' : 'FantasyCalc (failed to load)';
-  if (src === 'ktc') {
-    if (loaded.ktc) return 'KeepTradeCut';
-    return 'KeepTradeCut (no data — falling back is disabled)';
-  }
+  const loaded = state.valuesLoaded || { dynasty: false, redraft: false };
+  if (src === 'dynasty') return loaded.dynasty ? 'FantasyCalc dynasty' : 'Dynasty values failed to load';
+  if (src === 'redraft') return loaded.redraft ? 'FantasyCalc redraft' : 'Redraft values failed to load';
   // combined
-  if (loaded.fc && loaded.ktc) return 'Combined (FantasyCalc + KeepTradeCut)';
-  if (loaded.fc) return 'FantasyCalc only (KTC source unavailable)';
-  if (loaded.ktc) return 'KeepTradeCut only (FC source unavailable)';
+  if (loaded.dynasty && loaded.redraft) return 'FantasyCalc dynasty + redraft (avg)';
+  if (loaded.dynasty) return 'Dynasty only (redraft fetch failed)';
+  if (loaded.redraft) return 'Redraft only (dynasty fetch failed)';
   return 'No values loaded';
 }
 

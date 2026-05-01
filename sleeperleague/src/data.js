@@ -17,12 +17,11 @@ export function ensureValues() {
   if (state.values) return Promise.resolve(state.values);
   if (!state.valuesPromise) {
     const lg = state.league || {};
-    const isDynasty = lg.settings?.type === 2 || /dynasty|keeper/i.test(lg.name || '');
     const numTeams = lg.total_rosters || 12;
     const ppr = lg.scoring_settings?.rec === 1 ? 1 : lg.scoring_settings?.rec === 0.5 ? 0.5 : 0;
     const numQbs = (lg.roster_positions || []).filter(p => p === 'QB' || p === 'SUPER_FLEX').length || 1;
     state.valuesPromise = valuesApi.load({
-        source: state.valuesSource, isDynasty, numQbs, numTeams, ppr,
+        source: state.valuesSource, numQbs, numTeams, ppr,
       })
       .then(({ map, loaded }) => {
         state.values = map;
@@ -32,7 +31,7 @@ export function ensureValues() {
       .catch(() => {
         state.valuesPromise = null;
         state.values = new Map();
-        state.valuesLoaded = { fc: false, ktc: false };
+        state.valuesLoaded = { dynasty: false, redraft: false };
         return state.values;
       });
   }
@@ -43,7 +42,7 @@ export function ensureValues() {
 export function clearValues() {
   state.values = null;
   state.valuesPromise = null;
-  state.valuesLoaded = { fc: false, ktc: false };
+  state.valuesLoaded = { dynasty: false, redraft: false };
 }
 
 // ---- Scope (multi-year) loaders ----
