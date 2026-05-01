@@ -40,13 +40,16 @@ const ICON_TEMPLATE = "M4 4h16v6H4zM4 14h7v6H4zM13 14h7v6h-7z";
 const ICON_HELP = "M9 9a3 3 0 1 1 4 2.83V14M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z";
 const ICON_REFERRAL = "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z";
 const ICON_LOGOUT = "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9";
+const ICON_ADMIN = "M12 1l3 6 6 .87-4.5 4.39 1 6.24L12 15.5 6.5 18.5l1-6.24L3 7.87 9 7l3-6z";
 
 export default function DashboardRail({
   userName,
   userEmail,
+  isAdmin = false,
 }: {
   userName: string;
   userEmail: string;
+  isAdmin?: boolean;
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -99,6 +102,20 @@ export default function DashboardRail({
       ],
     },
   ];
+
+  if (isAdmin) {
+    groups.push({
+      heading: "Master admin",
+      items: [
+        {
+          label: "Admin console",
+          href: "/admin",
+          match: (p) => p.startsWith("/admin"),
+          icon: <Icon d={ICON_ADMIN} />,
+        },
+      ],
+    });
+  }
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });

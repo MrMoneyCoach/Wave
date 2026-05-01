@@ -13,6 +13,9 @@ model User {
   name         String?
   passwordHash String
   createdAt    DateTime @default(now())
+  isAdmin      Boolean  @default(false)
+  tier         String   @default("free")
+  tierUpdatedAt DateTime?
   quizzes      Quiz[]
 }
 

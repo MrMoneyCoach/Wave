@@ -68,11 +68,31 @@ export function getSessionUserId(): string | null {
 export async function getCurrentUser() {
   const userId = getSessionUserId();
   if (!userId) return null;
-  return prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+
+  // Bootstrap: any user whose email matches ADMIN_EMAIL is auto-promoted to
+  // master admin on every load. Lets the operator grant themselves admin by
+  // setting an env var rather than touching the DB.
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (adminEmail && user.email.toLowerCase() === adminEmail && !user.isAdmin) {
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { isAdmin: true },
+    });
+    return updated;
+  }
+  return user;
 }
 
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHORIZED");
+  return user;
+}
+
+export async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user || !user.isAdmin) throw new Error("FORBIDDEN");
   return user;
 }
