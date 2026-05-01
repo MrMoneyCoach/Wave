@@ -53,17 +53,18 @@ export default async function AccountPage({
   const justUpgraded = searchParams?.upgraded === "1";
   const cancelledCheckout = searchParams?.upgraded === "0";
 
-  const [scorecardCount, submissionCount] = await Promise.all([
+  const [scorecardCount, liveCount, submissionCount] = await Promise.all([
     prisma.quiz.count({ where: { userId: user.id } }),
+    prisma.quiz.count({ where: { userId: user.id, published: true } }),
     prisma.submission.count({ where: { quiz: { userId: user.id } } }),
   ]);
 
   const tier = findTier(user.tier);
-  const usage = computeUsage(tier, scorecardCount);
+  const usage = computeUsage(tier, liveCount);
   const usagePct =
     tier.scorecardLimit === -1
       ? 0
-      : Math.min(100, (scorecardCount / tier.scorecardLimit) * 100);
+      : Math.min(100, (liveCount / tier.scorecardLimit) * 100);
 
   const hasActiveSubscription =
     !!user.stripeSubscriptionId &&
@@ -130,12 +131,12 @@ export default async function AccountPage({
         <div className="grid gap-6 px-6 py-6 md:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Scorecard usage
+              Live scorecards
             </p>
             <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-slate-900">{scorecardCount}</p>
+              <p className="text-3xl font-bold text-slate-900">{liveCount}</p>
               {tier.scorecardLimit !== -1 ? (
-                <p className="text-slate-500">/ {tier.scorecardLimit}</p>
+                <p className="text-slate-500">/ {tier.scorecardLimit} on the {tier.name} plan</p>
               ) : (
                 <p className="text-slate-500">/ unlimited</p>
               )}
@@ -154,14 +155,21 @@ export default async function AccountPage({
                 />
               </div>
             )}
+            <p className="mt-2 text-xs text-slate-500">
+              You can keep as many drafts as you like — only published
+              scorecards count against your plan ({scorecardCount} total
+              including drafts).
+            </p>
             {usage.atLimit && (
               <p className="mt-2 text-sm text-red-600">
-                You've used every scorecard on your plan. Upgrade to add more.
+                You've used every live slot on your plan. Unpublish one or
+                upgrade to publish more.
               </p>
             )}
             {!usage.atLimit && usage.nearLimit && (
               <p className="mt-2 text-sm text-amber-700">
-                Heads up — you're close to your scorecard limit on this plan.
+                Heads up — you're close to your live-scorecard limit on this
+                plan.
               </p>
             )}
           </div>

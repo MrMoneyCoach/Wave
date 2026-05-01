@@ -22,11 +22,6 @@ export default function NewQuizForm() {
     setBusy(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      if (res.status === 402) {
-        // Limit hit — bounce to the account page where the upgrade options are.
-        router.push("/dashboard/account");
-        return;
-      }
       setError(j.error || "Could not create quiz");
       return;
     }

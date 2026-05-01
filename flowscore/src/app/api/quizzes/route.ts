@@ -8,7 +8,6 @@ import {
   DEFAULT_PDF_BLOCKS,
   DEFAULT_RESULT_BLOCKS,
 } from "@/lib/templates";
-import { findTier, isWithinScorecardLimit } from "@/lib/tiers";
 
 const schema = z.object({
   title: z.string().min(1).max(200),
@@ -25,21 +24,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid quiz data" }, { status: 400 });
   }
 
-  // Enforce scorecard limit per the user's subscription tier.
-  const tier = findTier(user.tier);
-  const currentCount = await prisma.quiz.count({ where: { userId: user.id } });
-  if (!isWithinScorecardLimit(tier, currentCount)) {
-    return NextResponse.json(
-      {
-        error: `You're on the ${tier.name} plan, which includes ${tier.scorecardLimit} scorecard${tier.scorecardLimit === 1 ? "" : "s"}. Upgrade to add more.`,
-        code: "scorecard_limit",
-        tier: tier.id,
-        limit: tier.scorecardLimit,
-        currentCount,
-      },
-      { status: 402 },
-    );
-  }
+  // Drafts are unlimited on every tier — only PUBLISHED scorecards count
+  // against the tier's scorecardLimit. The publish-time check lives on the
+  // PUT /api/quizzes/[id] route.
 
   const quiz = await prisma.quiz.create({
     data: {

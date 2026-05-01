@@ -129,16 +129,26 @@ export default function QuizEditor({ initial }: { initial: Quiz }) {
     setSaving(false);
     if (!res.ok) {
       let detail = res.statusText || "";
+      let code: string | undefined;
       try {
         const text = await res.text();
         try {
           const j = JSON.parse(text);
           detail = j.error || text;
+          code = j.code;
         } catch {
           detail = text.slice(0, 200) || detail;
         }
       } catch {
         /* ignore */
+      }
+      // Tier limit blocking a publish — point the user at upgrade options.
+      if (res.status === 402 && code === "scorecard_limit") {
+        setStatus(detail);
+        if (typeof window !== "undefined") {
+          setTimeout(() => router.push("/dashboard/account"), 1500);
+        }
+        return;
       }
       setStatus(`Could not save (HTTP ${res.status}): ${detail || "no response body"}`);
       return;
