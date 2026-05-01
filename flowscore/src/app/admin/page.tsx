@@ -162,7 +162,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-export function TierPill({ tierId }: { tierId: string }) {
+function TierPill({ tierId }: { tierId: string }) {
   const tier = findTier(tierId);
   const tone =
     tier.id === "free"
