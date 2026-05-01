@@ -51,6 +51,22 @@ model Quiz {
   emailBullets       String?
   emailBookingLine   String?
   emailSignoff       String?
+  privacyPolicyUrl     String?
+  optinConsent         String  @default("optional")
+  optinWording         String?
+  privacyStatement     String?
+  formBehaviour        String  @default("before")
+  emailValidation      String  @default("basic")
+  leadFormFields       String?
+  shareImageUrl        String?
+  abandonEmailEnabled  Boolean @default(false)
+  abandonEmailSubject  String?
+  abandonEmailIntro    String?
+  abandonEmailSignoff  String?
+  facebookPixelId      String?
+  googleAnalyticsCode  String?
+  googleTagManagerId   String?
+  customTrackingScript String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   questions     Question[]
