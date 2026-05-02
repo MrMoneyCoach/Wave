@@ -13,7 +13,15 @@ export const state = {
   selectedFamilies: null, // Set<leagueId> currently selected on picker
   activeFamilies: [],     // families being analyzed in dashboard
   activeFamilyId: null,   // 'all' or a specific family leagueId
+  activeSeasonFilter: 'all', // 'all' or a specific year ('2024')
   primaryFamilyId: null,  // representative family for "your" stats
+
+  // _allLoadedScope: the full set of season-scopes we've loaded across all
+  // active families. state.scope is a filtered VIEW of this driven by the
+  // (activeFamilyId, activeSeasonFilter) pair. Tabs continue to read
+  // state.scope, so when filters change we just re-compute scope and
+  // re-render the active tab.
+  _allLoadedScope: [],
 
   // The "primary" league (the most-recent one in scope).
   // These mirror state.scope[0] so existing tabs continue to work as-is.

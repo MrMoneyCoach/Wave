@@ -224,21 +224,44 @@ async function loadFamilyData(families) {
     try { state.nflState = await sleeper.nflState(); } catch {}
   }
 
+  // Track which scope entries belong to which family so we can filter later.
+  // Cleanest way: stamp each loaded scope entry with familyId after load.
   const scopeLeagueIds = [];
+  const idToFamily = new Map();
   for (const fam of families) {
     for (const link of fam.chain) {
       scopeLeagueIds.push(link.league_id);
+      idToFamily.set(link.league_id, fam.leagueId);
     }
   }
   await setScopeLeagues(scopeLeagueIds);
-  // The scope is sorted newest-first. Pick the newest league of the first
-  // selected family as primary (used as "your" league for stats).
+  // Stamp family origin on each loaded scope entry.
+  for (const sc of state.scope) {
+    sc._familyId = idToFamily.get(sc.leagueId) || null;
+  }
+  // Capture the full loaded set; state.scope will become a filtered view of it.
+  state._allLoadedScope = state.scope.slice();
+
   state.primaryFamilyId = families[0]?.leagueId || null;
-  // Available seasons mirrors all chain seasons.
   state.availableSeasons = state.scope.map(s => ({
     leagueId: s.leagueId, season: s.season, name: s.league.name, avatar: s.league.avatar,
   }));
   saveSession();
+}
+
+// Apply the (activeFamilyId, activeSeasonFilter) pair to derive state.scope
+// from state._allLoadedScope. Tabs re-read state.scope, so this is enough to
+// drive every tab's view without per-tab filter awareness.
+function applyActiveFilter() {
+  const all = state._allLoadedScope || [];
+  const fam = state.activeFamilyId;
+  const seasonFilter = state.activeSeasonFilter;
+  state.scope = all.filter(sc => {
+    if (fam && fam !== 'all' && sc._familyId !== fam) return false;
+    if (seasonFilter && seasonFilter !== 'all' && String(sc.season) !== String(seasonFilter)) return false;
+    return true;
+  });
+  syncPrimary();
 }
 
 // ============ Dashboard rendering ============
@@ -247,30 +270,34 @@ function renderDashHead() {
   const isAll = state.activeFamilyId === 'all';
   const fam = !isAll && state.activeFamilies.find(f => f.leagueId === state.activeFamilyId);
 
-  $('#leagueName').textContent = isAll ? 'All Leagues' : (fam?.name || 'League');
+  // Page title reflects the active league + season filter.
+  let title = isAll ? 'All Leagues' : (fam?.name || 'League');
+  if (state.activeSeasonFilter && state.activeSeasonFilter !== 'all') {
+    title += ` · ${state.activeSeasonFilter}`;
+  }
+  $('#leagueName').textContent = title;
 
-  // YOUR STATS card only on All Leagues
+  // YOUR STATS always visible. Reflects whatever scope is currently active.
   const card = $('#yourStatsCard');
   card.innerHTML = '';
-  if (isAll) {
-    const stats = computeYourStats();
-    card.appendChild(el('div', { class: 'your-stats-title' },
-      `YOUR STATS — ${state.user.display_name || state.user.username}`));
-    const grid = el('div', { class: 'your-stats-grid' });
-    grid.appendChild(yourStatRow('Rank', `#${stats.rank} of ${stats.outOf}`));
-    grid.appendChild(yourStatRow('Record', `${stats.wins}-${stats.losses}`));
-    grid.appendChild(yourStatRow('Avg PF', stats.avgPF.toFixed(1)));
-    grid.appendChild(yourStatRow('Eff%', `${(stats.eff * 100).toFixed(1)}%`));
-    grid.appendChild(yourStatRow('Luck', signed(stats.luck), stats.luck > 0 ? 'good' : stats.luck < 0 ? 'bad' : ''));
-    grid.appendChild(yourStatRow('Avg PA', stats.avgPA.toFixed(1)));
-    card.appendChild(grid);
-    card.hidden = false;
-  } else {
-    card.hidden = true;
-  }
+  card.hidden = false;
+  const headerLabel = isAll
+    ? `YOUR STATS — ${state.user.display_name || state.user.username}`
+    : `YOUR STATS — ${fam?.name || 'League'}${state.activeSeasonFilter !== 'all' ? ` · ${state.activeSeasonFilter}` : ''}`;
+  card.appendChild(el('div', { class: 'your-stats-title' }, headerLabel));
+  const stats = computeYourStats();
+  const grid = el('div', { class: 'your-stats-grid' });
+  grid.appendChild(yourStatRow('Rank', stats.rank ? `#${stats.rank} of ${stats.outOf}` : '—'));
+  grid.appendChild(yourStatRow('Record', `${stats.wins}-${stats.losses}`));
+  grid.appendChild(yourStatRow('Avg PF', stats.avgPF.toFixed(1)));
+  grid.appendChild(yourStatRow('Eff%', `${(stats.eff * 100).toFixed(1)}%`));
+  grid.appendChild(yourStatRow('Luck', signed(stats.luck), stats.luck > 0 ? 'good' : stats.luck < 0 ? 'bad' : ''));
+  grid.appendChild(yourStatRow('Avg PA', stats.avgPA.toFixed(1)));
+  card.appendChild(grid);
 
-  // League pills
+  // League pills + season pills
   renderLeaguePills();
+  renderSeasonPills();
 }
 
 function yourStatRow(label, value, tone = '') {
@@ -305,8 +332,57 @@ function renderLeaguePills() {
 
 function switchActiveFamily(id) {
   state.activeFamilyId = id;
+  // Reset season filter when switching family - the available seasons change.
+  state.activeSeasonFilter = 'all';
+  applyActiveFilter();
   renderDashHead();
   setActiveTab(state.activeTab || 'overview');
+}
+
+function switchActiveSeason(year) {
+  state.activeSeasonFilter = year;
+  applyActiveFilter();
+  renderDashHead();
+  setActiveTab(state.activeTab || 'overview');
+}
+
+// Render the season filter pill row. Shows years available for the active
+// family (or every year across all families when "All Leagues" is selected).
+function renderSeasonPills() {
+  let bar = document.getElementById('seasonPills');
+  if (!bar) {
+    // Create the pill row inside the dash-head, right after league pills.
+    bar = el('div', { class: 'league-pills', id: 'seasonPills', style: 'padding-top: 0;' });
+    const after = $('#leaguePills');
+    after.parentNode.insertBefore(bar, after.nextSibling);
+  }
+  bar.innerHTML = '';
+
+  // Pool of years to offer
+  const fam = state.activeFamilies.find(f => f.leagueId === state.activeFamilyId);
+  const sourceScopes = state.activeFamilyId === 'all'
+    ? state._allLoadedScope
+    : (state._allLoadedScope || []).filter(sc => sc._familyId === state.activeFamilyId);
+  const years = [...new Set(sourceScopes.map(sc => String(sc.season)))]
+    .sort((a, b) => Number(b) - Number(a));
+
+  if (years.length <= 1) { bar.hidden = true; return; }
+  bar.hidden = false;
+
+  // "All seasons" option
+  bar.appendChild(el('button', {
+    class: `league-pill${state.activeSeasonFilter === 'all' ? ' active' : ''}`,
+    onclick: () => switchActiveSeason('all'),
+    style: 'padding: 7px 14px; font-size: 13px;',
+  }, 'All seasons'));
+
+  for (const y of years) {
+    bar.appendChild(el('button', {
+      class: `league-pill${state.activeSeasonFilter === y ? ' active' : ''}`,
+      onclick: () => switchActiveSeason(y),
+      style: 'padding: 7px 14px; font-size: 13px;',
+    }, y));
+  }
 }
 
 // Compute the user's stats across their primary identity in every active scope.
