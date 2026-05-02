@@ -67,13 +67,12 @@ export async function renderTrades(host) {
 }
 
 function valuesLabel(src) {
-  const loaded = state.valuesLoaded || { dynasty: false, redraft: false };
-  if (src === 'dynasty') return loaded.dynasty ? 'FantasyCalc dynasty' : 'Dynasty values failed to load';
-  if (src === 'redraft') return loaded.redraft ? 'FantasyCalc redraft' : 'Redraft values failed to load';
-  // combined
-  if (loaded.dynasty && loaded.redraft) return 'FantasyCalc dynasty + redraft (avg)';
-  if (loaded.dynasty) return 'Dynasty only (redraft fetch failed)';
-  if (loaded.redraft) return 'Redraft only (dynasty fetch failed)';
+  const loaded = state.valuesLoaded || { ktc: false, fc: false };
+  if (src === 'ktc') return loaded.ktc ? 'KeepTradeCut (daily snapshot)' : 'KTC snapshot unavailable';
+  if (src === 'fc')  return loaded.fc  ? 'FantasyCalc' : 'FC returned no data';
+  if (loaded.ktc && loaded.fc) return 'Combined: KTC + FC (avg)';
+  if (loaded.fc) return 'FC only (KTC snapshot unavailable)';
+  if (loaded.ktc) return 'KTC only (FC fetch failed)';
   return 'No values loaded';
 }
 

@@ -1,14 +1,18 @@
-// API clients: Sleeper + FantasyCalc.
-// Values come from FantasyCalc only — KTC has no public API and forbids
-// scraping in their terms, so we deliberately don't go there.
+// API clients: Sleeper + FantasyCalc + KeepTradeCut snapshot.
+// KTC values come from our own daily snapshot committed by .github/workflows/ktc-daily.yml.
 
 const SLEEPER = 'https://api.sleeper.app/v1';
 const FANTASYCALC = 'https://api.fantasycalc.com';
+// raw.githubusercontent supports `refs/heads/<branch-with-slashes>` for branches that contain slashes.
+const KTC_LATEST = 'https://raw.githubusercontent.com/MrMoneyCoach/Wave/refs/heads/claude/alfred-project-bot-zLj9R/sleeperleague/data/ktc_latest.json';
+const KTC_SNAPSHOT_PREFIX = 'https://raw.githubusercontent.com/MrMoneyCoach/Wave/refs/heads/claude/alfred-project-bot-zLj9R/sleeperleague/data/snapshots/ktc_';
 
 const PLAYERS_CACHE_KEY = 'sla:players:nfl';
 const PLAYERS_CACHE_MS = 24 * 60 * 60 * 1000;
 const VALUES_CACHE_PREFIX = 'sla:values:';
 const VALUES_CACHE_MS = 12 * 60 * 60 * 1000;
+const KTC_SNAPSHOT_CACHE_PREFIX = 'sla:ktcsnap:';
+const KTC_SNAPSHOT_CACHE_MS = 24 * 60 * 60 * 1000;
 
 async function getJSON(url) {
   const r = await fetch(url);
@@ -49,7 +53,8 @@ export const sleeper = {
   },
 };
 
-// One FantasyCalc fetch. Returns { sleeperId -> rawValue } and the max raw value.
+// ---- FantasyCalc ----
+
 async function fetchFantasyCalcMap({ isDynasty, numQbs, numTeams, ppr }) {
   const url = `${FANTASYCALC}/values/current?isDynasty=${isDynasty}&numQbs=${numQbs}&numTeams=${numTeams}&ppr=${ppr}`;
   const list = (await getJSONsoft(url)) || [];
@@ -66,59 +71,124 @@ async function fetchFantasyCalcMap({ isDynasty, numQbs, numTeams, ppr }) {
   return { map, max };
 }
 
-// Build a player_id -> value map.
-// source: 'dynasty' | 'redraft' | 'combined'
-//   - 'dynasty' : FantasyCalc dynasty values (long-term).
-//   - 'redraft' : FantasyCalc redraft values (this-season-only).
-//   - 'combined': average of normalized dynasty + redraft values.
+// ---- KTC snapshot ----
+
+// One-time fetch of the latest KTC snapshot, cached in localStorage 24h.
+export async function fetchKtcLatest() {
+  const cacheKey = `${KTC_SNAPSHOT_CACHE_PREFIX}latest`;
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    if (cached && cached.t && Date.now() - cached.t < KTC_SNAPSHOT_CACHE_MS) return cached.d;
+  } catch {}
+  const d = await getJSONsoft(KTC_LATEST);
+  if (d) {
+    try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), d })); } catch {}
+  }
+  return d;
+}
+
+// Optional: per-day snapshot for "value at trade date" lookups.
+// Tries the requested date, then walks backward up to 7 days.
+export async function fetchKtcSnapshotForDate(isoDate) {
+  const tryOne = async (d) => {
+    const cacheKey = `${KTC_SNAPSHOT_CACHE_PREFIX}${d}`;
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached) return cached.d;
+    } catch {}
+    const data = await getJSONsoft(`${KTC_SNAPSHOT_PREFIX}${d}.json`);
+    if (data) {
+      try { localStorage.setItem(cacheKey, JSON.stringify({ d: data })); } catch {}
+    }
+    return data;
+  };
+  let d = isoDate;
+  for (let i = 0; i < 8; i++) {
+    const result = await tryOne(d);
+    if (result) return result;
+    // step backwards one day
+    const dt = new Date(d + 'T00:00:00Z');
+    dt.setUTCDate(dt.getUTCDate() - 1);
+    d = dt.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+// Pick the right format block from a snapshot based on league shape.
+function ktcFormatKey({ isDynasty, isSuperflex }) {
+  if (!isDynasty) return 'redraft';
+  return isSuperflex ? 'dynasty_sf' : 'dynasty_1qb';
+}
+
+function ktcMapFromSnapshot(snapshot, fmtKey) {
+  const block = snapshot?.formats?.[fmtKey];
+  if (!block) return { map: new Map(), max: 1 };
+  const map = new Map();
+  let max = 1;
+  for (const [sid, row] of Object.entries(block.players || {})) {
+    const v = row?.value || 0;
+    if (sid && v > 0) {
+      map.set(String(sid), v);
+      if (v > max) max = v;
+    }
+  }
+  return { map, max };
+}
+
+// ---- Unified values loader ----
+
+// source: 'ktc' | 'fc' | 'combined'
+//   - 'ktc'     : KeepTradeCut snapshot (our daily JSON)
+//   - 'fc'      : FantasyCalc live API
+//   - 'combined': average of normalized KTC + FC values
 //
-// Returns { map, loaded, source } where loaded is { dynasty, redraft }
-// reporting which sources actually came back with data so the UI can show
-// a truthful label.
+// Returns { map, loaded, source } where loaded is { ktc, fc } reporting
+// which sources actually came back with data.
 export const valuesApi = {
-  async load({ source = 'combined', numQbs = 1, numTeams = 12, ppr = 1 } = {}) {
-    const cacheKey = `${VALUES_CACHE_PREFIX}${source}:${numQbs}:${numTeams}:${ppr}`;
+  async load({ source = 'combined', isDynasty = true, isSuperflex = false, numQbs = 1, numTeams = 12, ppr = 1 } = {}) {
+    const fmtKey = ktcFormatKey({ isDynasty, isSuperflex });
+    const cacheKey = `${VALUES_CACHE_PREFIX}${source}:${fmtKey}:${numTeams}:${ppr}`;
     try {
       const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
       if (cached && cached.t && Date.now() - cached.t < VALUES_CACHE_MS) {
         return {
           map: new Map(cached.d),
-          loaded: cached.loaded || { dynasty: false, redraft: false },
+          loaded: cached.loaded || { ktc: false, fc: false },
           source,
         };
       }
     } catch {}
 
-    let map = new Map();
-    const loaded = { dynasty: false, redraft: false };
+    const fcShape = { isDynasty, numQbs, numTeams, ppr };
 
-    if (source === 'dynasty') {
-      const { map: m } = await fetchFantasyCalcMap({ isDynasty: true,  numQbs, numTeams, ppr });
+    let map = new Map();
+    const loaded = { ktc: false, fc: false };
+
+    if (source === 'ktc') {
+      const snap = await fetchKtcLatest();
+      const { map: m } = ktcMapFromSnapshot(snap, fmtKey);
       for (const [id, v] of m) map.set(id, Math.round(v));
-      loaded.dynasty = m.size > 0;
-    } else if (source === 'redraft') {
-      const { map: m } = await fetchFantasyCalcMap({ isDynasty: false, numQbs, numTeams, ppr });
+      loaded.ktc = m.size > 0;
+    } else if (source === 'fc') {
+      const { map: m } = await fetchFantasyCalcMap(fcShape);
       for (const [id, v] of m) map.set(id, Math.round(v));
-      loaded.redraft = m.size > 0;
+      loaded.fc = m.size > 0;
     } else {
-      // combined: fetch both, normalize to a common 0-10000 scale, average.
-      const [dyn, red] = await Promise.all([
-        fetchFantasyCalcMap({ isDynasty: true,  numQbs, numTeams, ppr }),
-        fetchFantasyCalcMap({ isDynasty: false, numQbs, numTeams, ppr }),
-      ]);
+      const [snap, fc] = await Promise.all([fetchKtcLatest(), fetchFantasyCalcMap(fcShape)]);
+      const ktc = ktcMapFromSnapshot(snap, fmtKey);
       const SCALE = 10000;
-      const allIds = new Set([...dyn.map.keys(), ...red.map.keys()]);
+      const allIds = new Set([...ktc.map.keys(), ...fc.map.keys()]);
       for (const id of allIds) {
-        const d = dyn.map.has(id) ? (dyn.map.get(id) / dyn.max) * SCALE : null;
-        const r = red.map.has(id) ? (red.map.get(id) / red.max) * SCALE : null;
+        const k = ktc.map.has(id) ? (ktc.map.get(id) / ktc.max) * SCALE : null;
+        const f = fc.map.has(id)  ? (fc.map.get(id)  / fc.max)  * SCALE : null;
         let val;
-        if (d != null && r != null) val = (d + r) / 2;
-        else if (d != null) val = d;
-        else val = r;
+        if (k != null && f != null) val = (k + f) / 2;
+        else if (k != null) val = k;
+        else val = f;
         if (val != null) map.set(id, Math.round(val));
       }
-      loaded.dynasty = dyn.map.size > 0;
-      loaded.redraft = red.map.size > 0;
+      loaded.ktc = ktc.map.size > 0;
+      loaded.fc = fc.map.size > 0;
     }
 
     try {
@@ -127,7 +197,7 @@ export const valuesApi = {
       }));
     } catch {}
     // eslint-disable-next-line no-console
-    console.info(`[values] ${source} → ${map.size} players (dynasty:${loaded.dynasty}, redraft:${loaded.redraft})`);
+    console.info(`[values] ${source} ${fmtKey} → ${map.size} players (ktc:${loaded.ktc}, fc:${loaded.fc})`);
     return { map, loaded, source };
   },
 };
