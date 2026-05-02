@@ -13,7 +13,9 @@ const PLAYERS_CACHE_MS = 24 * 60 * 60 * 1000;
 const VALUES_CACHE_PREFIX = 'sla:values:';
 const VALUES_CACHE_MS = 12 * 60 * 60 * 1000;
 const KTC_SNAPSHOT_CACHE_PREFIX = 'sla:ktcsnap:';
-const KTC_SNAPSHOT_CACHE_MS = 24 * 60 * 60 * 1000;
+// 1 hour. Picks/values data is small and the workflow updates daily, so
+// catching a fresh snapshot inside an hour is the right balance.
+const KTC_SNAPSHOT_CACHE_MS = 60 * 60 * 1000;
 
 async function getJSON(url) {
   const r = await fetch(url);
@@ -74,14 +76,20 @@ async function fetchFantasyCalcMap({ isDynasty, numQbs, numTeams, ppr }) {
 
 // ---- KTC snapshot ----
 
-// One-time fetch of the latest KTC snapshot, cached in localStorage 24h.
-export async function fetchKtcLatest() {
+// One-time fetch of the latest KTC snapshot, cached in localStorage.
+// Pass {force: true} to bypass cache (used by the manual refresh button).
+export async function fetchKtcLatest({ force = false } = {}) {
   const cacheKey = `${KTC_SNAPSHOT_CACHE_PREFIX}latest`;
-  try {
-    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-    if (cached && cached.t && Date.now() - cached.t < KTC_SNAPSHOT_CACHE_MS) return cached.d;
-  } catch {}
-  const d = await getJSONsoft(KTC_LATEST);
+  if (!force) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached && cached.t && Date.now() - cached.t < KTC_SNAPSHOT_CACHE_MS) return cached.d;
+    } catch {}
+  }
+  // Bust HTTP cache too with a query string so we don't get a 304 from
+  // a CDN edge that's still serving the old file.
+  const url = force ? `${KTC_LATEST}?t=${Date.now()}` : KTC_LATEST;
+  const d = await getJSONsoft(url);
   if (d) {
     try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), d })); } catch {}
   }
@@ -142,20 +150,38 @@ export function ktcPickIndex(snapshot, fmtKey) {
 }
 
 // One-time fetch of the per-player history file. May be very large
-// (thousands of players × hundreds of dates) so we cache for 24h.
+// (thousands of players × hundreds of dates) so we cache for 24h. Pass
+// {force: true} to bypass cache.
 const HISTORY_CACHE_KEY = 'sla:ktchistory';
 const HISTORY_CACHE_MS = 24 * 60 * 60 * 1000;
-export async function fetchKtcHistory() {
-  try {
-    const cached = JSON.parse(localStorage.getItem(HISTORY_CACHE_KEY) || 'null');
-    if (cached && cached.t && Date.now() - cached.t < HISTORY_CACHE_MS) return cached.d;
-  } catch {}
-  const d = await getJSONsoft(KTC_HISTORY);
+export async function fetchKtcHistory({ force = false } = {}) {
+  if (!force) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(HISTORY_CACHE_KEY) || 'null');
+      if (cached && cached.t && Date.now() - cached.t < HISTORY_CACHE_MS) return cached.d;
+    } catch {}
+  }
+  const url = force ? `${KTC_HISTORY}?t=${Date.now()}` : KTC_HISTORY;
+  const d = await getJSONsoft(url);
   if (d) {
     try { localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify({ t: Date.now(), d })); }
-    catch { /* may exceed 5MB localStorage quota; that's OK, just won't cache */ }
+    catch { /* may exceed 5MB localStorage quota */ }
   }
   return d;
+}
+
+// Clear all KTC localStorage caches. Used by the manual refresh button.
+export function clearKtcCaches() {
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith(KTC_SNAPSHOT_CACHE_PREFIX) || k === HISTORY_CACHE_KEY)) {
+        keys.push(k);
+      }
+    }
+    for (const k of keys) localStorage.removeItem(k);
+  } catch {}
 }
 
 // Given a history payload + sleeper_id + ISO date, return the value on or

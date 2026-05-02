@@ -14,7 +14,8 @@ import { state } from '../state.js';
 import {
   ensurePlayers, ensureValues, ensureAllScopeMatchups, ensureAllScopeTransactions,
   ensureKtcHistory, ensurePickValueIndex, ensureAllScopeDrafts,
-  pickValueForTrade, playerValueAtDate, buildDraftedPicksIndex,
+  ensurePickValueIndexAtDate,
+  pickValueForTrade, pickValueForTradeAtDate, playerValueAtDate, buildDraftedPicksIndex,
 } from '../data.js';
 
 export async function renderTrades(host) {
@@ -35,6 +36,17 @@ export async function renderTrades(host) {
 
   const trades = collectAllScopeTrades();
   const draftedIndex = buildDraftedPicksIndex();
+
+  // For every trade date that has picks, preload the historical pick-value
+  // index so renderPickAsset can show "value-then" for picks too.
+  const datesWithPicks = new Set();
+  for (const t of trades) {
+    if ((t.draft_picks || []).length === 0) continue;
+    const d = tradeIsoDate(t);
+    if (d) datesWithPicks.add(d);
+  }
+  await Promise.all([...datesWithPicks].map(d => ensurePickValueIndexAtDate(d)));
+  if (state.activeTab !== 'trades') return;
 
   wrap.innerHTML = '';
 
@@ -165,31 +177,37 @@ function renderTradeCard(t, draftedIndex) {
 
   const tradeDate = tradeIsoDate(t);
 
-  // Compute side totals (now + at-trade-date).
+  // Compute side totals (now + at-trade-date) for both players and picks.
   const grades = {};
   for (const rid of rosters) {
     const r = received[rid];
-    let valueNow = 0, valueAtTrade = 0;
+    let playerValueNow = 0, playerValueThen = 0;
     for (const pid of r.players) {
-      valueNow += playerValue(pid);
-      valueAtTrade += tradeDate ? (playerValueAtDate(pid, tradeDate) || playerValue(pid)) : playerValue(pid);
+      playerValueNow += playerValue(pid);
+      playerValueThen += tradeDate ? (playerValueAtDate(pid, tradeDate) || playerValue(pid)) : playerValue(pid);
     }
-    let pickValue = 0;
+    let pickValueNow = 0, pickValueThen = 0;
     for (const p of r.picks) {
-      pickValue += pickValueForTrade({ season: p.season, round: p.round });
+      const sr = { season: p.season, round: p.round };
+      pickValueNow += pickValueForTrade(sr);
+      pickValueThen += tradeDate ? (pickValueForTradeAtDate(sr, tradeDate) || pickValueForTrade(sr)) : pickValueForTrade(sr);
     }
     const realized = r.players.reduce((s, pid) =>
       s + realizedPointsForPlayer(pid, t._week, maxWeek, sc), 0);
-    grades[rid] = { valueNow, valueAtTrade, pickValue, realized };
+    grades[rid] = {
+      valueNow: playerValueNow + pickValueNow,
+      valueAtTrade: playerValueThen + pickValueThen,
+      realized,
+    };
   }
 
-  // Winner = side with higher (valueAtTrade + pickValue + realized).
-  // valueAtTrade gets priority because it answers "was this fair on the day?".
+  // Winner = side with higher (valueAtTrade + realized). valueAtTrade
+  // already includes pick value at the trade date.
   let winnerRid = null;
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const aS = grades[a].valueAtTrade + grades[a].pickValue + grades[a].realized;
-    const bS = grades[b].valueAtTrade + grades[b].pickValue + grades[b].realized;
+    const aS = grades[a].valueAtTrade + grades[a].realized;
+    const bS = grades[b].valueAtTrade + grades[b].realized;
     if (aS > bS) winnerRid = a;
     else if (bS > aS) winnerRid = b;
   }
@@ -211,16 +229,15 @@ function renderTradeCard(t, draftedIndex) {
     const r = received[rid] || { players: [], picks: [], faab: 0 };
     const g = grades[rid];
 
-    // Totals: prefer "value then" labelling when we have history; show now + delta.
-    const haveHistory = !!state.ktcHistory && tradeDate &&
-      r.players.some(pid => state.ktcHistory.history?.[String(pid)]);
+    // Totals: show value at trade and value now separately. The grader's
+    // verdict is based on value-at-trade (i.e. "was this fair on the day?").
     const totalsRow = el('div', { class: 'trade-totals' },
       el('span', {},
-        el('strong', {}, fmtInt(g.valueAtTrade + g.pickValue)),
-        haveHistory ? 'Value at trade' : 'Dynasty value',
+        el('strong', {}, fmtInt(g.valueAtTrade)),
+        'Value at trade',
       ),
       el('span', {},
-        el('strong', {}, fmtInt(g.valueNow + g.pickValue)),
+        el('strong', {}, fmtInt(g.valueNow)),
         'Value now',
       ),
       el('span', {},
@@ -242,7 +259,7 @@ function renderTradeCard(t, draftedIndex) {
       );
     });
 
-    const pickNodes = r.picks.map(p => renderPickAsset(p, rid, sc, draftedIndex));
+    const pickNodes = r.picks.map(p => renderPickAsset(p, rid, sc, draftedIndex, tradeDate));
 
     const side = el('div', { class: `trade-side${rid === winnerRid ? ' winner' : ''}` },
       rid === winnerRid ? el('div', { class: 'winner-badge' }, 'Winner') : null,
@@ -260,25 +277,24 @@ function renderTradeCard(t, draftedIndex) {
   return el('article', { class: 'trade-card' }, head, sides);
 }
 
-// Render a draft pick asset. If we have draft data showing the pick was used,
-// show the player who was selected with it (e.g. "2026 1.01 (Jeremiah Love)").
-function renderPickAsset(p, receivingRosterId, sc, draftedIndex) {
-  const value = pickValueForTrade({ season: p.season, round: p.round });
+// Render a draft pick asset.
+// - Always shows a KTC value chip if the pick is in our snapshot.
+// - If the pick has since been used in a draft, shows the player drafted
+//   plus that player's current dynasty value: "2026 R1 (1.01 Jeremiah Love · 8,432)".
+// - Pick value displayed is "value at trade -> value now" when both differ.
+function renderPickAsset(p, receivingRosterId, sc, draftedIndex, tradeDate) {
+  const sr = { season: p.season, round: p.round };
+  const valueNow = pickValueForTrade(sr);
+  const valueThen = tradeDate ? pickValueForTradeAtDate(sr, tradeDate) : valueNow;
 
-  // Look up who actually drafted this pick. The pick's *current* owner at the
-  // time of the draft is what matters. We approximate using the trade record:
-  // the receiver of this pick (p.owner_id in the transaction) is the new owner.
-  // If the receiver later traded it away, our pickInfo for the same key
-  // should reflect whoever made the pick - because the index is keyed by the
-  // owner who actually drafted it.
+  // Locate the actual draft pick that resulted from this traded pick.
+  // Match by (season, round, owner_id at draft time). Receiving owner is the
+  // best guess; if that doesn't hit (because the pick was traded again),
+  // fall back to anything matching season+round with a player.
   const receivingRoster = sc.rosters.find(r => r.roster_id === receivingRosterId);
   const receivingOwner = receivingRoster?.owner_id;
   const key = receivingOwner ? `${p.season}|${p.round}|${receivingOwner}` : null;
   let drafted = key ? draftedIndex.get(key) : null;
-
-  // If the receiver isn't who actually drafted, scan the index for any pick
-  // matching season+round with non-empty player_id and pick_no - imperfect
-  // fallback but better than nothing.
   if (!drafted) {
     for (const [k, info] of draftedIndex.entries()) {
       const [s, r] = k.split('|');
@@ -289,13 +305,35 @@ function renderPickAsset(p, receivingRosterId, sc, draftedIndex) {
   }
 
   const baseLabel = pickLabel(p);
-  const draftedSuffix = drafted && drafted.player_id
-    ? ` (${formatDraftSlot(drafted)} ${playerLabel(drafted.player_id)})`
-    : '';
 
-  return el('div', { class: 'asset asset-pick', title: `Pick value: ${fmtInt(value)}` },
-    baseLabel + draftedSuffix,
-    value ? el('span', { class: 'val' }, fmtInt(value)) : null,
+  // Build the inner text + value chip.
+  let label = baseLabel;
+  let extras = [];
+  if (drafted && drafted.player_id) {
+    const slot = formatDraftSlot(drafted);
+    const playerName = playerLabel(drafted.player_id);
+    const playerVal = playerValue(drafted.player_id);
+    label = `${baseLabel} → ${slot ? slot + ' ' : ''}${playerName}`;
+    if (playerVal) extras.push(`${fmtInt(playerVal)} now`);
+  }
+
+  // Value chip: prefer "then -> now" when both are known and different.
+  let valueChip = null;
+  if (valueThen && valueNow && valueThen !== valueNow) {
+    valueChip = el('span', { class: 'val', title: 'value at trade · value now' },
+      `${fmtInt(valueThen)} → ${fmtInt(valueNow)}`);
+  } else if (valueNow) {
+    valueChip = el('span', { class: 'val' }, fmtInt(valueNow));
+  } else if (valueThen) {
+    valueChip = el('span', { class: 'val' }, fmtInt(valueThen));
+  }
+
+  return el('div', {
+    class: 'asset asset-pick',
+    title: extras.length ? `Drafted player current value: ${extras[0]}` : `Pick value: ${fmtInt(valueNow || valueThen)}`,
+  },
+    label,
+    valueChip,
   );
 }
 

@@ -2,7 +2,7 @@
 
 import {
   sleeper, valuesApi,
-  fetchKtcLatest, fetchKtcHistory, fetchKtcSnapshotForDate,
+  fetchKtcLatest, fetchKtcHistory, fetchKtcSnapshotForDate, clearKtcCaches,
   ktcFormatKey, ktcPickIndex, valueOnOrBefore,
 } from './api.js';
 import { state, syncPrimary } from './state.js';
@@ -185,6 +185,38 @@ export function pickValueForTrade(seasonRoundSlot) {
   return idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`] || 0;
 }
 
+// Per-date pick value indexes, populated lazily by ensurePickValueIndexAtDate.
+// Key: ISO date string. Value: same shape as pickValueIndex.
+const _pickIndexByDate = new Map();
+
+export async function ensurePickValueIndexAtDate(isoDate) {
+  if (!isoDate) return state.pickValueIndex || {};
+  if (_pickIndexByDate.has(isoDate)) return _pickIndexByDate.get(isoDate);
+  const snap = await fetchKtcSnapshotForDate(isoDate);
+  if (!snap) {
+    // Fall back to the current snapshot's pick values.
+    const idx = await ensurePickValueIndex();
+    _pickIndexByDate.set(isoDate, idx);
+    return idx;
+  }
+  const lg = state.league || {};
+  const isDynasty = lg.settings?.type === 2 || /dynasty|keeper/i.test(lg.name || '');
+  const sfCount = (lg.roster_positions || []).filter(p => p === 'SUPER_FLEX').length;
+  const qbCount = (lg.roster_positions || []).filter(p => p === 'QB').length;
+  const isSuperflex = sfCount > 0 || qbCount >= 2;
+  const fmt = ktcFormatKey({ isDynasty, isSuperflex });
+  const idx = ktcPickIndex(snap, fmt);
+  _pickIndexByDate.set(isoDate, idx);
+  return idx;
+}
+
+export function pickValueForTradeAtDate(seasonRoundSlot, isoDate) {
+  const idx = (isoDate && _pickIndexByDate.get(isoDate)) || state.pickValueIndex || {};
+  const { season, round, slot } = seasonRoundSlot || {};
+  if (!season || !round) return 0;
+  return idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`] || 0;
+}
+
 // Player value at a specific date (best available - falls back to current).
 export function playerValueAtDate(sleeperId, isoDate) {
   if (state.ktcHistory) {
@@ -310,9 +342,21 @@ export async function loadScopeFor(leagueId) {
 }
 
 // Force a refetch of every scope's live data: league config, users, rosters,
-// matchups, transactions. Leaves players + dynasty values caches alone (they
-// have their own TTLs). After this completes, tabs should re-render.
+// matchups, transactions. Also busts the KTC snapshot/history caches so the
+// "Values from..." panel reflects whatever the GitHub Action last published.
+// Leaves the Sleeper players DB cache alone (5 MB; rarely changes mid-season).
 export async function refreshAllScope() {
+  // Clear the cached KTC payloads + force re-fetch on next ensure*() call.
+  clearKtcCaches();
+  state.ktcSnapshot = undefined;
+  state.ktcHistory = undefined;
+  state.pickValueIndex = null;
+  // Bust the per-source values cache too so the Trades / Rosters tabs
+  // pull fresh KTC values on next render.
+  state.values = null;
+  state.valuesPromise = null;
+  state.valuesLoaded = { ktc: false, fc: false };
+
   await Promise.all(state.scope.map(async sc => {
     const [league, users, rosters] = await Promise.all([
       sleeper.league(sc.leagueId),
@@ -324,15 +368,11 @@ export async function refreshAllScope() {
     sc.rosters = rosters;
     sc.matchupsByWeek = {};
     sc.transactionsByWeek = {};
-    // Drop draft picks cache for this scope too — slot maps & metadata can shift mid-draft.
     sc.drafts = [];
     sc.draftPicks = {};
   }));
-  // Also refresh the global NFL state (current week may have advanced).
   try { state.nflState = await sleeper.nflState(); } catch {}
-  // Re-mirror the primary scope into the legacy top-level fields.
   syncPrimary();
-  // History is regenerated on next visit if user clears it; we'll leave it.
 }
 
 // Set the scope to exactly these league IDs (in the given order, newest first).
