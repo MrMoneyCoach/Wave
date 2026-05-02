@@ -128,9 +128,18 @@ def fetch_sleeper_index() -> dict[str, str]:
 
 # ---- KTC → Sleeper join + JSON shape ----
 
+# Set of position strings KTC uses for draft picks. Historically just "PICK",
+# now "RDP" (Rookie Draft Pick).
+PICK_POSITIONS = {"PICK", "RDP"}
+
+
+def is_pick(p: dict) -> bool:
+    return (p.get("position") or "").upper() in PICK_POSITIONS
+
+
 def player_to_sleeper(p: dict, idx: dict[str, str]) -> str | None:
     """Return a Sleeper ID for this KTC player record, or None if unmatched."""
-    if (p.get("position") or "").upper() == "PICK":
+    if is_pick(p):
         return None
     name = p.get("playerName")
     pos = (p.get("position") or "").upper()
@@ -163,8 +172,8 @@ def player_row(p: dict, sleeper_id: str | None, sf: bool, redraft: bool) -> dict
 
 
 def pick_row(p: dict, sf: bool, redraft: bool) -> dict | None:
-    """KTC picks (position == 'PICK') become entries with a parsed season + round."""
-    if (p.get("position") or "").upper() != "PICK":
+    """KTC picks (position == 'RDP' or 'PICK') become entries with a parsed season + round."""
+    if not is_pick(p):
         return None
     if redraft:
         block = p.get("redraftValues") or p.get("oneQBValues") or {}
@@ -212,7 +221,7 @@ def build_format(players: list[dict], idx: dict[str, str], sf: bool, redraft: bo
     picks: list[dict] = []
 
     for p in players:
-        if (p.get("position") or "").upper() == "PICK":
+        if is_pick(p):
             row = pick_row(p, sf, redraft)
             if row:
                 picks.append(row)
