@@ -8,6 +8,12 @@ export const state = {
   season: null,           // currently-loaded league season
 
   leagues: [],            // user's leagues for selected season
+  // mfa-style flow:
+  leagueFamilies: [],     // [{leagueId, name, season, seasons, chain: [...]}]
+  selectedFamilies: null, // Set<leagueId> currently selected on picker
+  activeFamilies: [],     // families being analyzed in dashboard
+  activeFamilyId: null,   // 'all' or a specific family leagueId
+  primaryFamilyId: null,  // representative family for "your" stats
 
   // The "primary" league (the most-recent one in scope).
   // These mirror state.scope[0] so existing tabs continue to work as-is.

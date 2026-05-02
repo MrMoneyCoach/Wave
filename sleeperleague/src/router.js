@@ -38,11 +38,10 @@ const TABS = {
 export function setActiveTab(tab) {
   if (!(tab in TABS)) tab = 'overview';
   state.activeTab = tab;
-  $$('.sb-link[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $$('.tab-link[data-tab], .sb-link[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   if (location.hash !== `#${tab}`) location.hash = tab;
   const host = $('#tabHost');
   clear(host);
-  // Each render function takes the host element and an optional reload flag.
   Promise.resolve(TABS[tab](host)).catch(err => {
     console.error('Tab render error:', err);
     host.appendChild(Object.assign(document.createElement('div'), {
@@ -50,13 +49,10 @@ export function setActiveTab(tab) {
       textContent: `Couldn't render this tab: ${err.message}`,
     }));
   });
-
-  // Close mobile sidebar after navigation
-  document.getElementById('sidebar')?.classList.remove('open');
 }
 
 export function initRouter() {
-  $$('.sb-link[data-tab]').forEach(b => {
+  $$('.tab-link[data-tab], .sb-link[data-tab]').forEach(b => {
     b.addEventListener('click', () => setActiveTab(b.dataset.tab));
   });
   window.addEventListener('hashchange', () => {

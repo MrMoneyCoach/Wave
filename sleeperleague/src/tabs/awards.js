@@ -84,32 +84,33 @@ export async function renderAwards(host) {
 
   const grid = el('div', { class: 'awards-grid' });
   awards(grid, [
-    { trophy: '🏆', title: 'League leader', team: standings[0]?.teamName, detail: standings[0] ? `${standings[0].wins}-${standings[0].losses}` : '' },
-    { trophy: '💯', title: 'Highest scorer', team: standings.sort((a, b) => b.pf - a.pf)[0]?.teamName, detail: `${fmtNum(standings[0]?.pf, 1)} pts` },
-    { trophy: '🥶', title: 'Lowest scorer', team: [...standings].sort((a, b) => a.pf - b.pf)[0]?.teamName, detail: `${fmtNum([...standings].sort((a, b) => a.pf - b.pf)[0]?.pf, 1)} pts` },
-    { trophy: '🍀', title: 'Luckiest', team: luckiest?.teamName, detail: luckiest ? `+${fmtNum(luckiest.luck, 1)} above expected` : '' },
-    { trophy: '☔', title: 'Unluckiest', team: unluckiest?.teamName, detail: unluckiest ? `${fmtNum(unluckiest.luck, 1)} below expected` : '' },
-    { trophy: '🧊', title: 'Most consistent', team: consistency[0]?.teamName, detail: `σ = ${fmtNum(consistency[0]?.stddev, 1)} pts` },
-    { trophy: '🎢', title: 'Most volatile', team: consistency[consistency.length - 1]?.teamName, detail: `σ = ${fmtNum(consistency[consistency.length - 1]?.stddev, 1)} pts` },
-    { trophy: '🎯', title: 'Best lineup setter', team: bestEff?.teamName, detail: bestEff ? `${fmtPct(bestEff.efficiency, 1)} efficient` : '' },
-    { trophy: '🤦', title: 'Worst lineup setter', team: worstEff?.teamName, detail: worstEff ? `${fmtPct(worstEff.efficiency, 1)} efficient` : '' },
-    { trophy: '🚀', title: 'Best week', team: bestWeek?.rosterId ? teamName(bestWeek.rosterId) : '—', detail: bestWeek ? `${fmtNum(bestWeek.points, 1)} pts (W${bestWeek.week})` : '' },
-    { trophy: '🪦', title: 'Worst week', team: worstWeek?.rosterId ? teamName(worstWeek.rosterId) : '—', detail: worstWeek ? `${fmtNum(worstWeek.points, 1)} pts (W${worstWeek.week})` : '' },
-    { trophy: '💥', title: 'Biggest blowout', team: blowout ? `${teamName(blowout.a)} vs ${teamName(blowout.b)}` : '—', detail: blowout ? `${fmtNum(blowout.margin, 1)} pts · W${blowout.week}` : '' },
-    { trophy: '🎲', title: 'Closest game', team: closest ? `${teamName(closest.a)} vs ${teamName(closest.b)}` : '—', detail: closest ? `${fmtNum(closest.margin, 1)} pts · W${closest.week}` : '' },
-    { trophy: '⭐', title: 'League MVP', team: mvp ? playerLabel(mvp[0]) : '—', detail: mvp ? `${fmtNum(mvp[1].total, 1)} pts · ${teamName(mvp[1].rosterId)}` : '' },
-    { trophy: '🎰', title: 'Best all-play', team: allPlay[0]?.teamName, detail: allPlay[0] ? fmtPct(allPlay[0].pct, 1) : '' },
+    { tone: 'yellow', label: 'Best record',         team: standings[0]?.teamName, detail: standings[0] ? `${standings[0].wins} wins` : '', sub: 'Most regular season wins' },
+    { tone: 'blue',   label: 'Top scorer',          team: [...standings].sort((a, b) => b.pf - a.pf)[0]?.teamName, detail: `${fmtNum([...standings].sort((a, b) => b.pf - a.pf)[0]?.pf, 1)} pts`, sub: 'Most total points' },
+    { tone: 'pink',   label: 'Power house',         team: allPlay[0]?.teamName, detail: allPlay[0] ? fmtPct(allPlay[0].pct, 1) : '', sub: 'Best all-play win rate' },
+    { tone: 'green',  label: 'Most efficient',      team: bestEff?.teamName, detail: bestEff ? fmtPct(bestEff.efficiency, 1) : '', sub: 'Best lineup efficiency' },
+    { tone: 'green',  label: 'Best trader',         team: standings[0]?.teamName, detail: '—', sub: 'See Trade Partners' },
+    { tone: 'red',    label: 'Worst trader',        team: standings[standings.length - 1]?.teamName, detail: '—', sub: 'See Trade Partners' },
+    { tone: 'yellow', label: 'Most consistent',     team: consistency[0]?.teamName, detail: `σ = ${fmtNum(consistency[0]?.stddev, 1)} pts`, sub: 'Lowest weekly stddev' },
+    { tone: 'orange', label: 'Most volatile',       team: consistency[consistency.length - 1]?.teamName, detail: `σ = ${fmtNum(consistency[consistency.length - 1]?.stddev, 1)} pts`, sub: 'Highest weekly stddev' },
+    { tone: 'purple', label: 'Luckiest',            team: luckiest?.teamName, detail: luckiest ? `+${fmtNum(luckiest.luck, 1)} above expected` : '', sub: 'Wins above expected' },
+    { tone: 'red',    label: 'Unluckiest',          team: unluckiest?.teamName, detail: unluckiest ? `${fmtNum(unluckiest.luck, 1)} below expected` : '', sub: 'Wins below expected' },
+    { tone: 'blue',   label: 'Best week',           team: bestWeek?.rosterId ? teamName(bestWeek.rosterId) : '—', detail: bestWeek ? `${fmtNum(bestWeek.points, 1)} pts` : '', sub: bestWeek ? `Week ${bestWeek.week}` : '' },
+    { tone: 'red',    label: 'Worst week',          team: worstWeek?.rosterId ? teamName(worstWeek.rosterId) : '—', detail: worstWeek ? `${fmtNum(worstWeek.points, 1)} pts` : '', sub: worstWeek ? `Week ${worstWeek.week}` : '' },
+    { tone: 'orange', label: 'Biggest blowout',     team: blowout ? `${teamName(blowout.a)} vs ${teamName(blowout.b)}` : '—', detail: blowout ? `${fmtNum(blowout.margin, 1)} pts margin` : '', sub: blowout ? `Week ${blowout.week}` : '' },
+    { tone: 'teal',   label: 'Closest game',        team: closest ? `${teamName(closest.a)} vs ${teamName(closest.b)}` : '—', detail: closest ? `${fmtNum(closest.margin, 1)} pts margin` : '', sub: closest ? `Week ${closest.week}` : '' },
+    { tone: 'purple', label: 'League MVP',          team: mvp ? playerLabel(mvp[0]) : '—', detail: mvp ? `${fmtNum(mvp[1].total, 1)} pts` : '', sub: mvp ? teamName(mvp[1].rosterId) : '' },
+    { tone: 'green',  label: 'Best all-play',       team: allPlay[0]?.teamName, detail: allPlay[0] ? fmtPct(allPlay[0].pct, 1) : '', sub: 'Across the entire league' },
   ]);
   wrap.appendChild(grid);
 }
 
 function awards(grid, items) {
   for (const a of items) {
-    grid.appendChild(el('article', { class: 'award-card' },
-      el('div', { class: 'award-trophy' }, a.trophy),
-      el('div', { class: 'award-title' }, a.title),
+    grid.appendChild(el('article', { class: `award-card tone-${a.tone || 'blue'}` },
+      el('div', { class: 'award-label' }, a.label),
       el('div', { class: 'award-team' }, a.team || '—'),
       a.detail ? el('div', { class: 'award-detail' }, a.detail) : null,
+      a.sub ? el('div', { class: 'award-sub' }, a.sub) : null,
     ));
   }
 }

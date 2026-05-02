@@ -8,7 +8,6 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
   <script>
-    // Apply persisted theme before paint to avoid a flash.
     (function() {
       try {
         var t = localStorage.getItem('sla:theme') || 'light';
@@ -19,154 +18,132 @@
 </head>
 <body>
 
-  <!-- LOGIN VIEW -->
+  <!-- ============ LOGIN VIEW ============ -->
   <section class="view full-view" id="view-login">
-    <div class="login-shell">
-      <div class="login-topbar">
-        <div class="brand-block">
-          <img src="icon.svg" class="brand-logo" alt="" />
-          <div>
-            <div class="brand-title">Sleeper League Analysis</div>
-            <div class="brand-sub muted small">Stats. Trades. Receipts.</div>
-          </div>
-        </div>
-        <button class="icon-btn" id="themeToggleLogin" aria-label="Toggle theme" title="Toggle light / dark">
-          <span class="theme-icon-light">☀︎</span>
-          <span class="theme-icon-dark">☾</span>
-        </button>
+    <div class="top-corner-actions">
+      <button class="circle-btn" id="profileBtnLogin" aria-label="Account" title="Account">
+        <span>👤</span>
+      </button>
+      <button class="circle-btn" id="themeToggleLogin" aria-label="Toggle theme" title="Toggle light / dark">
+        <span class="theme-icon-light">☀︎</span>
+        <span class="theme-icon-dark">☾</span>
+      </button>
+    </div>
+
+    <div class="hero-shell">
+      <div class="brand-stack">
+        <img src="icon.svg" class="brand-logo-big" alt="" />
+        <h1 class="brand-h1">Sleeper League Analysis</h1>
+        <p class="brand-sub">Deep fantasy football insights for your Sleeper leagues</p>
       </div>
 
-      <div class="hero">
-        <h1>Analyze your Sleeper league</h1>
-        <p class="lede">
-          Enter your Sleeper username. We'll pull every season your league has played
-          and grade every trade with dynasty values and realized fantasy points.
-          No signup, no password — Sleeper data is public.
-        </p>
-        <form class="login-form" id="loginForm" autocomplete="off">
-          <label class="field">
-            <span>Sleeper username</span>
-            <input type="text" id="usernameInput" placeholder="username" required spellcheck="false" autocapitalize="off" />
-          </label>
-          <label class="field">
-            <span>Season</span>
-            <select id="seasonInput"></select>
-          </label>
-          <button class="primary" type="submit" id="loginBtn">Find my leagues</button>
-        </form>
+      <form class="card login-card" id="loginForm" autocomplete="off">
+        <label class="field">
+          <span class="field-title">Sleeper Username</span>
+          <span class="field-help">Enter your Sleeper username to find your leagues.</span>
+          <input type="text" id="usernameInput" placeholder="e.g. sleeperuser" required spellcheck="false" autocapitalize="off" />
+        </label>
+        <button class="primary block" type="submit" id="loginBtn">Find Leagues</button>
         <p class="error" id="loginError" hidden></p>
-      </div>
-      <ul class="features">
-        <li><strong>Trade grader</strong>Dynasty value at trade + value change + realized points scored after.</li>
-        <li><strong>Multi-season history</strong>We auto-walk every past season your league has played.</li>
-        <li><strong>Power rankings &amp; luck</strong>Expected wins, all-play record, schedule strength.</li>
-        <li><strong>Weekly recaps</strong>Best/worst lineups, biggest blowouts, MVPs of the week.</li>
-        <li><strong>Drafts &amp; players</strong>Pick-by-pick draft grades and league-wide player leaders.</li>
-        <li><strong>Awards &amp; rivalries</strong>Season trophies and head-to-head pages between any two teams.</li>
+      </form>
+
+      <ul class="features-list">
+        <li><span class="feat-check">✓</span><span class="feat-text">Trade grading &amp; history</span></li>
+        <li><span class="feat-check">✓</span><span class="feat-text">Realized points tracking</span></li>
+        <li><span class="feat-check">✓</span><span class="feat-text">Dynasty value tracking</span></li>
+        <li><span class="feat-check">✓</span><span class="feat-text">Trade partner analysis</span></li>
+        <li><span class="feat-check">✓</span><span class="feat-text">Draft board &amp; grades<span class="badge new">NEW</span></span></li>
+        <li><span class="feat-check">✓</span><span class="feat-text">Optimal lineup scoring</span></li>
+        <li><span class="feat-check">✓</span><span class="feat-text">Multi-season support</span></li>
+        <li><span class="feat-check">✓</span><span class="feat-text">Awards &amp; head-to-head</span></li>
       </ul>
     </div>
   </section>
 
-  <!-- LEAGUE PICKER -->
+  <!-- ============ LEAGUE PICKER (multi-select) ============ -->
   <section class="view full-view" id="view-leagues" hidden>
+    <div class="top-corner-actions">
+      <button class="circle-btn" id="themeTogglePicker" aria-label="Toggle theme" title="Toggle light / dark">
+        <span class="theme-icon-light">☀︎</span>
+        <span class="theme-icon-dark">☾</span>
+      </button>
+    </div>
     <div class="picker-shell">
-      <div class="page-head">
-        <div>
-          <h2>Pick a league</h2>
-          <p class="muted" id="leaguesUserHello"></p>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="icon-btn" id="themeTogglePicker" aria-label="Toggle theme" title="Toggle light / dark">
-            <span class="theme-icon-light">☀︎</span>
-            <span class="theme-icon-dark">☾</span>
-          </button>
-          <button class="ghost" id="changeUserBtn">Change user</button>
-        </div>
+      <div class="brand-stack">
+        <img src="icon.svg" class="brand-logo-big" alt="" />
+        <h1 class="brand-h1">Sleeper League Analysis</h1>
+        <p class="brand-sub">Deep fantasy football insights for your Sleeper leagues</p>
       </div>
-      <div class="grid league-grid" id="leagueList"></div>
-      <p class="empty" id="leagueEmpty" hidden>No leagues found for that user in that season.</p>
+
+      <div class="card picker-card">
+        <div class="picker-head">
+          <div>
+            <div class="picker-title">Select leagues to analyze</div>
+            <div class="picker-sub" id="leaguesUserHello"></div>
+          </div>
+          <button class="link-btn" id="changeUserBtn">Switch account</button>
+        </div>
+        <div class="league-list" id="leagueList"></div>
+        <p class="empty" id="leagueEmpty" hidden>No leagues found for that user.</p>
+        <button class="primary block" id="analyzeBtn" disabled>Analyze 0 Leagues</button>
+      </div>
     </div>
   </section>
 
-  <!-- DASHBOARD -->
-  <section class="view dashboard" id="view-dashboard" hidden>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="view dashboard-v2" id="view-dashboard" hidden>
 
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-brand">
-        <img src="icon.svg" class="brand-logo" alt="" />
-        <div class="sb-title">Sleeper Analysis</div>
-      </div>
-
-      <div class="sidebar-league" id="sidebarLeague"></div>
-
-      <nav class="sidebar-nav">
-        <div class="sb-section-title">League</div>
-        <button class="sb-link" data-tab="overview"><span class="sb-ico">●</span>Overview</button>
-        <button class="sb-link" data-tab="standings"><span class="sb-ico">▤</span>Standings</button>
-        <button class="sb-link" data-tab="power"><span class="sb-ico">▲</span>Power rankings</button>
-        <button class="sb-link" data-tab="luck"><span class="sb-ico">⚄</span>Luck &amp; all-play</button>
-        <button class="sb-link" data-tab="schedule"><span class="sb-ico">🗓</span>Schedule strength</button>
-
-        <div class="sb-section-title">Weeks</div>
-        <button class="sb-link" data-tab="matchups"><span class="sb-ico">⚔</span>Matchups</button>
-        <button class="sb-link" data-tab="players"><span class="sb-ico">★</span>Players</button>
-        <button class="sb-link" data-tab="awards"><span class="sb-ico">🏆</span>Awards</button>
-
-        <div class="sb-section-title">Trades &amp; rosters</div>
-        <button class="sb-link" data-tab="trades"><span class="sb-ico">⇄</span>Trade grader</button>
-        <button class="sb-link" data-tab="partners"><span class="sb-ico">⬚</span>Trade partners</button>
-        <button class="sb-link" data-tab="rosters"><span class="sb-ico">▦</span>Rosters</button>
-        <button class="sb-link" data-tab="drafts"><span class="sb-ico">⌗</span>Drafts</button>
-
-        <div class="sb-section-title">Special</div>
-        <button class="sb-link" data-tab="h2h"><span class="sb-ico">⇋</span>Head-to-head</button>
-        <button class="sb-link" data-tab="history"><span class="sb-ico">⌛</span>League history</button>
-      </nav>
-
-      <div class="sidebar-settings">
-        <div class="sb-section-title">Settings</div>
-        <label class="setting-row">
-          <span>Theme</span>
-          <button class="icon-btn small" id="themeToggleSidebar" aria-label="Toggle theme">
-            <span class="theme-icon-light">☀︎ Light</span>
-            <span class="theme-icon-dark">☾ Dark</span>
+    <header class="dash-head">
+      <div class="dash-head-row">
+        <h2 id="leagueName">All Leagues</h2>
+        <div class="dash-head-actions">
+          <button class="circle-btn small" id="profileBtnDash" aria-label="Account">
+            <span>👤</span>
           </button>
-        </label>
-      </div>
-
-      <div class="sidebar-foot">
-        <button class="ghost block" id="switchLeagueBtn">Switch league</button>
-        <button class="ghost block" id="logoutBtn">Sign out</button>
-      </div>
-    </aside>
-
-    <main class="content">
-      <header class="content-head">
-        <button class="icon-btn sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">☰</button>
-        <div class="content-head-titles">
-          <h2 id="leagueName">League</h2>
-          <p class="muted small" id="leagueMeta"></p>
-        </div>
-        <div class="content-head-tools">
-          <button class="icon-btn" id="refreshBtn" aria-label="Refresh data" title="Pull the latest from Sleeper">
+          <button class="circle-btn small" id="themeToggleDash" aria-label="Toggle theme">
+            <span class="theme-icon-light">☀︎</span>
+            <span class="theme-icon-dark">☾</span>
+          </button>
+          <button class="ghost icon-text" id="backBtn">← Back</button>
+          <button class="circle-btn small" id="refreshBtn" title="Pull the latest from Sleeper">
             <span class="refresh-icon">↻</span>
           </button>
         </div>
-      </header>
-
-      <!-- Multi-year scope: pill row of selectable seasons -->
-      <div class="scope-bar" id="scopeBar">
-        <span class="scope-label">Seasons:</span>
-        <div class="scope-pills" id="scopePills"></div>
       </div>
 
-      <!-- Scoring/values source: same pill style, sits under the seasons bar -->
+      <!-- Your stats hero card (only on All Leagues view) -->
+      <div class="your-stats-card" id="yourStatsCard" hidden></div>
+
+      <!-- League pills row: All Leagues + per-league pills -->
+      <div class="league-pills" id="leaguePills"></div>
+
+      <!-- Tab nav: Overview / Rosters / Trades / etc -->
+      <nav class="tab-nav" id="tabNav">
+        <button class="tab-link" data-tab="overview">Overview</button>
+        <button class="tab-link" data-tab="standings">Standings</button>
+        <button class="tab-link" data-tab="rosters">Rosters</button>
+        <button class="tab-link" data-tab="trades">Trades</button>
+        <button class="tab-link" data-tab="partners">Trade Partners</button>
+        <button class="tab-link" data-tab="awards">Awards</button>
+        <button class="tab-link" data-tab="matchups">Matchups</button>
+        <button class="tab-link" data-tab="players">Players</button>
+        <button class="tab-link" data-tab="power">Power</button>
+        <button class="tab-link" data-tab="luck">Luck</button>
+        <button class="tab-link" data-tab="schedule">Schedule</button>
+        <button class="tab-link" data-tab="drafts">Drafts</button>
+        <button class="tab-link" data-tab="h2h">Head-to-Head</button>
+        <button class="tab-link" data-tab="history">History</button>
+      </nav>
+
+      <!-- Scoring (values source) row -->
       <div class="scope-bar scoring-bar">
         <span class="scope-label">Scoring:</span>
         <div class="scope-pills" id="scoringPills"></div>
         <span class="scoring-status muted small" id="valuesStatus"></span>
       </div>
+    </header>
 
+    <main class="dash-main">
       <div id="tabHost" class="tab-host"></div>
     </main>
 
