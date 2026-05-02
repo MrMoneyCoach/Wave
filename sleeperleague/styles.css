@@ -403,26 +403,31 @@ button.link-btn:hover { text-decoration: underline; }
 }
 .league-pills::-webkit-scrollbar { display: none; }
 
+/* All league pills are solid blue (mfa-style). The active one keeps a
+   slightly heavier weight + subtle outline so it's distinguishable but still
+   in the same family. */
 .league-pill {
   background: var(--primary);
   color: #fff;
-  border: 0;
-  padding: 9px 18px;
+  border: 2px solid transparent;
+  padding: 10px 18px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  transition: opacity .15s, background .15s;
+  transition: background .15s, border-color .15s, transform .1s;
   flex-shrink: 0;
 }
-.league-pill:not(.active) {
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--border);
+.league-pill:hover { background: var(--primary-2); }
+.league-pill.active {
+  background: var(--primary-2);
+  font-weight: 700;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent);
 }
-.league-pill:not(.active):hover { background: var(--panel-2); }
-.league-pill.active:hover { background: var(--primary-2); }
+[data-theme="dark"] .league-pill.active {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 50%, transparent);
+}
 
 /* Tab nav */
 .tab-nav {

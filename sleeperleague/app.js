@@ -201,6 +201,11 @@ async function analyzeSelected() {
     state.activeFamilyId = 'all'; // start on All Leagues view
     await loadFamilyData(families);
     showView('view-dashboard');
+    // Paint the dash chrome (YOUR STATS hero, league pills, scoring bar)
+    // BEFORE the tab loads, so the user sees the right header immediately.
+    renderDashHead();
+    renderScoringBar();
+    updateValuesStatus();
     setActiveTab('overview');
   } catch (err) {
     alert(err.message || 'Failed to load leagues');
