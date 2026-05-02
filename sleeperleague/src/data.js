@@ -154,8 +154,12 @@ export async function ensureAllScopeDrafts() {
 // past trades can't be matched to the players they became.
 //
 // Stores results in state.auxLeagues keyed by leagueId. Skips seasons that
-// are already loaded as part of the active scope.
+// are already loaded as part of the active scope. Self-discovers if
+// availableSeasons hasn't been populated yet.
 export async function ensureAllAvailableDrafts() {
+  if (!state.availableSeasons || !state.availableSeasons.length) {
+    await discoverAvailableSeasons();
+  }
   const seasons = state.availableSeasons || [];
   await Promise.all(seasons.map(async s => {
     // Already loaded fully via scope? Make sure its drafts are loaded.
@@ -192,6 +196,14 @@ export async function ensureAllAvailableDrafts() {
       draftPicks,
     };
   }));
+
+  // Diagnostic: surface what got loaded so we can spot missing years.
+  const loaded = [
+    ...state.scope.map(s => `${s.season} (scope)`),
+    ...Object.values(state.auxLeagues).map(s => `${s.season} (aux)`),
+  ];
+  // eslint-disable-next-line no-console
+  console.info(`[drafts] loaded ${loaded.length} season(s): ${loaded.join(', ')}`);
 }
 
 // Load + cache the KTC history payload (per-player daily values).
@@ -314,6 +326,7 @@ export function buildDraftedPicksIndex() {
     ...state.scope,
     ...Object.values(state.auxLeagues || {}),
   ];
+  let withPlayer = 0;
   for (const src of sources) {
     const drafts = src.drafts || [];
     for (const d of drafts) {
@@ -323,6 +336,9 @@ export function buildDraftedPicksIndex() {
         const roster = src.rosters.find(r => r.roster_id === p.roster_id);
         if (!roster) continue;
         const key = `${season}|${p.round}|${roster.owner_id}`;
+        // Don't overwrite an entry that has a player with one that doesn't.
+        const existing = out.get(key);
+        if (existing && existing.player_id && !p.player_id) continue;
         out.set(key, {
           player_id: p.player_id,
           pick_no: p.pick_no,
@@ -330,9 +346,12 @@ export function buildDraftedPicksIndex() {
           season,
           round: p.round,
         });
+        if (p.player_id) withPlayer++;
       }
     }
   }
+  // eslint-disable-next-line no-console
+  console.info(`[drafts] index built: ${out.size} entries (${withPlayer} with players)`);
   return out;
 }
 

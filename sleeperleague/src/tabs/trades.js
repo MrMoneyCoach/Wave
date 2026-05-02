@@ -288,6 +288,9 @@ function findDraftedFor(p, receivingRosterId, sc, draftedIndex) {
   const receivingOwner = receivingRoster?.owner_id;
   const key = receivingOwner ? `${p.season}|${p.round}|${receivingOwner}` : null;
   let drafted = key ? draftedIndex.get(key) : null;
+  // An exact-key match without a player_id (incomplete or upcoming draft)
+  // should not block the fallback. Treat it as a miss.
+  if (drafted && !drafted.player_id) drafted = null;
   if (!drafted) {
     for (const [k, info] of draftedIndex.entries()) {
       const [s, r] = k.split('|');
