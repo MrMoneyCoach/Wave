@@ -232,35 +232,71 @@ function renderTradeCard(t, draftedIndex) {
     sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount };
   }
 
-  // Depth discount: if one side received more roster-occupying assets, each
-  // extra slot eats into their effective gain. Replacement value approximates
-  // a startable waiver/free-agent — for KTC dynasty values, ~2500 is sane.
-  const REPLACEMENT_VALUE = 2500;
-  let depthDiscount = null; // { side: rid, extraSpots, amount }
+  // KTC-style Value Adjustment.
+  //
+  // Trading isn't simple addition. Multiple smaller assets are worth less
+  // than their raw sum because of:
+  //   - Roster spots (finite)
+  //   - Lineup caps (only N starters)
+  //   - "Stud" premium (one elite player anchors a position; bench fillers
+  //      are at replacement level)
+  //
+  // KTC reverse-engineers from "the player needed to even the trade." We
+  // can't see their formula but we approximate with diminishing returns:
+  //
+  //     effective = raw × asset_count^(-0.15)
+  //
+  // Examples (raw = 7,000):
+  //     1 stud  → 7,000   (no discount)
+  //     2 mids  → 6,307
+  //     4 mids  → 5,610
+  //     12 picks → 4,807
+  //
+  // The Value Adjustment shown is the bigger of the two sides' implicit
+  // discounts; that's the side which "needs" extra value to even the trade.
+  const ADJ_EXPONENT = 0.15;
+  function effectiveValue(raw, count) {
+    if (!count || count <= 1) return raw;
+    return Math.round(raw * Math.pow(count, -ADJ_EXPONENT));
+  }
+
+  for (const rid of rosters) {
+    const t = sideTotals[rid];
+    t.adjValueAtTrade = effectiveValue(t.valueAtTrade, t.assetCount);
+    t.adjValueNow     = effectiveValue(t.valueNow,     t.assetCount);
+    t.valueAdjustment = t.valueAtTrade - t.adjValueAtTrade;
+  }
+
+  // The displayed "Value Adjustment" is the larger of the two side
+  // adjustments (typically the side with more assets). Below ~100 we
+  // suppress the chip - too small to be meaningful.
+  let valueAdj = null;
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const diff = sideTotals[a].assetCount - sideTotals[b].assetCount;
-    if (diff !== 0) {
-      const heavierSide = diff > 0 ? a : b;
-      const extraSpots = Math.abs(diff);
-      depthDiscount = {
-        side: heavierSide,
-        extraSpots,
-        amount: extraSpots * REPLACEMENT_VALUE,
+    const adjA = sideTotals[a].valueAdjustment;
+    const adjB = sideTotals[b].valueAdjustment;
+    const heavier = adjA > adjB ? a : b;
+    const heavierAdj = Math.max(adjA, adjB);
+    if (heavierAdj > 100 && Math.abs(adjA - adjB) > 100) {
+      valueAdj = {
+        side: heavier,
+        amount: heavierAdj,
+        rawAtTrade: sideTotals[heavier].valueAtTrade,
+        effAtTrade: sideTotals[heavier].adjValueAtTrade,
+        rawNow:     sideTotals[heavier].valueNow,
+        effNow:     sideTotals[heavier].adjValueNow,
+        count: sideTotals[heavier].assetCount,
       };
-      // Apply to the heavier side's value at trade for the winner calc.
-      sideTotals[heavierSide].depthDiscount = depthDiscount.amount;
     }
   }
 
-  // Determine winner / fleece headline. Subtract the depth discount from
-  // the heavier side's effective value before deciding.
+  // Determine winner / fleece headline using the ADJUSTED values.
   let headline = null;
   let cardTone = 'even';
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const aS = sideTotals[a].valueAtTrade + sideTotals[a].realized - (sideTotals[a].depthDiscount || 0);
-    const bS = sideTotals[b].valueAtTrade + sideTotals[b].realized - (sideTotals[b].depthDiscount || 0);
+    const aS = sideTotals[a].adjValueAtTrade + sideTotals[a].realized;
+    const bS = sideTotals[b].adjValueAtTrade + sideTotals[b].realized;
     const margin = Math.abs(aS - bS);
     const total = aS + bS || 1;
     const winnerRid = aS > bS ? a : (bS > aS ? b : null);
@@ -339,25 +375,23 @@ function renderTradeCard(t, draftedIndex) {
     body.appendChild(block);
   }
 
-  // Depth discount block. Shows the penalty + the resulting EFFECTIVE totals
-  // so the user can see how the verdict was decided. The penalty isn't
-  // subtracted from the gross "Value at trade" / "Value now" cells below
-  // because those are still useful to see raw, but the effective number
-  // (gross - depth discount) is what powers the winner call.
-  if (depthDiscount) {
-    const heavierName = teamLabelInScope(depthDiscount.side, sc);
-    const heavyTotals = sideTotals[depthDiscount.side];
-    const effAtTrade = Math.max(0, heavyTotals.valueAtTrade - depthDiscount.amount);
-    const effNow = Math.max(0, heavyTotals.valueNow - depthDiscount.amount);
-    body.appendChild(el('div', { class: 'depth-discount' },
-      el('span', { class: 'depth-discount-label' }, 'DEPTH DISCOUNT'),
+  // Value Adjustment block. Implements KTC's idea: trading isn't simple
+  // addition, the side with more assets has its raw value discounted via
+  // diminishing returns. The discount + effective totals are shown so
+  // the math behind the verdict is visible.
+  if (valueAdj) {
+    const heavierName = teamLabelInScope(valueAdj.side, sc);
+    body.appendChild(el('div', { class: 'depth-discount',
+      title: 'Multiple smaller assets are worth less than their raw sum because of roster spots, lineup caps, and stud premium. We approximate with effective = raw × count^-0.15.',
+    },
+      el('span', { class: 'depth-discount-label' }, 'VALUE ADJUSTMENT'),
       el('span', { class: 'depth-discount-amount' },
-        `−${fmtInt(depthDiscount.amount)} from ${heavierName} `,
+        `−${fmtInt(valueAdj.amount)} from ${heavierName} `,
         el('span', { class: 'muted small' },
-          `(${depthDiscount.extraSpots} extra spot${depthDiscount.extraSpots === 1 ? '' : 's'} × ${fmtInt(2500)} replacement value)`),
+          `(${valueAdj.count} assets · diminishing returns)`),
       ),
       el('span', { class: 'depth-discount-effective small' },
-        `Effective for ${heavierName}: ${fmtInt(effAtTrade)} at trade · ${fmtInt(effNow)} now. Used to decide the verdict above.`),
+        `Effective for ${heavierName}: ${fmtInt(valueAdj.effAtTrade)} at trade · ${fmtInt(valueAdj.effNow)} now. Used to decide the verdict above.`),
     ));
   }
 
