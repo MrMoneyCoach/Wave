@@ -1,0 +1,54 @@
+name: KTC weekly history
+
+on:
+  # Sundays at 07:00 UTC, after the daily snapshot. Lower frequency = lighter
+  # load on KTC since this fans out to ~600 player history pages.
+  schedule:
+    - cron: '0 7 * * 0'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ktc-history
+  cancel-in-progress: false
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install --quiet requests
+
+      - name: Make sure latest snapshot exists
+        run: |
+          if [ ! -f sleeperleague/data/ktc_latest.json ]; then
+            python sleeperleague/scripts/ktc_export.py
+          fi
+
+      - name: Fetch per-player histories
+        run: python sleeperleague/scripts/ktc_history.py
+
+      - name: Commit + push history
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sleeperleague/data/
+          if git diff --staged --quiet; then
+            echo "No history changes."
+            exit 0
+          fi
+          git commit -m "KTC: weekly per-player history update ($(date -u +%F))"
+          git push

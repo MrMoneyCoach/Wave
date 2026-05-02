@@ -6,6 +6,7 @@ const FANTASYCALC = 'https://api.fantasycalc.com';
 // raw.githubusercontent supports `refs/heads/<branch-with-slashes>` for branches that contain slashes.
 const KTC_LATEST = 'https://raw.githubusercontent.com/MrMoneyCoach/Wave/refs/heads/claude/alfred-project-bot-zLj9R/sleeperleague/data/ktc_latest.json';
 const KTC_SNAPSHOT_PREFIX = 'https://raw.githubusercontent.com/MrMoneyCoach/Wave/refs/heads/claude/alfred-project-bot-zLj9R/sleeperleague/data/snapshots/ktc_';
+const KTC_HISTORY = 'https://raw.githubusercontent.com/MrMoneyCoach/Wave/refs/heads/claude/alfred-project-bot-zLj9R/sleeperleague/data/ktc_history.json';
 
 const PLAYERS_CACHE_KEY = 'sla:players:nfl';
 const PLAYERS_CACHE_MS = 24 * 60 * 60 * 1000;
@@ -115,9 +116,62 @@ export async function fetchKtcSnapshotForDate(isoDate) {
 }
 
 // Pick the right format block from a snapshot based on league shape.
-function ktcFormatKey({ isDynasty, isSuperflex }) {
+export function ktcFormatKey({ isDynasty, isSuperflex }) {
   if (!isDynasty) return 'redraft';
   return isSuperflex ? 'dynasty_sf' : 'dynasty_1qb';
+}
+
+// Build a quick pick-value lookup keyed by `${season}|${round}|${slot}` and
+// `${season}|${round}` (slot = 'mid' fallback). For Sleeper trades, we only
+// know season + round, so use slot='mid' as default.
+export function ktcPickIndex(snapshot, fmtKey) {
+  const out = {};
+  const block = snapshot?.formats?.[fmtKey];
+  if (!block) return out;
+  const picks = block.picks || [];
+  for (const p of picks) {
+    if (!p.season || !p.round) continue;
+    const slot = p.slot || 'mid';
+    out[`${p.season}|${p.round}|${slot}`] = p.value || 0;
+    // Keep an overall mid value as the default for the (season, round) pair.
+    if (slot === 'mid' || !out[`${p.season}|${p.round}`]) {
+      out[`${p.season}|${p.round}`] = p.value || 0;
+    }
+  }
+  return out;
+}
+
+// One-time fetch of the per-player history file. May be very large
+// (thousands of players × hundreds of dates) so we cache for 24h.
+const HISTORY_CACHE_KEY = 'sla:ktchistory';
+const HISTORY_CACHE_MS = 24 * 60 * 60 * 1000;
+export async function fetchKtcHistory() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(HISTORY_CACHE_KEY) || 'null');
+    if (cached && cached.t && Date.now() - cached.t < HISTORY_CACHE_MS) return cached.d;
+  } catch {}
+  const d = await getJSONsoft(KTC_HISTORY);
+  if (d) {
+    try { localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify({ t: Date.now(), d })); }
+    catch { /* may exceed 5MB localStorage quota; that's OK, just won't cache */ }
+  }
+  return d;
+}
+
+// Given a history payload + sleeper_id + ISO date, return the value on or
+// just before that date. Returns null if no history for that player.
+export function valueOnOrBefore(history, sleeperId, isoDate) {
+  if (!history || !history.history) return null;
+  const series = history.history[String(sleeperId)];
+  if (!series || !series.length) return null;
+  // Series is chronological; find the latest entry with d <= isoDate.
+  let lo = 0, hi = series.length - 1, best = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (series[mid].d <= isoDate) { best = mid; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  return best >= 0 ? series[best].v : null;
 }
 
 function ktcMapFromSnapshot(snapshot, fmtKey) {

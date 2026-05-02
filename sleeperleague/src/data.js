@@ -1,6 +1,10 @@
 // Lazy data loaders. Each tab calls these as needed; caches per league/season.
 
-import { sleeper, valuesApi } from './api.js';
+import {
+  sleeper, valuesApi,
+  fetchKtcLatest, fetchKtcHistory, fetchKtcSnapshotForDate,
+  ktcFormatKey, ktcPickIndex, valueOnOrBefore,
+} from './api.js';
 import { state, syncPrimary } from './state.js';
 
 export function ensurePlayers() {
@@ -126,6 +130,99 @@ export async function ensureDraftPicks(draftId) {
   state.draftPicks[draftId] = picks;
   if (state.scope[0]) state.scope[0].draftPicks[draftId] = picks;
   return picks;
+}
+
+// Make sure every scope league has its drafts + draft picks loaded.
+// Used so the trade grader can answer "what player was this pick used to draft?".
+export async function ensureAllScopeDrafts() {
+  await Promise.all(state.scope.map(async sc => {
+    if (!sc.drafts || !sc.drafts.length) {
+      sc.drafts = await sleeper.leagueDrafts(sc.leagueId);
+    }
+    await Promise.all((sc.drafts || []).map(async d => {
+      if (!sc.draftPicks[d.draft_id]) {
+        sc.draftPicks[d.draft_id] = await sleeper.draftPicks(d.draft_id);
+      }
+    }));
+  }));
+}
+
+// Load + cache the KTC history payload (per-player daily values).
+// Returns null if the workflow hasn't published it yet.
+export async function ensureKtcHistory() {
+  if (state.ktcHistory !== undefined) return state.ktcHistory;
+  state.ktcHistory = await fetchKtcHistory().catch(() => null);
+  return state.ktcHistory;
+}
+
+// Load + cache the latest snapshot specifically (used for picks lookup).
+export async function ensureKtcSnapshot() {
+  if (state.ktcSnapshot !== undefined) return state.ktcSnapshot;
+  state.ktcSnapshot = await fetchKtcLatest().catch(() => null);
+  return state.ktcSnapshot;
+}
+
+// Build a pick-value lookup matching the active league format.
+export async function ensurePickValueIndex() {
+  if (state.pickValueIndex) return state.pickValueIndex;
+  const snap = await ensureKtcSnapshot();
+  if (!snap) { state.pickValueIndex = {}; return {}; }
+  const lg = state.league || {};
+  const isDynasty = lg.settings?.type === 2 || /dynasty|keeper/i.test(lg.name || '');
+  const sfCount = (lg.roster_positions || []).filter(p => p === 'SUPER_FLEX').length;
+  const qbCount = (lg.roster_positions || []).filter(p => p === 'QB').length;
+  const isSuperflex = sfCount > 0 || qbCount >= 2;
+  const fmt = ktcFormatKey({ isDynasty, isSuperflex });
+  state.pickValueIndex = ktcPickIndex(snap, fmt);
+  return state.pickValueIndex;
+}
+
+// Lookup helpers - safe if the underlying data hasn't been loaded yet.
+export function pickValueForTrade(seasonRoundSlot) {
+  const idx = state.pickValueIndex || {};
+  const { season, round, slot } = seasonRoundSlot || {};
+  if (!season || !round) return 0;
+  return idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`] || 0;
+}
+
+// Player value at a specific date (best available - falls back to current).
+export function playerValueAtDate(sleeperId, isoDate) {
+  if (state.ktcHistory) {
+    const v = valueOnOrBefore(state.ktcHistory, sleeperId, isoDate);
+    if (v != null) return v;
+  }
+  // Fallback to whatever current value we have for this source.
+  return state.values?.get(String(sleeperId)) || 0;
+}
+
+// For each scope league + season, build a lookup
+//   `(season, round, ownerUserId at draft time) -> {player_id, pick_no}`
+// so we can show "pick was used to draft <Player>" once the draft happens.
+//
+// Note: the draft pick metadata's `roster_id` is the roster that actually
+// made the pick. We map roster_id -> owner_id via that scope's rosters.
+export function buildDraftedPicksIndex() {
+  const out = new Map(); // key = `${season}|${round}|${ownerUserId}`
+  for (const sc of state.scope) {
+    const drafts = sc.drafts || [];
+    for (const d of drafts) {
+      const season = d.season;
+      const picks = sc.draftPicks?.[d.draft_id] || [];
+      for (const p of picks) {
+        const roster = sc.rosters.find(r => r.roster_id === p.roster_id);
+        if (!roster) continue;
+        const key = `${season}|${p.round}|${roster.owner_id}`;
+        out.set(key, {
+          player_id: p.player_id,
+          pick_no: p.pick_no,
+          draft_slot: p.draft_slot,
+          season,
+          round: p.round,
+        });
+      }
+    }
+  }
+  return out;
 }
 
 // ---- History (legacy: walk previous_league_id) ----

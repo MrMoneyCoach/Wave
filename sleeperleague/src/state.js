@@ -39,6 +39,13 @@ export const state = {
   // What actually loaded for the current values fetch — used for truthful UI labels.
   valuesLoaded: { ktc: false, fc: false },
 
+  // KTC structured payloads (latest snapshot + per-player history).
+  // Set once per session; undefined means "not yet attempted".
+  ktcSnapshot: undefined,
+  ktcHistory: undefined,
+  // pickValueIndex: `${season}|${round}` -> KTC pick value for the active league format.
+  pickValueIndex: null,
+
   history: null,
   historyPromise: null,
   nflState: null,
@@ -72,6 +79,9 @@ export function resetLeagueState() {
   state.availableSeasons = [];
   state.history = null;
   state.historyPromise = null;
+  state.pickValueIndex = null;
+  // ktcSnapshot/ktcHistory are session-wide (don't depend on selected league)
+  // so we deliberately leave them.
 }
 
 // ---- Session persistence ----
