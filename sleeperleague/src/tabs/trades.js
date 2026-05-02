@@ -294,9 +294,6 @@ function renderTradeCard(t, draftedIndex) {
     }
   }
 
-  const detailLine = el('div', { class: 'trade-detail-line' },
-    summarizeReceived(received, rosters, sc));
-
   // Trade card root (collapsed by default).
   const card = el('article', { class: `trade-card ${cardTone}` });
 
@@ -310,7 +307,6 @@ function renderTradeCard(t, draftedIndex) {
   },
     el('div', { class: 'trade-summary-text' },
       headline,
-      detailLine,
       el('div', { class: 'trade-meta' },
         el('span', { class: 'year-tag' }, String(sc.season)),
         ' Week ', String(t._week),
@@ -343,9 +339,16 @@ function renderTradeCard(t, draftedIndex) {
     body.appendChild(block);
   }
 
-  // Depth discount block (only when one side received more assets).
+  // Depth discount block. Shows the penalty + the resulting EFFECTIVE totals
+  // so the user can see how the verdict was decided. The penalty isn't
+  // subtracted from the gross "Value at trade" / "Value now" cells below
+  // because those are still useful to see raw, but the effective number
+  // (gross - depth discount) is what powers the winner call.
   if (depthDiscount) {
     const heavierName = teamLabelInScope(depthDiscount.side, sc);
+    const heavyTotals = sideTotals[depthDiscount.side];
+    const effAtTrade = Math.max(0, heavyTotals.valueAtTrade - depthDiscount.amount);
+    const effNow = Math.max(0, heavyTotals.valueNow - depthDiscount.amount);
     body.appendChild(el('div', { class: 'depth-discount' },
       el('span', { class: 'depth-discount-label' }, 'DEPTH DISCOUNT'),
       el('span', { class: 'depth-discount-amount' },
@@ -353,6 +356,8 @@ function renderTradeCard(t, draftedIndex) {
         el('span', { class: 'muted small' },
           `(${depthDiscount.extraSpots} extra spot${depthDiscount.extraSpots === 1 ? '' : 's'} × ${fmtInt(2500)} replacement value)`),
       ),
+      el('span', { class: 'depth-discount-effective small' },
+        `Effective for ${heavierName}: ${fmtInt(effAtTrade)} at trade · ${fmtInt(effNow)} now. Used to decide the verdict above.`),
     ));
   }
 

@@ -48,10 +48,14 @@ export function ensureValues() {
 }
 
 // Reset values cache when source changes; tabs will refetch on next render.
+// Also clear the per-date historical cache because it's keyed on whichever
+// source was active at fetch time.
 export function clearValues() {
   state.values = null;
   state.valuesPromise = null;
   state.valuesLoaded = { ktc: false, fc: false };
+  _playerValuesAtDate.clear();
+  _pickIndexByDate.clear();
 }
 
 // ---- Scope (multi-year) loaders ----
@@ -310,19 +314,28 @@ export function pickValueInfoForTradeAtDate(seasonRoundSlot, isoDate) {
 // before any trade is rendered, so playerValueAtDate() can stay synchronous.
 const _playerValuesAtDate = new Map(); // isoDate -> Map<sleeperId, value>
 
-// Pre-load historical values from DynastyProcess for each unique trade date.
-// Call before rendering trades. After this resolves, playerValueAtDate()
-// returns real historical numbers for any requested (sleeperId, isoDate).
+// Pre-load historical values for each unique trade date. The values come
+// from whichever source the user has picked (KTC, FC, or Combined) so that
+// "Value at trade" and "Value now" are on the same scale - mixing DP/FC
+// with KTC would create artificial drift even for trades made today.
+//
+// Source-by-source:
+//   - 'fc'       → DynastyProcess git history (FantasyCalc-derived)
+//   - 'ktc'      → KTC daily snapshot from /data/snapshots/ktc_<date>.json
+//                  (falls back to current snapshot if a dated one is missing)
+//   - 'combined' → average of normalized FC + KTC at that date
 export async function ensureHistoricalValuesForDates(isoDates) {
   const lg = state.league || {};
   const sfCount = (lg.roster_positions || []).filter(p => p === 'SUPER_FLEX').length;
   const qbCount = (lg.roster_positions || []).filter(p => p === 'QB').length;
   const isSuperflex = sfCount > 0 || qbCount >= 2;
+  const isDynasty = lg.settings?.type === 2 || /dynasty|keeper/i.test(lg.name || '');
+  const fmtKey = ktcFormatKey({ isDynasty, isSuperflex });
+  const source = state.valuesSource || 'combined';
 
   const todo = [...new Set(isoDates)].filter(d => d && !_playerValuesAtDate.has(d));
   if (!todo.length) return;
-  // Throttle to a small concurrency so we don't fan out 50 GitHub API calls
-  // at once and trip the unauth rate limit (60/hr).
+
   const concurrency = 4;
   let cursor = 0;
   await Promise.all(Array.from({ length: concurrency }, async () => {
@@ -330,13 +343,62 @@ export async function ensureHistoricalValuesForDates(isoDates) {
       const idx = cursor++;
       const date = todo[idx];
       try {
-        const map = await dpValuesForDate(date, { superflex: isSuperflex });
+        const map = await loadValuesAtDate(date, { source, fmtKey, isSuperflex });
         _playerValuesAtDate.set(date, map);
-      } catch (err) {
+      } catch {
         _playerValuesAtDate.set(date, new Map());
       }
     }
   }));
+}
+
+// Build a sleeperId -> value map for one date in the active source's terms.
+async function loadValuesAtDate(isoDate, { source, fmtKey, isSuperflex }) {
+  const out = new Map();
+
+  // KTC at date: try the dated snapshot, walk back up to a week if missing.
+  // If even that fails, fall back to the current KTC snapshot's values so
+  // a today's-trade still shows a sensible number rather than zero.
+  async function ktcMapForDate() {
+    const snap = await fetchKtcSnapshotForDate(isoDate)
+      || await fetchKtcSnapshotForDate(new Date().toISOString().slice(0, 10));
+    if (!snap) return new Map();
+    const block = snap?.formats?.[fmtKey];
+    if (!block) return new Map();
+    const m = new Map();
+    for (const [sid, row] of Object.entries(block.players || {})) {
+      if (row?.value > 0) m.set(String(sid), row.value);
+    }
+    return m;
+  }
+
+  if (source === 'fc') {
+    return await dpValuesForDate(isoDate, { superflex: isSuperflex });
+  }
+
+  if (source === 'ktc') {
+    return await ktcMapForDate();
+  }
+
+  // combined: average normalized FC + KTC at the date.
+  const [fc, ktc] = await Promise.all([
+    dpValuesForDate(isoDate, { superflex: isSuperflex }),
+    ktcMapForDate(),
+  ]);
+  const SCALE = 10000;
+  const fcMax = [...fc.values()].reduce((m, v) => Math.max(m, v), 1);
+  const ktcMax = [...ktc.values()].reduce((m, v) => Math.max(m, v), 1);
+  const allIds = new Set([...fc.keys(), ...ktc.keys()]);
+  for (const id of allIds) {
+    const f = fc.has(id) ? (fc.get(id) / fcMax) * SCALE : null;
+    const k = ktc.has(id) ? (ktc.get(id) / ktcMax) * SCALE : null;
+    let val;
+    if (f != null && k != null) val = (f + k) / 2;
+    else if (f != null) val = f;
+    else val = k;
+    if (val != null) out.set(id, Math.round(val));
+  }
+  return out;
 }
 
 // Player value at a specific date (best available — falls back to current).

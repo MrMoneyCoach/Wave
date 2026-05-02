@@ -793,6 +793,11 @@ button.link-btn:hover { text-decoration: underline; }
   color: var(--purple);
   font-weight: 600;
 }
+.depth-discount-effective {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
 
 .trade-totals-grid {
   display: grid;
