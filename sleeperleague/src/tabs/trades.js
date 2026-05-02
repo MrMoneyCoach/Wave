@@ -15,7 +15,9 @@ import {
   ensurePlayers, ensureValues, ensureAllScopeMatchups, ensureAllScopeTransactions,
   ensureKtcHistory, ensurePickValueIndex, ensureAllScopeDrafts,
   ensurePickValueIndexAtDate,
-  pickValueForTrade, pickValueForTradeAtDate, playerValueAtDate, buildDraftedPicksIndex,
+  pickValueForTrade, pickValueForTradeAtDate,
+  pickValueInfoForTrade, pickValueInfoForTradeAtDate,
+  playerValueAtDate, buildDraftedPicksIndex,
 } from '../data.js';
 
 export async function renderTrades(host) {
@@ -188,9 +190,9 @@ function renderTradeCard(t, draftedIndex) {
     }
     let pickValueNow = 0, pickValueThen = 0;
     for (const p of r.picks) {
-      const sr = { season: p.season, round: p.round };
-      pickValueNow += pickValueForTrade(sr);
-      pickValueThen += tradeDate ? (pickValueForTradeAtDate(sr, tradeDate) || pickValueForTrade(sr)) : pickValueForTrade(sr);
+      const v = pickValueWithDraftAware(p, rid, sc, draftedIndex, tradeDate);
+      pickValueNow += v.valueNow;
+      pickValueThen += v.valueThen;
     }
     const realized = r.players.reduce((s, pid) =>
       s + realizedPointsForPlayer(pid, t._week, maxWeek, sc), 0);
@@ -277,20 +279,11 @@ function renderTradeCard(t, draftedIndex) {
   return el('article', { class: 'trade-card' }, head, sides);
 }
 
-// Render a draft pick asset.
-// - Always shows a KTC value chip if the pick is in our snapshot.
-// - If the pick has since been used in a draft, shows the player drafted
-//   plus that player's current dynasty value: "2026 R1 (1.01 Jeremiah Love · 8,432)".
-// - Pick value displayed is "value at trade -> value now" when both differ.
-function renderPickAsset(p, receivingRosterId, sc, draftedIndex, tradeDate) {
-  const sr = { season: p.season, round: p.round };
-  const valueNow = pickValueForTrade(sr);
-  const valueThen = tradeDate ? pickValueForTradeAtDate(sr, tradeDate) : valueNow;
-
-  // Locate the actual draft pick that resulted from this traded pick.
-  // Match by (season, round, owner_id at draft time). Receiving owner is the
-  // best guess; if that doesn't hit (because the pick was traded again),
-  // fall back to anything matching season+round with a player.
+// Locate the actual draft pick that resulted from this traded pick.
+// Match by (season, round, owner_id at draft time). Receiving owner is the
+// best guess; if it misses (pick was traded again), fall back to anything
+// with the same season+round that resulted in a player.
+function findDraftedFor(p, receivingRosterId, sc, draftedIndex) {
   const receivingRoster = sc.rosters.find(r => r.roster_id === receivingRosterId);
   const receivingOwner = receivingRoster?.owner_id;
   const key = receivingOwner ? `${p.season}|${p.round}|${receivingOwner}` : null;
@@ -303,34 +296,69 @@ function renderPickAsset(p, receivingRosterId, sc, draftedIndex, tradeDate) {
       }
     }
   }
+  return drafted;
+}
 
+// Unified pick valuation:
+//   - If the pick has been used to draft a player, use that player's value
+//     (now & at trade date). This is the truthful value of the asset.
+//   - Otherwise use the KTC pick value with year fallback (2029 -> 2028 etc).
+function pickValueWithDraftAware(p, receivingRosterId, sc, draftedIndex, tradeDate) {
+  const drafted = findDraftedFor(p, receivingRosterId, sc, draftedIndex);
+  if (drafted && drafted.player_id) {
+    const valueNow = playerValue(drafted.player_id);
+    const valueThen = tradeDate
+      ? (playerValueAtDate(drafted.player_id, tradeDate) || valueNow)
+      : valueNow;
+    return { valueNow, valueThen, source: 'drafted', drafted };
+  }
+  const sr = { season: p.season, round: p.round };
+  const nowInfo = pickValueInfoForTrade(sr);
+  const thenInfo = tradeDate ? pickValueInfoForTradeAtDate(sr, tradeDate) : nowInfo;
+  return {
+    valueNow: nowInfo.value,
+    valueThen: thenInfo.value || nowInfo.value,
+    source: 'pick',
+    drafted: null,
+    fallbackFromSeason:
+      (nowInfo.fromSeason && nowInfo.fromSeason !== p.season) ? nowInfo.fromSeason : null,
+  };
+}
+
+// Render a draft pick asset.
+function renderPickAsset(p, receivingRosterId, sc, draftedIndex, tradeDate) {
+  const v = pickValueWithDraftAware(p, receivingRosterId, sc, draftedIndex, tradeDate);
   const baseLabel = pickLabel(p);
 
-  // Build the inner text + value chip.
   let label = baseLabel;
-  let extras = [];
-  if (drafted && drafted.player_id) {
-    const slot = formatDraftSlot(drafted);
-    const playerName = playerLabel(drafted.player_id);
-    const playerVal = playerValue(drafted.player_id);
+  let titleParts = [];
+
+  if (v.source === 'drafted' && v.drafted) {
+    const slot = formatDraftSlot(v.drafted);
+    const playerName = playerLabel(v.drafted.player_id);
     label = `${baseLabel} → ${slot ? slot + ' ' : ''}${playerName}`;
-    if (playerVal) extras.push(`${fmtInt(playerVal)} now`);
+    titleParts.push(`Pick used to draft ${playerName}`);
+    titleParts.push(`Player value at trade: ${fmtInt(v.valueThen)} · now: ${fmtInt(v.valueNow)}`);
+  } else if (v.fallbackFromSeason) {
+    titleParts.push(`KTC has no value for ${p.season}; using ${v.fallbackFromSeason} value as estimate`);
+  } else {
+    titleParts.push(`KTC pick value`);
   }
 
-  // Value chip: prefer "then -> now" when both are known and different.
+  // Value chip
   let valueChip = null;
-  if (valueThen && valueNow && valueThen !== valueNow) {
+  if (v.valueThen && v.valueNow && v.valueThen !== v.valueNow) {
     valueChip = el('span', { class: 'val', title: 'value at trade · value now' },
-      `${fmtInt(valueThen)} → ${fmtInt(valueNow)}`);
-  } else if (valueNow) {
-    valueChip = el('span', { class: 'val' }, fmtInt(valueNow));
-  } else if (valueThen) {
-    valueChip = el('span', { class: 'val' }, fmtInt(valueThen));
+      `${fmtInt(v.valueThen)} → ${fmtInt(v.valueNow)}`);
+  } else if (v.valueNow) {
+    valueChip = el('span', { class: 'val' }, (v.fallbackFromSeason ? '~' : '') + fmtInt(v.valueNow));
+  } else if (v.valueThen) {
+    valueChip = el('span', { class: 'val' }, fmtInt(v.valueThen));
   }
 
   return el('div', {
     class: 'asset asset-pick',
-    title: extras.length ? `Drafted player current value: ${extras[0]}` : `Pick value: ${fmtInt(valueNow || valueThen)}`,
+    title: titleParts.join(' · '),
   },
     label,
     valueChip,

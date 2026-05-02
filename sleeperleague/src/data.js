@@ -178,15 +178,42 @@ export async function ensurePickValueIndex() {
 }
 
 // Lookup helpers - safe if the underlying data hasn't been loaded yet.
-export function pickValueForTrade(seasonRoundSlot) {
-  const idx = state.pickValueIndex || {};
-  const { season, round, slot } = seasonRoundSlot || {};
-  if (!season || !round) return 0;
+// If the requested season isn't in the index (e.g. 2029 when KTC only has
+// 2026-2028), walk backward through seasons up to 6 years to use the latest
+// available year as a fallback. Returns 0 if nothing matches.
+const FALLBACK_MAX_YEARS = 6;
+
+function _lookupPickFromIndex(idx, season, round, slot) {
+  if (!idx || !season || !round) return 0;
   return idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`] || 0;
 }
 
+function _lookupPickWithFallback(idx, season, round, slot) {
+  if (!season) return { value: 0, fromSeason: null };
+  const exact = _lookupPickFromIndex(idx, season, round, slot);
+  if (exact) return { value: exact, fromSeason: season };
+  // Walk backward (older years) - if the requested year isn't ranked yet,
+  // use the latest year that IS. Don't walk forward (would back-cast wrong).
+  const startYear = parseInt(season, 10);
+  if (Number.isFinite(startYear)) {
+    for (let i = 1; i <= FALLBACK_MAX_YEARS; i++) {
+      const y = String(startYear - i);
+      const v = _lookupPickFromIndex(idx, y, round, slot);
+      if (v) return { value: v, fromSeason: y };
+    }
+  }
+  return { value: 0, fromSeason: null };
+}
+
+export function pickValueForTrade(seasonRoundSlot) {
+  return _lookupPickWithFallback(state.pickValueIndex, seasonRoundSlot?.season, seasonRoundSlot?.round, seasonRoundSlot?.slot).value;
+}
+
+export function pickValueInfoForTrade(seasonRoundSlot) {
+  return _lookupPickWithFallback(state.pickValueIndex, seasonRoundSlot?.season, seasonRoundSlot?.round, seasonRoundSlot?.slot);
+}
+
 // Per-date pick value indexes, populated lazily by ensurePickValueIndexAtDate.
-// Key: ISO date string. Value: same shape as pickValueIndex.
 const _pickIndexByDate = new Map();
 
 export async function ensurePickValueIndexAtDate(isoDate) {
@@ -194,7 +221,6 @@ export async function ensurePickValueIndexAtDate(isoDate) {
   if (_pickIndexByDate.has(isoDate)) return _pickIndexByDate.get(isoDate);
   const snap = await fetchKtcSnapshotForDate(isoDate);
   if (!snap) {
-    // Fall back to the current snapshot's pick values.
     const idx = await ensurePickValueIndex();
     _pickIndexByDate.set(isoDate, idx);
     return idx;
@@ -212,9 +238,12 @@ export async function ensurePickValueIndexAtDate(isoDate) {
 
 export function pickValueForTradeAtDate(seasonRoundSlot, isoDate) {
   const idx = (isoDate && _pickIndexByDate.get(isoDate)) || state.pickValueIndex || {};
-  const { season, round, slot } = seasonRoundSlot || {};
-  if (!season || !round) return 0;
-  return idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`] || 0;
+  return _lookupPickWithFallback(idx, seasonRoundSlot?.season, seasonRoundSlot?.round, seasonRoundSlot?.slot).value;
+}
+
+export function pickValueInfoForTradeAtDate(seasonRoundSlot, isoDate) {
+  const idx = (isoDate && _pickIndexByDate.get(isoDate)) || state.pickValueIndex || {};
+  return _lookupPickWithFallback(idx, seasonRoundSlot?.season, seasonRoundSlot?.round, seasonRoundSlot?.slot);
 }
 
 // Player value at a specific date (best available - falls back to current).

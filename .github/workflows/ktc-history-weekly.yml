@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: '0 7 * * 0'
   workflow_dispatch: {}
+  push:
+    paths:
+      - 'sleeperleague/scripts/ktc_history.py'
+      - '.github/workflows/ktc-history-weekly.yml'
 
 permissions:
   contents: write
