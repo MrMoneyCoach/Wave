@@ -48,6 +48,11 @@ export const state = {
 
   history: null,
   historyPromise: null,
+  // Auxiliary leagues: rosters + drafts + draft picks for seasons that aren't
+  // currently in scope. We load these so the trade grader can look up which
+  // player a traded pick was eventually used to draft, even when the draft
+  // happened in a season the user hasn't selected. Keyed by leagueId.
+  auxLeagues: {},
   nflState: null,
   activeTab: 'overview',
 
@@ -79,6 +84,7 @@ export function resetLeagueState() {
   state.availableSeasons = [];
   state.history = null;
   state.historyPromise = null;
+  state.auxLeagues = {};
   state.pickValueIndex = null;
   // ktcSnapshot/ktcHistory are session-wide (don't depend on selected league)
   // so we deliberately leave them.

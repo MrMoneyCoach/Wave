@@ -13,7 +13,7 @@ import {
 import { state } from '../state.js';
 import {
   ensurePlayers, ensureValues, ensureAllScopeMatchups, ensureAllScopeTransactions,
-  ensureKtcHistory, ensurePickValueIndex, ensureAllScopeDrafts,
+  ensureKtcHistory, ensurePickValueIndex, ensureAllAvailableDrafts,
   ensurePickValueIndexAtDate,
   pickValueForTrade, pickValueForTradeAtDate,
   pickValueInfoForTrade, pickValueInfoForTradeAtDate,
@@ -32,7 +32,7 @@ export async function renderTrades(host) {
     ensureAllScopeMatchups(),
     ensureKtcHistory(),
     ensurePickValueIndex(),
-    ensureAllScopeDrafts(),
+    ensureAllAvailableDrafts(),
   ]);
   if (state.activeTab !== 'trades') return;
 

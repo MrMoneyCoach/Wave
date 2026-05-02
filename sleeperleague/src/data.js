@@ -147,6 +147,53 @@ export async function ensureAllScopeDrafts() {
   }));
 }
 
+// Load drafts/users/rosters for every season the league has played, regardless
+// of what's currently in scope. The pick->player join needs the draft of the
+// pick's *target* season (e.g. a 2024 trade for a 2025 R4 pick needs the 2025
+// rookie draft, which lives in the 2025 league). Without this, picks from
+// past trades can't be matched to the players they became.
+//
+// Stores results in state.auxLeagues keyed by leagueId. Skips seasons that
+// are already loaded as part of the active scope.
+export async function ensureAllAvailableDrafts() {
+  const seasons = state.availableSeasons || [];
+  await Promise.all(seasons.map(async s => {
+    // Already loaded fully via scope? Make sure its drafts are loaded.
+    const inScope = state.scope.find(sc => sc.leagueId === s.leagueId);
+    if (inScope) {
+      if (!inScope.drafts || !inScope.drafts.length) {
+        inScope.drafts = await sleeper.leagueDrafts(inScope.leagueId);
+      }
+      await Promise.all((inScope.drafts || []).map(async d => {
+        if (!inScope.draftPicks[d.draft_id]) {
+          inScope.draftPicks[d.draft_id] = await sleeper.draftPicks(d.draft_id);
+        }
+      }));
+      return;
+    }
+    // Otherwise load minimal data into auxLeagues.
+    const existing = state.auxLeagues[s.leagueId];
+    if (existing && existing.drafts?.length) return;
+    const [users, rosters, drafts] = await Promise.all([
+      sleeper.leagueUsers(s.leagueId),
+      sleeper.rosters(s.leagueId),
+      sleeper.leagueDrafts(s.leagueId),
+    ]);
+    const draftPicks = {};
+    await Promise.all((drafts || []).map(async d => {
+      draftPicks[d.draft_id] = await sleeper.draftPicks(d.draft_id);
+    }));
+    state.auxLeagues[s.leagueId] = {
+      leagueId: s.leagueId,
+      season: s.season,
+      users,
+      rosters,
+      drafts: drafts || [],
+      draftPicks,
+    };
+  }));
+}
+
 // Load + cache the KTC history payload (per-player daily values).
 // Returns null if the workflow hasn't published it yet.
 export async function ensureKtcHistory() {
@@ -256,21 +303,24 @@ export function playerValueAtDate(sleeperId, isoDate) {
   return state.values?.get(String(sleeperId)) || 0;
 }
 
-// For each scope league + season, build a lookup
+// For every season we know about (scope + auxLeagues), build a lookup
 //   `(season, round, ownerUserId at draft time) -> {player_id, pick_no}`
 // so we can show "pick was used to draft <Player>" once the draft happens.
-//
-// Note: the draft pick metadata's `roster_id` is the roster that actually
-// made the pick. We map roster_id -> owner_id via that scope's rosters.
+// The pick's destination season may not be in scope, so we have to consult
+// the aux leagues too.
 export function buildDraftedPicksIndex() {
-  const out = new Map(); // key = `${season}|${round}|${ownerUserId}`
-  for (const sc of state.scope) {
-    const drafts = sc.drafts || [];
+  const out = new Map();
+  const sources = [
+    ...state.scope,
+    ...Object.values(state.auxLeagues || {}),
+  ];
+  for (const src of sources) {
+    const drafts = src.drafts || [];
     for (const d of drafts) {
       const season = d.season;
-      const picks = sc.draftPicks?.[d.draft_id] || [];
+      const picks = src.draftPicks?.[d.draft_id] || [];
       for (const p of picks) {
-        const roster = sc.rosters.find(r => r.roster_id === p.roster_id);
+        const roster = src.rosters.find(r => r.roster_id === p.roster_id);
         if (!roster) continue;
         const key = `${season}|${p.round}|${roster.owner_id}`;
         out.set(key, {
