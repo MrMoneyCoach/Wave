@@ -1,15 +1,25 @@
-name: KTC weekly history
+# KTC weekly history — DISABLED
+#
+# KTC renders per-player history as a JavaScript chart whose data comes
+# from hover events; it can't be extracted from the page source with a
+# regex. Pulling it would require Selenium with simulated mouse-overs,
+# which is slow (~10s per player × ~600 players > 60 min timeout) and
+# fragile (any KTC UI change breaks it).
+#
+# The browser-side plumbing for "value at trade date" still works — it
+# walks back through dated daily snapshots in sleeperleague/data/snapshots/.
+# So as the daily workflow keeps committing new snapshots, value-at-trade
+# will start showing up automatically for trades made after we started
+# snapshotting.
+#
+# To re-enable a Selenium-based scraper for the top-N dynasty assets,
+# uncomment the schedule below and put the Selenium implementation in
+# sleeperleague/scripts/ktc_history.py.
+
+name: KTC weekly history (disabled)
 
 on:
-  # Sundays at 07:00 UTC, after the daily snapshot. Lower frequency = lighter
-  # load on KTC since this fans out to ~600 player history pages.
-  schedule:
-    - cron: '0 7 * * 0'
-  workflow_dispatch: {}
-  push:
-    paths:
-      - 'sleeperleague/scripts/ktc_history.py'
-      - '.github/workflows/ktc-history-weekly.yml'
+  workflow_dispatch: {}  # leave manual trigger only; remove cron+push
 
 permissions:
   contents: write
@@ -19,40 +29,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  history:
+  noop:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install deps
-        run: pip install --quiet requests
-
-      - name: Make sure latest snapshot exists
-        run: |
-          if [ ! -f sleeperleague/data/ktc_latest.json ]; then
-            python sleeperleague/scripts/ktc_export.py
-          fi
-
-      - name: Fetch per-player histories
-        run: python sleeperleague/scripts/ktc_history.py
-
-      - name: Commit + push history
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add sleeperleague/data/
-          if git diff --staged --quiet; then
-            echo "No history changes."
-            exit 0
-          fi
-          git commit -m "KTC: weekly per-player history update ($(date -u +%F))"
-          git push
+      - run: |
+          echo "This workflow is intentionally disabled. See the comment block"
+          echo "at the top of this file for the reason and the path to re-enable."

@@ -231,16 +231,19 @@ function renderTradeCard(t, draftedIndex) {
     const r = received[rid] || { players: [], picks: [], faab: 0 };
     const g = grades[rid];
 
-    // Totals: show value at trade and value now separately. The grader's
-    // verdict is based on value-at-trade (i.e. "was this fair on the day?").
+    // Show "Value at trade" and "Value now" separately only when we actually
+    // have history that produces a different number. Without per-player KTC
+    // history (which can't be scraped without a headless browser - see
+    // README), they're always identical, so collapse to one column.
+    const haveDistinctHistory = g.valueAtTrade !== g.valueNow;
     const totalsRow = el('div', { class: 'trade-totals' },
-      el('span', {},
+      haveDistinctHistory ? el('span', {},
         el('strong', {}, fmtInt(g.valueAtTrade)),
         'Value at trade',
-      ),
+      ) : null,
       el('span', {},
         el('strong', {}, fmtInt(g.valueNow)),
-        'Value now',
+        haveDistinctHistory ? 'Value now' : 'Dynasty value',
       ),
       el('span', {},
         el('strong', {}, fmtNum(g.realized, 1)),
