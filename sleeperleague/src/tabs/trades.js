@@ -279,26 +279,20 @@ function renderTradeCard(t, draftedIndex) {
   return el('article', { class: 'trade-card' }, head, sides);
 }
 
-// Locate the actual draft pick that resulted from this traded pick.
-// Match by (season, round, owner_id at draft time). Receiving owner is the
-// best guess; if it misses (pick was traded again), fall back to anything
-// with the same season+round that resulted in a player.
+// Locate the actual draft pick this traded pick became, using the pick's
+// ORIGINAL owner. Sleeper transactions expose this as `roster_id` on each
+// draft_picks entry — it's the roster whose slot the pick comes from,
+// independent of how many times the pick was subsequently traded.
+//
+// We deliberately don't fall back to a season+round wildcard match: that
+// caused different picks (e.g. "2026 R3 from Team A" and "2026 R3 from
+// Team B") to collapse to the same drafted player.
 function findDraftedFor(p, receivingRosterId, sc, draftedIndex) {
-  const receivingRoster = sc.rosters.find(r => r.roster_id === receivingRosterId);
-  const receivingOwner = receivingRoster?.owner_id;
-  const key = receivingOwner ? `${p.season}|${p.round}|${receivingOwner}` : null;
-  let drafted = key ? draftedIndex.get(key) : null;
-  // An exact-key match without a player_id (incomplete or upcoming draft)
-  // should not block the fallback. Treat it as a miss.
-  if (drafted && !drafted.player_id) drafted = null;
-  if (!drafted) {
-    for (const [k, info] of draftedIndex.entries()) {
-      const [s, r] = k.split('|');
-      if (s === String(p.season) && r === String(p.round) && info.player_id) {
-        drafted = info; break;
-      }
-    }
-  }
+  const originalRoster = p.roster_id;
+  if (originalRoster == null) return null;
+  const key = `${p.season}|${p.round}|${originalRoster}`;
+  const drafted = draftedIndex.get(key);
+  if (!drafted || !drafted.player_id) return null;
   return drafted;
 }
 

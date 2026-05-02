@@ -316,10 +316,12 @@ export function playerValueAtDate(sleeperId, isoDate) {
 }
 
 // For every season we know about (scope + auxLeagues), build a lookup
-//   `(season, round, ownerUserId at draft time) -> {player_id, pick_no}`
-// so we can show "pick was used to draft <Player>" once the draft happens.
-// The pick's destination season may not be in scope, so we have to consult
-// the aux leagues too.
+//   `(season, round, original_roster_id) -> {player_id, pick_no, draft_slot}`
+// where `original_roster_id` is the team that *originally* owned the pick (its
+// slot in the draft). Sleeper's draft objects expose `slot_to_roster_id`
+// keyed by draft slot; we invert that to resolve "which slot belongs to
+// roster X" so each traded pick lands on its actual draft position rather
+// than collapsing to the first season+round match.
 export function buildDraftedPicksIndex() {
   const out = new Map();
   const sources = [
@@ -331,12 +333,16 @@ export function buildDraftedPicksIndex() {
     const drafts = src.drafts || [];
     for (const d of drafts) {
       const season = d.season;
+      const slotToRoster = d.slot_to_roster_id || {};
       const picks = src.draftPicks?.[d.draft_id] || [];
       for (const p of picks) {
-        const roster = src.rosters.find(r => r.roster_id === p.roster_id);
-        if (!roster) continue;
-        const key = `${season}|${p.round}|${roster.owner_id}`;
-        // Don't overwrite an entry that has a player with one that doesn't.
+        // The pick's *original* owner is whichever roster owns its slot in
+        // the draft. Falls back to the actual drafter (p.roster_id) when
+        // the mapping is missing - imperfect, but better than nothing.
+        const originalRosterId = slotToRoster[p.draft_slot] ?? p.roster_id;
+        if (originalRosterId == null) continue;
+        const key = `${season}|${p.round}|${originalRosterId}`;
+        // Don't clobber a populated entry with an empty one.
         const existing = out.get(key);
         if (existing && existing.player_id && !p.player_id) continue;
         out.set(key, {
