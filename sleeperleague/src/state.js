@@ -12,8 +12,9 @@ export const state = {
   leagueFamilies: [],     // [{leagueId, name, season, seasons, chain: [...]}]
   selectedFamilies: null, // Set<leagueId> currently selected on picker
   activeFamilies: [],     // families being analyzed in dashboard
-  activeFamilyId: null,   // 'all' or a specific family leagueId
-  activeSeasonFilter: 'all', // 'all' or a specific year ('2024')
+  // Multi-select filter sets. Empty Set = "all" (the default + "All ..." pill).
+  activeFamilyIds: null,    // Set<leagueId>
+  activeSeasonFilters: null, // Set<year string>
   primaryFamilyId: null,  // representative family for "your" stats
 
   // _allLoadedScope: the full set of season-scopes we've loaded across all
