@@ -178,18 +178,17 @@ function renderDashboardHead() {
   ));
 }
 
-// Render the multi-year scope bar (pills).
+// Render the multi-year scope bar (pills). Always visible — even with one
+// season, it gives a useful "you are looking at X" affordance.
 function renderScopeBar() {
-  const bar = $('#scopeBar');
   const pills = $('#scopePills');
   pills.innerHTML = '';
 
   const seasons = state.availableSeasons;
-  if (seasons.length <= 1) {
-    bar.hidden = true;
+  if (!seasons.length) {
+    pills.appendChild(el('span', { class: 'muted small' }, 'No seasons available.'));
     return;
   }
-  bar.hidden = false;
 
   const activeIds = new Set(state.scope.map(s => s.leagueId));
 
@@ -205,18 +204,54 @@ function renderScopeBar() {
     pills.appendChild(pill);
   }
 
-  // "All" pill: when not all selected, click to select all; when all selected, click to keep only newest.
-  const allActive = activeIds.size === seasons.length;
-  pills.appendChild(el('button', {
-    class: `scope-pill${allActive ? ' active' : ''}`,
-    onclick: async () => {
-      if (allActive) {
-        await applyScope([seasons[0].leagueId]);
-      } else {
-        await applyScope(seasons.map(s => s.leagueId));
-      }
+  // "All" pill is only meaningful when there are 2+ seasons.
+  if (seasons.length > 1) {
+    const allActive = activeIds.size === seasons.length;
+    pills.appendChild(el('button', {
+      class: `scope-pill${allActive ? ' active' : ''}`,
+      onclick: async () => {
+        if (allActive) {
+          await applyScope([seasons[0].leagueId]);
+        } else {
+          await applyScope(seasons.map(s => s.leagueId));
+        }
+      },
+    }, allActive ? '✓ All' : 'All'));
+  }
+}
+
+// Render the scoring (values source) pill row.
+function renderScoringBar() {
+  const pills = $('#scoringPills');
+  if (!pills) return;
+  pills.innerHTML = '';
+  const options = [
+    { id: 'combined', label: 'Combined' },
+    { id: 'ktc',      label: 'KeepTradeCut' },
+    { id: 'fc',       label: 'FantasyCalc' },
+  ];
+  for (const o of options) {
+    const isActive = state.valuesSource === o.id;
+    pills.appendChild(el('button', {
+      class: `scope-pill${isActive ? ' active' : ''}`,
+      onclick: () => setValuesSource(o.id),
     },
-  }, allActive ? '✓ All' : 'All'));
+      isActive ? el('span', { class: 'pill-check' }, '✓ ') : null,
+      o.label,
+    ));
+  }
+}
+
+function setValuesSource(src) {
+  if (state.valuesSource === src) return;
+  state.valuesSource = src;
+  savePrefs();
+  clearValues();
+  renderScoringBar();
+  updateValuesStatus();
+  setActiveTab(state.activeTab || 'overview');
+  setTimeout(updateValuesStatus, 1500);
+  setTimeout(updateValuesStatus, 4000);
 }
 
 async function toggleScopeSeason(leagueId) {
@@ -235,8 +270,10 @@ async function applyScope(leagueIds) {
     await setScopeLeagues(leagueIds);
     renderDashboardHead();
     renderScopeBar();
+    renderScoringBar();
     // Re-render the active tab with the new scope.
     setActiveTab(state.activeTab || 'overview');
+    setTimeout(updateValuesStatus, 1500);
   } catch (err) {
     console.error(err);
     alert('Failed to update selection: ' + err.message);
@@ -268,19 +305,7 @@ async function handleRefresh() {
 // ------ Settings (values source) ------
 
 function initValuesSource() {
-  const sel = $('#valuesSourceSelect');
-  sel.value = state.valuesSource;
-  sel.addEventListener('change', () => {
-    state.valuesSource = sel.value;
-    savePrefs();
-    clearValues();
-    updateValuesStatus();
-    // Re-render active tab so dependent tabs (Trades/Rosters/Drafts) refresh.
-    setActiveTab(state.activeTab || 'overview');
-    // Schedule a status refresh after a moment so we can show what loaded.
-    setTimeout(updateValuesStatus, 1500);
-    setTimeout(updateValuesStatus, 4000);
-  });
+  renderScoringBar();
   updateValuesStatus();
 }
 

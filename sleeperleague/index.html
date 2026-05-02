@@ -126,15 +126,6 @@
       <div class="sidebar-settings">
         <div class="sb-section-title">Settings</div>
         <label class="setting-row">
-          <span>Values source</span>
-          <select id="valuesSourceSelect" class="mini-select" title="Where player values come from. Format (1QB/SF, dynasty/redraft) is auto-detected from the league.">
-            <option value="combined">Combined (KTC + FC avg)</option>
-            <option value="ktc">KeepTradeCut</option>
-            <option value="fc">FantasyCalc</option>
-          </select>
-        </label>
-        <div class="setting-status muted small" id="valuesStatus"></div>
-        <label class="setting-row">
           <span>Theme</span>
           <button class="icon-btn small" id="themeToggleSidebar" aria-label="Toggle theme">
             <span class="theme-icon-light">☀︎ Light</span>
@@ -164,9 +155,16 @@
       </header>
 
       <!-- Multi-year scope: pill row of selectable seasons -->
-      <div class="scope-bar" id="scopeBar" hidden>
+      <div class="scope-bar" id="scopeBar">
         <span class="scope-label">Seasons:</span>
         <div class="scope-pills" id="scopePills"></div>
+      </div>
+
+      <!-- Scoring/values source: same pill style, sits under the seasons bar -->
+      <div class="scope-bar scoring-bar">
+        <span class="scope-label">Scoring:</span>
+        <div class="scope-pills" id="scoringPills"></div>
+        <span class="scoring-status muted small" id="valuesStatus"></span>
       </div>
 
       <div id="tabHost" class="tab-host"></div>
