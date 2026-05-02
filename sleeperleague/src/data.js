@@ -4,6 +4,7 @@ import {
   sleeper, valuesApi,
   fetchKtcLatest, fetchKtcHistory, fetchKtcSnapshotForDate, clearKtcCaches,
   ktcFormatKey, ktcPickIndex, valueOnOrBefore,
+  dpValuesForDate,
 } from './api.js';
 import { state, syncPrimary } from './state.js';
 
@@ -305,14 +306,75 @@ export function pickValueInfoForTradeAtDate(seasonRoundSlot, isoDate) {
   return _lookupPickWithFallback(idx, seasonRoundSlot?.season, seasonRoundSlot?.round, seasonRoundSlot?.slot);
 }
 
-// Player value at a specific date (best available - falls back to current).
+// Per-date player value cache. Populated by ensureHistoricalValuesForDates()
+// before any trade is rendered, so playerValueAtDate() can stay synchronous.
+const _playerValuesAtDate = new Map(); // isoDate -> Map<sleeperId, value>
+
+// Pre-load historical values from DynastyProcess for each unique trade date.
+// Call before rendering trades. After this resolves, playerValueAtDate()
+// returns real historical numbers for any requested (sleeperId, isoDate).
+export async function ensureHistoricalValuesForDates(isoDates) {
+  const lg = state.league || {};
+  const sfCount = (lg.roster_positions || []).filter(p => p === 'SUPER_FLEX').length;
+  const qbCount = (lg.roster_positions || []).filter(p => p === 'QB').length;
+  const isSuperflex = sfCount > 0 || qbCount >= 2;
+
+  const todo = [...new Set(isoDates)].filter(d => d && !_playerValuesAtDate.has(d));
+  if (!todo.length) return;
+  // Throttle to a small concurrency so we don't fan out 50 GitHub API calls
+  // at once and trip the unauth rate limit (60/hr).
+  const concurrency = 4;
+  let cursor = 0;
+  await Promise.all(Array.from({ length: concurrency }, async () => {
+    while (cursor < todo.length) {
+      const idx = cursor++;
+      const date = todo[idx];
+      try {
+        const map = await dpValuesForDate(date, { superflex: isSuperflex });
+        _playerValuesAtDate.set(date, map);
+      } catch (err) {
+        _playerValuesAtDate.set(date, new Map());
+      }
+    }
+  }));
+}
+
+// Player value at a specific date (best available — falls back to current).
+// Reads from the per-date cache populated by ensureHistoricalValuesForDates().
 export function playerValueAtDate(sleeperId, isoDate) {
+  if (isoDate && _playerValuesAtDate.has(isoDate)) {
+    const v = _playerValuesAtDate.get(isoDate).get(String(sleeperId));
+    if (v != null && v > 0) return v;
+  }
+  // Legacy KTC history path (left in for back-compat; usually empty).
   if (state.ktcHistory) {
     const v = valueOnOrBefore(state.ktcHistory, sleeperId, isoDate);
     if (v != null) return v;
   }
-  // Fallback to whatever current value we have for this source.
   return state.values?.get(String(sleeperId)) || 0;
+}
+
+// Pick value at trade date using the year-shift trick:
+// "2024 R2 mid" pick traded in 2024 was 0 years out at the time. We look up
+// today's "0 years out R2 mid" (i.e. current-year R2 mid) and use that as a
+// proxy. Pick values for "Mid Nth" don't change much year-over-year, so this
+// is a reasonable approximation when we don't have a historical KTC archive.
+export function pickValueForTradeAtDateShifted({ season, round, slot }, tradeIsoDate) {
+  const idx = state.pickValueIndex || {};
+  if (!season || !round) return 0;
+  const direct = idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`];
+  if (!tradeIsoDate) {
+    return direct || 0;
+  }
+  const tradeYear = parseInt(tradeIsoDate.slice(0, 4), 10);
+  const pickYear = parseInt(season, 10);
+  if (!Number.isFinite(tradeYear) || !Number.isFinite(pickYear)) return direct || 0;
+  const yearsOut = pickYear - tradeYear;
+  if (yearsOut < 0 || yearsOut > 5) return direct || 0;
+  const currentYear = state.nflState?.season ? parseInt(state.nflState.season, 10) : new Date().getFullYear();
+  const equivalentSeason = String(currentYear + yearsOut);
+  const shifted = idx[`${equivalentSeason}|${round}|${slot || 'mid'}`] || idx[`${equivalentSeason}|${round}`];
+  return shifted || direct || 0;
 }
 
 // For every season we know about (scope + auxLeagues), build a lookup

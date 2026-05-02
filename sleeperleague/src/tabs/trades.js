@@ -1,11 +1,8 @@
-// Trade grader. Three-pillar grading:
-//   1. Dynasty value of received assets (current + at trade date when available)
-//   2. Realized fantasy points scored after the trade
-//   3. Pick values + drafted-for player tags when picks have been used in a draft
-//
-// Aggregates across every season in state.scope. Uses KTC history file (when
-// the weekly workflow has populated it) for value-at-trade-date; otherwise
-// falls back to current values.
+// Trade grader — mfa-style expandable cards.
+// Each trade card shows: who fleeced who (or "Even") in collapsed form;
+// expanded form lists "X received" / "Y received" with PICK + position
+// badges, then a 3-column "Value at trade | Value now | Realized pts"
+// strip with one number per side.
 
 import {
   el, fmtNum, fmtInt, fmtDate, playerLabel, playerMeta, playerValue, pickLabel,
@@ -13,10 +10,9 @@ import {
 import { state } from '../state.js';
 import {
   ensurePlayers, ensureValues, ensureAllScopeMatchups, ensureAllScopeTransactions,
-  ensureKtcHistory, ensurePickValueIndex, ensureAllAvailableDrafts,
-  ensurePickValueIndexAtDate,
-  pickValueForTrade, pickValueForTradeAtDate,
-  pickValueInfoForTrade, pickValueInfoForTradeAtDate,
+  ensurePickValueIndex, ensureAllAvailableDrafts,
+  ensureHistoricalValuesForDates,
+  pickValueForTrade, pickValueForTradeAtDateShifted,
   playerValueAtDate, buildDraftedPicksIndex,
 } from '../data.js';
 
@@ -30,42 +26,40 @@ export async function renderTrades(host) {
     ensureAllScopeTransactions(),
     ensureValues(),
     ensureAllScopeMatchups(),
-    ensureKtcHistory(),
     ensurePickValueIndex(),
     ensureAllAvailableDrafts(),
   ]);
   if (state.activeTab !== 'trades') return;
 
   const trades = collectAllScopeTrades();
-  const draftedIndex = buildDraftedPicksIndex();
 
-  // For every trade date that has picks, preload the historical pick-value
-  // index so renderPickAsset can show "value-then" for picks too.
-  const datesWithPicks = new Set();
-  for (const t of trades) {
-    if ((t.draft_picks || []).length === 0) continue;
-    const d = tradeIsoDate(t);
-    if (d) datesWithPicks.add(d);
+  // Pre-load historical values from DynastyProcess for every unique trade date.
+  const tradeDates = trades.map(t => tradeIsoDate(t)).filter(Boolean);
+  if (tradeDates.length) {
+    wrap.querySelector('.muted')?.replaceChildren(document.createTextNode(
+      `Fetching historical values for ${new Set(tradeDates).size} trade date${new Set(tradeDates).size === 1 ? '' : 's'}…`));
+    await ensureHistoricalValuesForDates(tradeDates);
+    if (state.activeTab !== 'trades') return;
   }
-  await Promise.all([...datesWithPicks].map(d => ensurePickValueIndexAtDate(d)));
-  if (state.activeTab !== 'trades') return;
+
+  const draftedIndex = buildDraftedPicksIndex();
 
   wrap.innerHTML = '';
 
-  // Headline cards.
+  // Headline row (kept compact)
   const counts = {};
   for (const t of trades) {
     for (const oid of t._participants) counts[oid] = (counts[oid] || 0) + 1;
   }
   const topTrader = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
   const seasons = [...new Set(state.scope.map(s => s.season))].sort();
-  wrap.appendChild(el('div', { class: 'stat-row' },
-    statCard('Total trades', String(trades.length),
+  wrap.appendChild(el('div', { class: 'stat-grid' },
+    statCard('blue',   'Total trades', String(trades.length),
       seasons.length > 1 ? `Across ${seasons.length} seasons` : null),
-    statCard('Active traders', String(Object.keys(counts).length)),
-    statCard('Most active', topTrader ? ownerLabel(topTrader[0]) : '—',
+    statCard('purple', 'Active traders', String(Object.keys(counts).length)),
+    statCard('green',  'Most active', topTrader ? ownerLabel(topTrader[0]) : '—',
       topTrader ? `${topTrader[1]} trades` : ''),
-    statCard('Latest', trades[0] ? `Week ${trades[0]._week}` : '—',
+    statCard('orange', 'Latest', trades[0] ? `Week ${trades[0]._week}` : '—',
       trades[0] ? `${trades[0]._scope.season}${trades[0].status_updated ? ' · ' + fmtDate(trades[0].status_updated) : ''}` : ''),
   ));
 
@@ -83,7 +77,7 @@ export async function renderTrades(host) {
     el('div', { class: 'panel-head' },
       el('h3', {}, `All trades (${trades.length})`),
       el('span', { class: 'muted small' },
-        `Values from ${valuesLabel(state.valuesSource)}${state.ktcHistory ? ' · history available' : ''}`),
+        `Values: ${valuesLabel(state.valuesSource)}`),
     ),
     list,
   ));
@@ -91,11 +85,11 @@ export async function renderTrades(host) {
 
 function valuesLabel(src) {
   const loaded = state.valuesLoaded || { ktc: false, fc: false };
-  if (src === 'ktc') return loaded.ktc ? 'KeepTradeCut (daily snapshot)' : 'KTC snapshot unavailable';
-  if (src === 'fc')  return loaded.fc  ? 'FantasyCalc' : 'FC returned no data';
-  if (loaded.ktc && loaded.fc) return 'Combined: KTC + FC (avg)';
-  if (loaded.fc) return 'FC only (KTC snapshot unavailable)';
-  if (loaded.ktc) return 'KTC only (FC fetch failed)';
+  if (src === 'ktc') return loaded.ktc ? 'KTC (snapshot)' : 'KTC unavailable';
+  if (src === 'fc')  return loaded.fc  ? 'FantasyCalc' : 'FC unavailable';
+  if (loaded.ktc && loaded.fc) return 'KTC + FC';
+  if (loaded.fc) return 'FC only';
+  if (loaded.ktc) return 'KTC only';
   return 'No values loaded';
 }
 
@@ -140,17 +134,54 @@ function teamLabelInScope(rosterId, sc) {
   return u?.metadata?.team_name || u?.display_name || `Team ${rosterId}`;
 }
 
+function ownerNameInScope(rosterId, sc) {
+  const r = sc.rosters.find(r => r.roster_id === rosterId);
+  if (!r) return '';
+  const u = sc.users.find(u => u.user_id === r.owner_id);
+  return u?.display_name || '';
+}
+
 function tradeIsoDate(t) {
   const ts = t.status_updated;
   if (!ts) return null;
   return new Date(ts).toISOString().slice(0, 10);
 }
 
+// ============ Pick → drafted player lookup ============
+
+function findDraftedFor(p, draftedIndex) {
+  const originalRoster = p.roster_id;
+  if (originalRoster == null) return null;
+  const key = `${p.season}|${p.round}|${originalRoster}`;
+  const drafted = draftedIndex.get(key);
+  if (!drafted || !drafted.player_id) return null;
+  return drafted;
+}
+
+function pickValueWithDraftAware(p, draftedIndex, tradeDate) {
+  const drafted = findDraftedFor(p, draftedIndex);
+  if (drafted && drafted.player_id) {
+    const pid = drafted.player_id;
+    const valueNow = playerValue(pid);
+    const valueThen = tradeDate
+      ? (playerValueAtDate(pid, tradeDate) || valueNow)
+      : valueNow;
+    return { valueNow, valueThen, source: 'drafted', drafted, playerId: pid };
+  }
+  const sr = { season: p.season, round: p.round };
+  const valueThen = tradeDate ? pickValueForTradeAtDateShifted(sr, tradeDate) : pickValueForTrade(sr);
+  const valueNow = pickValueForTrade(sr);
+  return { valueNow, valueThen, source: 'pick', drafted: null };
+}
+
+// ============ Render ============
+
 function renderTradeCard(t, draftedIndex) {
   const sc = t._scope;
   const rosters = t.roster_ids || [];
+  const tradeDate = tradeIsoDate(t);
 
-  // Build per-roster `received` maps: players, picks, faab.
+  // Build per-roster received (players, picks, faab).
   const received = {};
   for (const rid of rosters) received[rid] = { players: [], picks: [], faab: 0 };
   for (const [pid, rid] of Object.entries(t.adds || {})) {
@@ -177,196 +208,214 @@ function renderTradeCard(t, draftedIndex) {
     ? Math.min(lastReg, state.nflState?.week || lastReg)
     : lastReg;
 
-  const tradeDate = tradeIsoDate(t);
-
-  // Compute side totals (now + at-trade-date) for both players and picks.
-  const grades = {};
+  // Compute totals per side: { valueAtTrade, valueNow, realized }.
+  const sideTotals = {};
   for (const rid of rosters) {
     const r = received[rid];
-    let playerValueNow = 0, playerValueThen = 0;
+    let vn = 0, vt = 0, realized = 0;
     for (const pid of r.players) {
-      playerValueNow += playerValue(pid);
-      playerValueThen += tradeDate ? (playerValueAtDate(pid, tradeDate) || playerValue(pid)) : playerValue(pid);
+      vn += playerValue(pid);
+      vt += tradeDate ? (playerValueAtDate(pid, tradeDate) || playerValue(pid)) : playerValue(pid);
+      realized += realizedPointsForPlayer(pid, t._week, maxWeek, sc);
     }
-    let pickValueNow = 0, pickValueThen = 0;
     for (const p of r.picks) {
-      const v = pickValueWithDraftAware(p, rid, sc, draftedIndex, tradeDate);
-      pickValueNow += v.valueNow;
-      pickValueThen += v.valueThen;
+      const v = pickValueWithDraftAware(p, draftedIndex, tradeDate);
+      vn += v.valueNow;
+      vt += v.valueThen;
+      // If pick was drafted, the drafted player's points after trade also count.
+      if (v.source === 'drafted' && v.playerId) {
+        realized += realizedPointsForPlayer(v.playerId, t._week, maxWeek, sc);
+      }
     }
-    const realized = r.players.reduce((s, pid) =>
-      s + realizedPointsForPlayer(pid, t._week, maxWeek, sc), 0);
-    grades[rid] = {
-      valueNow: playerValueNow + pickValueNow,
-      valueAtTrade: playerValueThen + pickValueThen,
-      realized,
-    };
+    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized };
   }
 
-  // Winner = side with higher (valueAtTrade + realized). valueAtTrade
-  // already includes pick value at the trade date.
-  let winnerRid = null;
+  // Determine winner / fleece headline.
+  let headline = null;
+  let cardTone = 'even';
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const aS = grades[a].valueAtTrade + grades[a].realized;
-    const bS = grades[b].valueAtTrade + grades[b].realized;
-    if (aS > bS) winnerRid = a;
-    else if (bS > aS) winnerRid = b;
+    const aS = sideTotals[a].valueAtTrade + sideTotals[a].realized;
+    const bS = sideTotals[b].valueAtTrade + sideTotals[b].realized;
+    const margin = Math.abs(aS - bS);
+    const total = aS + bS || 1;
+    const winnerRid = aS > bS ? a : (bS > aS ? b : null);
+    const loserRid = winnerRid === a ? b : (winnerRid === b ? a : null);
+    if (winnerRid != null && margin / total > 0.25) {
+      cardTone = 'fleece';
+      headline = el('div', { class: 'trade-headline' },
+        el('strong', { class: ownerIsYou(winnerRid, sc) ? 'you' : '' }, teamLabelInScope(winnerRid, sc)),
+        ' ',
+        el('em', {}, 'fleeced'),
+        ' ',
+        el('strong', {}, teamLabelInScope(loserRid, sc)),
+      );
+    } else if (winnerRid != null) {
+      cardTone = 'win';
+      headline = el('div', { class: 'trade-headline' },
+        el('strong', { class: ownerIsYou(winnerRid, sc) ? 'you' : '' }, teamLabelInScope(winnerRid, sc)),
+        ' ',
+        el('em', {}, 'edged'),
+        ' ',
+        el('strong', {}, teamLabelInScope(loserRid, sc)),
+      );
+    } else {
+      headline = el('div', { class: 'trade-headline' },
+        el('strong', {}, teamLabelInScope(a, sc)),
+        ' ',
+        el('em', {}, '⇄'),
+        ' ',
+        el('strong', {}, teamLabelInScope(b, sc)),
+      );
+    }
   }
 
-  const head = el('div', { class: 'trade-head' },
-    el('div', { style: 'display: flex; align-items: center; gap: 8px; flex-wrap: wrap;' },
-      el('span', { class: 'year-tag' }, String(sc.season)),
-      el('span', { class: 'trade-week' }, `Week ${t._week}`),
-      t.status_updated ? el('span', { class: 'muted small' }, fmtDate(t.status_updated)) : null,
-    ),
-    winnerRid != null
-      ? el('div', { class: 'trade-grade' },
-          el('span', { class: 'chip good' }, `${teamLabelInScope(winnerRid, sc)} edge`))
-      : el('span', { class: 'chip' }, 'Even'),
-  );
+  const detailLine = el('div', { class: 'trade-detail-line' },
+    summarizeReceived(received, rosters, sc));
 
-  const sides = el('div', { class: 'trade-sides' });
+  // Trade card root (collapsed by default).
+  const card = el('article', { class: `trade-card ${cardTone}` });
+
+  const tagText = cardTone === 'fleece' ? 'Fleece' : cardTone === 'win' ? 'Edge' : 'Even';
+  const tagClass = cardTone === 'fleece' ? 'fleece' : cardTone === 'win' ? 'win' : 'even';
+
+  const expandBtn = el('button', { class: 'trade-expand', 'aria-label': 'Expand trade' }, '▼');
+
+  const summary = el('div', { class: 'trade-summary',
+    onclick: () => card.classList.toggle('expanded'),
+  },
+    el('div', { class: 'trade-summary-text' },
+      headline,
+      detailLine,
+      el('div', { class: 'trade-meta' },
+        el('span', { class: 'year-tag' }, String(sc.season)),
+        ' Week ', String(t._week),
+        t.status_updated ? ` · ${fmtDate(t.status_updated)}` : '',
+      ),
+    ),
+    el('span', { class: `trade-tag ${tagClass}` }, tagText),
+    expandBtn,
+  );
+  card.appendChild(summary);
+
+  // Body: per-side received blocks + totals strip.
+  const body = el('div', { class: 'trade-body' });
+
   for (const rid of rosters) {
     const r = received[rid] || { players: [], picks: [], faab: 0 };
-    const g = grades[rid];
-
-    // Show "Value at trade" and "Value now" separately only when we actually
-    // have history that produces a different number. Without per-player KTC
-    // history (which can't be scraped without a headless browser - see
-    // README), they're always identical, so collapse to one column.
-    const haveDistinctHistory = g.valueAtTrade !== g.valueNow;
-    const totalsRow = el('div', { class: 'trade-totals' },
-      haveDistinctHistory ? el('span', {},
-        el('strong', {}, fmtInt(g.valueAtTrade)),
-        'Value at trade',
-      ) : null,
-      el('span', {},
-        el('strong', {}, fmtInt(g.valueNow)),
-        haveDistinctHistory ? 'Value now' : 'Dynasty value',
-      ),
-      el('span', {},
-        el('strong', {}, fmtNum(g.realized, 1)),
-        'Realized pts',
-      ),
+    const teamName = teamLabelInScope(rid, sc);
+    const block = el('div', { class: 'trade-side-block received' },
+      el('div', { class: 'trade-side-title' }, `${teamName} received:`),
     );
-
-    const playerNodes = r.players.map(pid => {
-      const vNow = playerValue(pid);
-      const vThen = tradeDate ? playerValueAtDate(pid, tradeDate) : null;
-      const showThen = vThen != null && vThen !== vNow;
-      return el('div', { class: 'asset asset-player', title: playerMeta(pid) },
-        playerLabel(pid),
-        showThen
-          ? el('span', { class: 'val', title: 'value at trade · value now' },
-              `${fmtInt(vThen)} → ${fmtInt(vNow)}`)
-          : el('span', { class: 'val' }, fmtInt(vNow)),
-      );
-    });
-
-    const pickNodes = r.picks.map(p => renderPickAsset(p, rid, sc, draftedIndex, tradeDate));
-
-    const side = el('div', { class: `trade-side${rid === winnerRid ? ' winner' : ''}` },
-      rid === winnerRid ? el('div', { class: 'winner-badge' }, 'Winner') : null,
-      el('div', { class: 'trade-team' }, teamLabelInScope(rid, sc)),
-      totalsRow,
-      el('div', { class: 'trade-received' },
-        ...playerNodes,
-        ...pickNodes,
-        r.faab ? el('div', { class: 'asset asset-faab' }, `$${r.faab} FAAB`) : null,
-        (!r.players.length && !r.picks.length && !r.faab) ? el('div', { class: 'asset asset-empty' }, '—') : null,
-      ),
-    );
-    sides.appendChild(side);
+    for (const pid of r.players) block.appendChild(renderPlayerAsset(pid, tradeDate));
+    for (const p of r.picks) block.appendChild(renderPickAsset(p, draftedIndex, tradeDate));
+    if (r.faab) block.appendChild(el('div', { class: 'trade-asset' },
+      el('span', { class: 'asset-tag faab' }, 'FAAB'),
+      el('span', { class: 'asset-name' }, `$${r.faab}`),
+    ));
+    if (!r.players.length && !r.picks.length && !r.faab) {
+      block.appendChild(el('div', { class: 'muted small' }, '—'));
+    }
+    body.appendChild(block);
   }
-  return el('article', { class: 'trade-card' }, head, sides);
-}
 
-// Locate the actual draft pick this traded pick became, using the pick's
-// ORIGINAL owner. Sleeper transactions expose this as `roster_id` on each
-// draft_picks entry — it's the roster whose slot the pick comes from,
-// independent of how many times the pick was subsequently traded.
-//
-// We deliberately don't fall back to a season+round wildcard match: that
-// caused different picks (e.g. "2026 R3 from Team A" and "2026 R3 from
-// Team B") to collapse to the same drafted player.
-function findDraftedFor(p, receivingRosterId, sc, draftedIndex) {
-  const originalRoster = p.roster_id;
-  if (originalRoster == null) return null;
-  const key = `${p.season}|${p.round}|${originalRoster}`;
-  const drafted = draftedIndex.get(key);
-  if (!drafted || !drafted.player_id) return null;
-  return drafted;
-}
-
-// Unified pick valuation:
-//   - If the pick has been used to draft a player, use that player's value
-//     (now & at trade date). This is the truthful value of the asset.
-//   - Otherwise use the KTC pick value with year fallback (2029 -> 2028 etc).
-function pickValueWithDraftAware(p, receivingRosterId, sc, draftedIndex, tradeDate) {
-  const drafted = findDraftedFor(p, receivingRosterId, sc, draftedIndex);
-  if (drafted && drafted.player_id) {
-    const valueNow = playerValue(drafted.player_id);
-    const valueThen = tradeDate
-      ? (playerValueAtDate(drafted.player_id, tradeDate) || valueNow)
-      : valueNow;
-    return { valueNow, valueThen, source: 'drafted', drafted };
+  // 3-column totals strip
+  if (rosters.length === 2) {
+    const [a, b] = rosters;
+    const ta = sideTotals[a], tb = sideTotals[b];
+    const aShort = ownerNameShort(rosters[0], sc);
+    const bShort = ownerNameShort(rosters[1], sc);
+    body.appendChild(el('div', { class: 'trade-totals-grid' },
+      totalCell('Value at trade', ta.valueAtTrade, tb.valueAtTrade, aShort, bShort),
+      totalCell('Value now',      ta.valueNow,     tb.valueNow,     aShort, bShort),
+      totalCell('Realized pts',   ta.realized,     tb.realized,     aShort, bShort, 1),
+    ));
   }
-  const sr = { season: p.season, round: p.round };
-  const nowInfo = pickValueInfoForTrade(sr);
-  const thenInfo = tradeDate ? pickValueInfoForTradeAtDate(sr, tradeDate) : nowInfo;
-  return {
-    valueNow: nowInfo.value,
-    valueThen: thenInfo.value || nowInfo.value,
-    source: 'pick',
-    drafted: null,
-    fallbackFromSeason:
-      (nowInfo.fromSeason && nowInfo.fromSeason !== p.season) ? nowInfo.fromSeason : null,
-  };
+
+  card.appendChild(body);
+  return card;
 }
 
-// Render a draft pick asset.
-function renderPickAsset(p, receivingRosterId, sc, draftedIndex, tradeDate) {
-  const v = pickValueWithDraftAware(p, receivingRosterId, sc, draftedIndex, tradeDate);
+function totalCell(label, va, vb, aShort, bShort, decimals = 0) {
+  const fmt = decimals ? (v) => fmtNum(v, decimals) : fmtInt;
+  return el('div', { class: 'trade-total-cell' },
+    el('div', { class: 'trade-total-label' }, label),
+    el('div', { class: 'trade-total-pair' },
+      el('span', {}, fmt(va)),
+      el('span', {}, fmt(vb)),
+    ),
+    el('div', { class: 'trade-total-names' },
+      el('span', {}, aShort),
+      el('span', {}, bShort),
+    ),
+  );
+}
+
+function ownerNameShort(rosterId, sc) {
+  const name = ownerNameInScope(rosterId, sc) || teamLabelInScope(rosterId, sc);
+  return name.length > 9 ? name.slice(0, 8) + '…' : name;
+}
+
+function ownerIsYou(rosterId, sc) {
+  const r = sc.rosters.find(r => r.roster_id === rosterId);
+  return r?.owner_id === state.user?.user_id;
+}
+
+function summarizeReceived(received, rosters, sc) {
+  // E.g. "Got 2024 Rd 1 (Ladd McConkey) +1 | Gave Tua Tagovailoa +1"
+  // For two-sided trades, show top received + count from each side.
+  if (rosters.length !== 2) return '';
+  const [a, b] = rosters;
+  const ra = received[a], rb = received[b];
+
+  function descSide(r) {
+    // First asset (player or pick name) + extras count
+    const items = [];
+    for (const pid of r.players) items.push({ kind: 'p', label: playerLabel(pid) });
+    for (const p of r.picks) items.push({ kind: 'k', label: pickLabel(p) });
+    if (!items.length && r.faab) items.push({ kind: 'f', label: `$${r.faab} FAAB` });
+    if (!items.length) return '—';
+    const head = items[0].label;
+    const rest = items.length - 1;
+    return `${head}${rest > 0 ? ` +${rest}` : ''}`;
+  }
+  return `Got ${descSide(ra)}  |  Gave ${descSide(rb)}`;
+}
+
+function renderPlayerAsset(pid, tradeDate) {
+  const p = state.players?.[pid];
+  const pos = (p?.position || '').toUpperCase();
+  const tagCls = ['QB','RB','WR','TE','K','DEF'].includes(pos) ? pos.toLowerCase() : '';
+  const valueNow = playerValue(pid);
+  const valueThen = tradeDate ? (playerValueAtDate(pid, tradeDate) || valueNow) : valueNow;
+  const showThenAndNow = valueThen && valueNow && Math.abs(valueThen - valueNow) / Math.max(valueThen, valueNow) > 0.05;
+  return el('div', { class: 'trade-asset', title: playerMeta(pid) },
+    el('span', { class: `asset-tag ${tagCls}` }, pos || '?'),
+    el('span', { class: 'asset-name' }, playerLabel(pid)),
+    el('span', { class: 'asset-value' },
+      showThenAndNow ? `${fmtInt(valueThen)} → ${fmtInt(valueNow)}` : fmtInt(valueNow || valueThen)),
+  );
+}
+
+function renderPickAsset(p, draftedIndex, tradeDate) {
+  const v = pickValueWithDraftAware(p, draftedIndex, tradeDate);
   const baseLabel = pickLabel(p);
-
   let label = baseLabel;
-  let titleParts = [];
-
   if (v.source === 'drafted' && v.drafted) {
     const slot = formatDraftSlot(v.drafted);
     const playerName = playerLabel(v.drafted.player_id);
     label = `${baseLabel} → ${slot ? slot + ' ' : ''}${playerName}`;
-    titleParts.push(`Pick used to draft ${playerName}`);
-    titleParts.push(`Player value at trade: ${fmtInt(v.valueThen)} · now: ${fmtInt(v.valueNow)}`);
-  } else if (v.fallbackFromSeason) {
-    titleParts.push(`KTC has no value for ${p.season}; using ${v.fallbackFromSeason} value as estimate`);
-  } else {
-    titleParts.push(`KTC pick value`);
   }
-
-  // Value chip
-  let valueChip = null;
-  if (v.valueThen && v.valueNow && v.valueThen !== v.valueNow) {
-    valueChip = el('span', { class: 'val', title: 'value at trade · value now' },
-      `${fmtInt(v.valueThen)} → ${fmtInt(v.valueNow)}`);
-  } else if (v.valueNow) {
-    valueChip = el('span', { class: 'val' }, (v.fallbackFromSeason ? '~' : '') + fmtInt(v.valueNow));
-  } else if (v.valueThen) {
-    valueChip = el('span', { class: 'val' }, fmtInt(v.valueThen));
-  }
-
-  return el('div', {
-    class: 'asset asset-pick',
-    title: titleParts.join(' · '),
-  },
-    label,
-    valueChip,
+  const showThen = v.valueThen && v.valueNow && Math.abs(v.valueThen - v.valueNow) / Math.max(v.valueThen, v.valueNow) > 0.05;
+  return el('div', { class: 'trade-asset' },
+    el('span', { class: 'asset-tag' }, 'PICK'),
+    el('span', { class: 'asset-name' }, label),
+    el('span', { class: 'asset-value' },
+      showThen ? `${fmtInt(v.valueThen)} → ${fmtInt(v.valueNow)}` : fmtInt(v.valueNow || v.valueThen)),
   );
 }
 
 function formatDraftSlot(info) {
-  // info: {pick_no, draft_slot, season, round}. Show "1.01" style.
   if (info.round && info.draft_slot != null) {
     return `${info.round}.${String(info.draft_slot).padStart(2, '0')}`;
   }
@@ -385,8 +434,8 @@ function realizedPointsForPlayer(pid, fromWeek, maxWeek, sc) {
   return total;
 }
 
-function statCard(label, value, sub) {
-  return el('div', { class: 'stat-card' },
+function statCard(tone, label, value, sub) {
+  return el('div', { class: `stat-card tone-${tone}` },
     el('div', { class: 'stat-label' }, label),
     el('div', { class: 'stat-value' }, value || '—'),
     sub ? el('div', { class: 'stat-sub' }, sub) : null,

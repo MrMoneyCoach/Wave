@@ -29,6 +29,160 @@ async function getJSONsoft(url) {
     return await r.json();
   } catch { return null; }
 }
+async function getTextSoft(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.text();
+  } catch { return null; }
+}
+
+// Simple CSV parser (handles quoted fields).
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.length);
+  if (!lines.length) return [];
+  const parseLine = (line) => {
+    const out = []; let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQ) {
+        if (c === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else inQ = false;
+        } else cur += c;
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === ',') { out.push(cur); cur = ''; }
+        else cur += c;
+      }
+    }
+    out.push(cur);
+    return out;
+  };
+  const headers = parseLine(lines[0]).map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, j) => obj[h] = cols[j]);
+    rows.push(obj);
+  }
+  return rows;
+}
+
+// ============ DynastyProcess historical values via git history ============
+// DP commits values-players.csv frequently (~daily). We fetch any past commit
+// by SHA via raw.githubusercontent.com to read player values as of that date.
+// This gives us per-player historical values for the last several years
+// without scraping anyone.
+
+const DP_REPO = 'dynastyprocess/data';
+const DP_VALUES_PATH = 'files/values-players.csv';
+const DP_PLAYERIDS_URL = `https://raw.githubusercontent.com/${DP_REPO}/master/files/db_playerids.csv`;
+const HIST_CACHE_PREFIX = 'sla:hist:';
+const HIST_BRIDGE_KEY = 'sla:hist:bridge';
+const HIST_BRIDGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+const _commitForDate = new Map();
+const _valuesAtCommit = new Map();
+let _bridgePromise = null;
+
+async function ensureFpToSleeperBridge() {
+  if (_bridgePromise) return _bridgePromise;
+  _bridgePromise = (async () => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(HIST_BRIDGE_KEY) || 'null');
+      if (cached?.t && Date.now() - cached.t < HIST_BRIDGE_MS) return new Map(cached.d);
+    } catch {}
+    const text = await getTextSoft(DP_PLAYERIDS_URL);
+    if (!text) return new Map();
+    const rows = parseCSV(text);
+    const map = new Map();
+    for (const r of rows) {
+      const fp = r.fantasypros_id;
+      const sl = r.sleeper_id;
+      if (fp && sl) map.set(String(fp), String(sl));
+    }
+    try {
+      localStorage.setItem(HIST_BRIDGE_KEY, JSON.stringify({ t: Date.now(), d: [...map.entries()] }));
+    } catch {}
+    return map;
+  })();
+  return _bridgePromise;
+}
+
+async function dpCommitForDate(isoDate) {
+  if (_commitForDate.has(isoDate)) return _commitForDate.get(isoDate);
+  const cacheKey = `${HIST_CACHE_PREFIX}commit:${isoDate}`;
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    if (cached?.sha) { _commitForDate.set(isoDate, cached.sha); return cached.sha; }
+    if (cached?.miss) { _commitForDate.set(isoDate, null); return null; }
+  } catch {}
+  const url = `https://api.github.com/repos/${DP_REPO}/commits?path=${encodeURIComponent(DP_VALUES_PATH)}&until=${isoDate}T23:59:59Z&per_page=1`;
+  let sha = null;
+  try {
+    const r = await fetch(url);
+    if (r.ok) {
+      const list = await r.json();
+      sha = list?.[0]?.sha || null;
+    }
+  } catch {}
+  _commitForDate.set(isoDate, sha);
+  try {
+    localStorage.setItem(cacheKey, sha ? JSON.stringify({ sha }) : JSON.stringify({ miss: true, t: Date.now() }));
+  } catch {}
+  return sha;
+}
+
+async function dpValuesAtCommit(sha) {
+  if (!sha) return new Map();
+  if (_valuesAtCommit.has(sha)) return _valuesAtCommit.get(sha);
+  const cacheKey = `${HIST_CACHE_PREFIX}vals:${sha}`;
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    if (cached?.d) {
+      const map = new Map(cached.d);
+      _valuesAtCommit.set(sha, map);
+      return map;
+    }
+  } catch {}
+  const url = `https://raw.githubusercontent.com/${DP_REPO}/${sha}/${DP_VALUES_PATH}`;
+  const text = await getTextSoft(url);
+  if (!text) return new Map();
+  const rows = parseCSV(text);
+  const bridge = await ensureFpToSleeperBridge();
+  const map = new Map();
+  for (const r of rows) {
+    const fp = r.fp_id;
+    if (!fp) continue;
+    const sleeperId = bridge.get(String(fp));
+    if (!sleeperId) continue;
+    map.set(String(sleeperId), {
+      v1: parseFloat(r.value_1qb) || 0,
+      v2: parseFloat(r.value_2qb) || 0,
+    });
+  }
+  _valuesAtCommit.set(sha, map);
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ d: [...map.entries()] }));
+  } catch { /* over quota; in-memory only */ }
+  return map;
+}
+
+// Public: get historical values map keyed by sleeperId for a given date.
+// `superflex: true` returns 2QB values, otherwise 1QB.
+export async function dpValuesForDate(isoDate, { superflex = false } = {}) {
+  if (!isoDate) return new Map();
+  const sha = await dpCommitForDate(isoDate);
+  if (!sha) return new Map();
+  const raw = await dpValuesAtCommit(sha);
+  const out = new Map();
+  for (const [id, row] of raw) {
+    out.set(id, superflex ? row.v2 : row.v1);
+  }
+  return out;
+}
 
 export const sleeper = {
   user(username) { return getJSON(`${SLEEPER}/user/${encodeURIComponent(username)}`); },
