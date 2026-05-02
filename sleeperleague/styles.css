@@ -771,6 +771,29 @@ button.link-btn:hover { text-decoration: underline; }
 .trade-asset .asset-name { flex: 1; min-width: 0; }
 .trade-asset .asset-value { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
+.depth-discount {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  background: var(--purple-soft);
+  border: 1px solid color-mix(in srgb, var(--purple) 25%, transparent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.depth-discount-label {
+  color: var(--purple);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.depth-discount-amount {
+  font-size: 13px;
+  color: var(--purple);
+  font-weight: 600;
+}
+
 .trade-totals-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -354,27 +354,35 @@ export function playerValueAtDate(sleeperId, isoDate) {
   return state.values?.get(String(sleeperId)) || 0;
 }
 
-// Pick value at trade date using the year-shift trick:
+// Pick value at trade date using the year-shift trick, with year-fallback
+// as a final safety net so that "2029 R1" never returns 0 just because KTC
+// hasn't ranked 2029 picks yet.
+//
 // "2024 R2 mid" pick traded in 2024 was 0 years out at the time. We look up
 // today's "0 years out R2 mid" (i.e. current-year R2 mid) and use that as a
 // proxy. Pick values for "Mid Nth" don't change much year-over-year, so this
 // is a reasonable approximation when we don't have a historical KTC archive.
+// If the shifted year still isn't in the snapshot, walk back through years
+// until we find a hit (same logic as pickValueForTrade).
 export function pickValueForTradeAtDateShifted({ season, round, slot }, tradeIsoDate) {
   const idx = state.pickValueIndex || {};
   if (!season || !round) return 0;
-  const direct = idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`];
-  if (!tradeIsoDate) {
-    return direct || 0;
+  // Compute the year-shifted equivalent season.
+  let lookupSeason = season;
+  if (tradeIsoDate) {
+    const tradeYear = parseInt(tradeIsoDate.slice(0, 4), 10);
+    const pickYear = parseInt(season, 10);
+    if (Number.isFinite(tradeYear) && Number.isFinite(pickYear)) {
+      const yearsOut = pickYear - tradeYear;
+      if (yearsOut >= 0 && yearsOut <= 5) {
+        const currentYear = state.nflState?.season ? parseInt(state.nflState.season, 10) : new Date().getFullYear();
+        lookupSeason = String(currentYear + yearsOut);
+      }
+    }
   }
-  const tradeYear = parseInt(tradeIsoDate.slice(0, 4), 10);
-  const pickYear = parseInt(season, 10);
-  if (!Number.isFinite(tradeYear) || !Number.isFinite(pickYear)) return direct || 0;
-  const yearsOut = pickYear - tradeYear;
-  if (yearsOut < 0 || yearsOut > 5) return direct || 0;
-  const currentYear = state.nflState?.season ? parseInt(state.nflState.season, 10) : new Date().getFullYear();
-  const equivalentSeason = String(currentYear + yearsOut);
-  const shifted = idx[`${equivalentSeason}|${round}|${slot || 'mid'}`] || idx[`${equivalentSeason}|${round}`];
-  return shifted || direct || 0;
+  // Apply standard fallback against the (possibly shifted) season.
+  return _lookupPickWithFallback(idx, lookupSeason, round, slot).value
+      || _lookupPickWithFallback(idx, season, round, slot).value;
 }
 
 // For every season we know about (scope + auxLeagues), build a lookup

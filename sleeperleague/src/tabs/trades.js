@@ -208,35 +208,59 @@ function renderTradeCard(t, draftedIndex) {
     ? Math.min(lastReg, state.nflState?.week || lastReg)
     : lastReg;
 
-  // Compute totals per side: { valueAtTrade, valueNow, realized }.
+  // Compute totals per side: { valueAtTrade, valueNow, realized, assetCount }.
   const sideTotals = {};
   for (const rid of rosters) {
     const r = received[rid];
     let vn = 0, vt = 0, realized = 0;
+    let assetCount = 0;
     for (const pid of r.players) {
       vn += playerValue(pid);
       vt += tradeDate ? (playerValueAtDate(pid, tradeDate) || playerValue(pid)) : playerValue(pid);
       realized += realizedPointsForPlayer(pid, t._week, maxWeek, sc);
+      assetCount++;
     }
     for (const p of r.picks) {
       const v = pickValueWithDraftAware(p, draftedIndex, tradeDate);
       vn += v.valueNow;
       vt += v.valueThen;
-      // If pick was drafted, the drafted player's points after trade also count.
       if (v.source === 'drafted' && v.playerId) {
         realized += realizedPointsForPlayer(v.playerId, t._week, maxWeek, sc);
       }
+      assetCount++;
     }
-    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized };
+    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount };
   }
 
-  // Determine winner / fleece headline.
+  // Depth discount: if one side received more roster-occupying assets, each
+  // extra slot eats into their effective gain. Replacement value approximates
+  // a startable waiver/free-agent — for KTC dynasty values, ~2500 is sane.
+  const REPLACEMENT_VALUE = 2500;
+  let depthDiscount = null; // { side: rid, extraSpots, amount }
+  if (rosters.length === 2) {
+    const [a, b] = rosters;
+    const diff = sideTotals[a].assetCount - sideTotals[b].assetCount;
+    if (diff !== 0) {
+      const heavierSide = diff > 0 ? a : b;
+      const extraSpots = Math.abs(diff);
+      depthDiscount = {
+        side: heavierSide,
+        extraSpots,
+        amount: extraSpots * REPLACEMENT_VALUE,
+      };
+      // Apply to the heavier side's value at trade for the winner calc.
+      sideTotals[heavierSide].depthDiscount = depthDiscount.amount;
+    }
+  }
+
+  // Determine winner / fleece headline. Subtract the depth discount from
+  // the heavier side's effective value before deciding.
   let headline = null;
   let cardTone = 'even';
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const aS = sideTotals[a].valueAtTrade + sideTotals[a].realized;
-    const bS = sideTotals[b].valueAtTrade + sideTotals[b].realized;
+    const aS = sideTotals[a].valueAtTrade + sideTotals[a].realized - (sideTotals[a].depthDiscount || 0);
+    const bS = sideTotals[b].valueAtTrade + sideTotals[b].realized - (sideTotals[b].depthDiscount || 0);
     const margin = Math.abs(aS - bS);
     const total = aS + bS || 1;
     const winnerRid = aS > bS ? a : (bS > aS ? b : null);
@@ -317,6 +341,19 @@ function renderTradeCard(t, draftedIndex) {
       block.appendChild(el('div', { class: 'muted small' }, '—'));
     }
     body.appendChild(block);
+  }
+
+  // Depth discount block (only when one side received more assets).
+  if (depthDiscount) {
+    const heavierName = teamLabelInScope(depthDiscount.side, sc);
+    body.appendChild(el('div', { class: 'depth-discount' },
+      el('span', { class: 'depth-discount-label' }, 'DEPTH DISCOUNT'),
+      el('span', { class: 'depth-discount-amount' },
+        `−${fmtInt(depthDiscount.amount)} from ${heavierName} `,
+        el('span', { class: 'muted small' },
+          `(${depthDiscount.extraSpots} extra spot${depthDiscount.extraSpots === 1 ? '' : 's'} × ${fmtInt(2500)} replacement value)`),
+      ),
+    ));
   }
 
   // 3-column totals strip
