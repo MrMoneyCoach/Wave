@@ -208,14 +208,16 @@ function renderTradeCard(t, draftedIndex) {
     ? Math.min(lastReg, state.nflState?.week || lastReg)
     : lastReg;
 
-  // Compute totals per side: { valueAtTrade, valueNow, realized, assetCount,
-  // bestAssetValue }. bestAssetValue is the largest single-asset value on
-  // that side - used to compute the stud-premium Value Adjustment below.
+  // Compute totals per side. bestPlayerValue is the largest single-PLAYER
+  // value (picks excluded) and drives the stud-premium Value Adjustment
+  // below — picks aren't "studs" in the lineup-anchoring sense, so they
+  // don't earn the premium.
   const sideTotals = {};
   for (const rid of rosters) {
     const r = received[rid];
     let vn = 0, vt = 0, realized = 0;
     let assetCount = 0;
+    let bestPlayerValue = 0;
     let bestAssetValue = 0;
     for (const pid of r.players) {
       const v = playerValue(pid);
@@ -223,6 +225,7 @@ function renderTradeCard(t, draftedIndex) {
       vt += tradeDate ? (playerValueAtDate(pid, tradeDate) || v) : v;
       realized += realizedPointsForPlayer(pid, t._week, maxWeek, sc);
       assetCount++;
+      if (v > bestPlayerValue) bestPlayerValue = v;
       if (v > bestAssetValue) bestAssetValue = v;
     }
     for (const p of r.picks) {
@@ -231,35 +234,39 @@ function renderTradeCard(t, draftedIndex) {
       vt += pv.valueThen;
       if (pv.source === 'drafted' && pv.playerId) {
         realized += realizedPointsForPlayer(pv.playerId, t._week, maxWeek, sc);
+        // Drafted picks count as players for stud-premium purposes.
+        const dv = playerValue(pv.playerId);
+        if (dv > bestPlayerValue) bestPlayerValue = dv;
       }
       assetCount++;
       if (pv.valueNow > bestAssetValue) bestAssetValue = pv.valueNow;
     }
-    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount, bestAssetValue };
+    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount, bestPlayerValue, bestAssetValue };
   }
 
   // KTC-style Value Adjustment (stud premium).
   //
-  // Reverse-engineered intuition: when one side concentrates its value in a
-  // single elite asset and the other side spreads it across multiple lesser
-  // assets, the concentrated side is the real winner because that elite asset
-  // anchors a starting lineup spot. The "bonus" is added to the elite-asset
-  // side as a separate line.
+  // The side with the meaningfully bigger best PLAYER asset gets a bonus.
+  // Picks alone don't trigger the premium - one elite player anchors a
+  // starting lineup; future picks don't (yet).
   //
-  // Formula (approximation - KTC keeps theirs proprietary):
-  //   premium       = best_self - best_other    (gap in best assets)
-  //   countAdvantage = count_other - count_self (extra assets on other side)
-  //   bonus         = min(self.best * 0.6, premium * 0.5 + countAdvantage * 1500)
+  // Formula:
+  //   gap = self.bestPlayer - other.bestPlayer
+  //   countAdvantage = max(0, other.assetCount - self.assetCount)
+  //   bonus = min(self.bestPlayer * 0.6, gap * 0.5 + countAdvantage * 1500)
   //
-  // Bonus only kicks in when the side has FEWER assets AND a better best asset
-  // (at least 20% bigger).
+  // Triggers when self.bestPlayer is at least 1.2x other.bestPlayer (or the
+  // other side has zero players). No trigger if both sides have similar
+  // best-player values - the trade is already balanced in star quality.
   function computeValueAdjustment(self, other) {
-    if (self.assetCount >= other.assetCount) return 0;
-    if (!self.bestAssetValue || self.bestAssetValue <= other.bestAssetValue * 1.2) return 0;
-    const premium = self.bestAssetValue - other.bestAssetValue;
-    const countAdvantage = other.assetCount - self.assetCount;
-    const raw = premium * 0.5 + countAdvantage * 1500;
-    const cap = self.bestAssetValue * 0.6;
+    const selfBest = self.bestPlayerValue || 0;
+    const otherBest = other.bestPlayerValue || 0;
+    if (selfBest <= 0) return 0;
+    if (otherBest > 0 && selfBest <= otherBest * 1.2) return 0;
+    const gap = selfBest - otherBest;
+    const countAdvantage = Math.max(0, other.assetCount - self.assetCount);
+    const raw = gap * 0.5 + countAdvantage * 1500;
+    const cap = selfBest * 0.6;
     return Math.round(Math.min(raw, cap));
   }
 
@@ -268,7 +275,7 @@ function renderTradeCard(t, draftedIndex) {
     const [a, b] = rosters;
     const adjA = computeValueAdjustment(sideTotals[a], sideTotals[b]);
     const adjB = computeValueAdjustment(sideTotals[b], sideTotals[a]);
-    if (adjA > 0) valueAdjustment = { side: a, amount: adjA };
+    if (adjA > adjB && adjA > 0) valueAdjustment = { side: a, amount: adjA };
     else if (adjB > 0) valueAdjustment = { side: b, amount: adjB };
   }
 
@@ -342,18 +349,6 @@ function renderTradeCard(t, draftedIndex) {
   // Body: per-side received blocks + totals strip.
   const body = el('div', { class: 'trade-body' });
 
-  // Trade Adjustment: how much each side has gained/lost in value SINCE the
-  // trade. Highlights "who's winning the trade now" at a glance. Only shown
-  // when there's a meaningful delta (>50 on either side).
-  if (rosters.length === 2) {
-    const [a, b] = rosters;
-    const deltaA = sideTotals[a].valueNow - sideTotals[a].valueAtTrade;
-    const deltaB = sideTotals[b].valueNow - sideTotals[b].valueAtTrade;
-    if (Math.abs(deltaA) > 50 || Math.abs(deltaB) > 50) {
-      body.appendChild(adjustmentBox(a, deltaA, b, deltaB, sc));
-    }
-  }
-
   // Value Adjustment: KTC-style stud premium box.
   if (valueAdjustment) {
     const studSideName = teamLabelInScope(valueAdjustment.side, sc);
@@ -367,7 +362,7 @@ function renderTradeCard(t, draftedIndex) {
         el('span', { class: 'value-adj-amount' }, `+${fmtInt(valueAdjustment.amount)} to ${studSideName}`),
       ),
       el('div', { class: 'value-adj-explain muted small' },
-        `Stud premium: ${studSideName}'s top asset is significantly more valuable than ${otherName}'s top asset, and ${otherName} traded multiple lesser assets. ` +
+        `Stud premium: ${studSideName}'s top player is significantly more valuable than ${otherName}'s. ` +
         `${otherName} would need a player worth around ${fmtInt(valueAdjustment.amount)} to even the trade.`),
     ));
   }
