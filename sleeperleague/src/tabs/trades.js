@@ -169,12 +169,14 @@ function pickValueWithDraftAware(p, draftedIndex, tradeDate) {
   if (drafted && drafted.player_id) {
     const pid = drafted.player_id;
     const valueNow = playerValue(pid);
-    // valueThen: if the player had a value on the trade date use it; otherwise
-    // the rookie draft hadn't happened yet, so the asset was still a PICK at
-    // trade time — use the pick's round value rather than the player's current
-    // value (which would understate busts and overstate hits).
-    const playerThen = tradeDate ? playerValueAtDate(pid, tradeDate) : null;
-    const valueThen = playerThen || pickValueThen || valueNow;
+    // If a pick appears in t.draft_picks it was traded AS A PICK — Sleeper
+    // will not let you trade an already-drafted pick as a draft_picks entry.
+    // So at trade time the asset had pick value, not player value. Some
+    // eventual draftees already have NFL data in DP (e.g. players from a
+    // prior NFL draft), so playerValueAtDate would return a non-null number
+    // even before the fantasy rookie draft — that's misleading here.
+    // Always use the pick's round value for "value at trade".
+    const valueThen = pickValueThen || pickValueNow;
     return { valueNow, valueThen, source: 'drafted', drafted, playerId: pid };
   }
   return { valueNow: pickValueNow, valueThen: pickValueThen, source: 'pick', drafted: null };
