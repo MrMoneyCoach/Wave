@@ -247,9 +247,25 @@ export async function ensurePickValueIndex() {
 // available year as a fallback. Returns 0 if nothing matches.
 const FALLBACK_MAX_YEARS = 6;
 
+// KTC doesn't publish values for 5th-round picks (or later). When asked for
+// an R5 value, use that year's R4 LATE value × 0.9 as a sensible proxy.
+// Year-fallback (above) still applies if the requested year isn't in the
+// snapshot — it'll walk back through years and synthesize R5 from whichever
+// year's R4 late we DO have.
 function _lookupPickFromIndex(idx, season, round, slot) {
   if (!idx || !season || !round) return 0;
-  return idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`] || 0;
+  const direct = idx[`${season}|${round}|${slot || 'mid'}`] || idx[`${season}|${round}`];
+  if (direct) return direct;
+  // Synthesize R5+ from R4 late.
+  if (round >= 5) {
+    const r4Late = idx[`${season}|4|late`] || idx[`${season}|4`];
+    if (r4Late) {
+      // Each extra round below R4 takes a further 10% off cumulatively.
+      const multiplier = Math.pow(0.9, round - 4);
+      return Math.round(r4Late * multiplier);
+    }
+  }
+  return 0;
 }
 
 function _lookupPickWithFallback(idx, season, round, slot) {

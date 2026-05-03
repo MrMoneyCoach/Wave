@@ -304,6 +304,18 @@ function renderTradeCard(t, draftedIndex) {
   // Body: per-side received blocks + totals strip.
   const body = el('div', { class: 'trade-body' });
 
+  // Trade Adjustment: how much each side has gained/lost in value SINCE the
+  // trade. Highlights "who's winning the trade now" at a glance. Only shown
+  // when there's a meaningful delta (>50 on either side).
+  if (rosters.length === 2) {
+    const [a, b] = rosters;
+    const deltaA = sideTotals[a].valueNow - sideTotals[a].valueAtTrade;
+    const deltaB = sideTotals[b].valueNow - sideTotals[b].valueAtTrade;
+    if (Math.abs(deltaA) > 50 || Math.abs(deltaB) > 50) {
+      body.appendChild(adjustmentBox(a, deltaA, b, deltaB, sc));
+    }
+  }
+
   for (const rid of rosters) {
     const r = received[rid] || { players: [], picks: [], faab: 0 };
     const teamName = teamLabelInScope(rid, sc);
@@ -437,6 +449,40 @@ function realizedPointsForPlayer(pid, fromWeek, maxWeek, sc) {
     }
   }
   return total;
+}
+
+// Trade Adjustment box - shows value gained / lost per side since the trade.
+function adjustmentBox(rosterA, deltaA, rosterB, deltaB, sc) {
+  const nameA = teamLabelInScope(rosterA, sc);
+  const nameB = teamLabelInScope(rosterB, sc);
+  const winnerSide = deltaA > deltaB ? rosterA : (deltaB > deltaA ? rosterB : null);
+  const winnerName = winnerSide === rosterA ? nameA : nameB;
+  const margin = Math.abs(deltaA - deltaB);
+  return el('div', { class: 'trade-adjust',
+    title: 'Change in dynasty value of received assets since the trade.',
+  },
+    el('div', { class: 'trade-adjust-head' },
+      el('span', { class: 'trade-adjust-label' }, 'TRADE ADJUSTMENT'),
+      winnerSide
+        ? el('span', { class: 'trade-adjust-summary' },
+            `${winnerName} winning by ${fmtInt(margin)}`)
+        : el('span', { class: 'trade-adjust-summary' }, 'Balanced'),
+    ),
+    el('div', { class: 'trade-adjust-rows' },
+      adjustmentRow(nameA, deltaA),
+      adjustmentRow(nameB, deltaB),
+    ),
+  );
+}
+
+function adjustmentRow(name, delta) {
+  const sign = delta > 0 ? `+${fmtInt(delta)}` : (delta < 0 ? `${fmtInt(delta)}` : '0');
+  const cls = delta > 0 ? 'up' : (delta < 0 ? 'down' : '');
+  return el('div', { class: 'trade-adjust-row' },
+    el('span', { class: 'trade-adjust-name' }, name),
+    el('span', { class: `trade-adjust-delta ${cls}` }, sign),
+    el('span', { class: 'trade-adjust-sub muted' }, 'value since trade'),
+  );
 }
 
 function statCard(tone, label, value, sub) {

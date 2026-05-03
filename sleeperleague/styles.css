@@ -799,6 +799,65 @@ button.link-btn:hover { text-decoration: underline; }
   font-style: italic;
 }
 
+/* Trade Adjustment box */
+.trade-adjust {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-radius: var(--radius-sm);
+}
+.trade-adjust-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.trade-adjust-label {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.trade-adjust-summary {
+  color: var(--primary-text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.trade-adjust-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+}
+.trade-adjust-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.trade-adjust-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trade-adjust-delta {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.trade-adjust-delta.up { color: var(--good); }
+.trade-adjust-delta.down { color: var(--bad); }
+.trade-adjust-sub {
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .trade-adjust-rows { grid-template-columns: 1fr; }
+}
+
 .trade-totals-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
