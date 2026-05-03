@@ -222,12 +222,15 @@ function renderPickOption(m) {
   );
 }
 
-// Synthesize pick options (3 future seasons × 4 rounds × 12 slots) to keep
+// Synthesize pick options (4 future seasons × 4 rounds × 12 slots) to keep
 // the search index small but expressive enough to drive the analyser.
+// Start from current calendar year so past seasons are never shown.
 function buildPickOptions() {
   const out = [];
-  const baseSeason = state.league?.season ? Number(state.league.season) : new Date().getFullYear();
-  for (let yr = baseSeason; yr <= baseSeason + 2; yr++) {
+  const currentYear = new Date().getFullYear();
+  const leagueSeason = state.league?.season ? Number(state.league.season) : currentYear - 1;
+  const startSeason = Math.max(leagueSeason + 1, currentYear);
+  for (let yr = startSeason; yr <= startSeason + 3; yr++) {
     for (let r = 1; r <= 4; r++) {
       for (let s = 1; s <= 12; s++) {
         out.push({ type: 'pick', season: String(yr), round: r, slot: s });
@@ -237,10 +240,8 @@ function buildPickOptions() {
   return out;
 }
 
-let _pickOptionsCache = null;
 function pickOptions() {
-  if (!_pickOptionsCache) _pickOptionsCache = buildPickOptions();
-  return _pickOptionsCache;
+  return buildPickOptions();
 }
 
 function searchAssets(query, exclude) {

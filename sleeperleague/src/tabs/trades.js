@@ -76,13 +76,11 @@ export async function renderTrades(host) {
     return;
   }
 
-  // Player-pill multi-select filter: clicking a pill restricts the visible
-  // trades to those involving that player. Multiple pills act as OR.
-  const selectedPlayers = new Set();
-  const playerCounts = countPlayersInTrades(trades);
-  const sortedPlayers = [...playerCounts.entries()]
-    .filter(([pid]) => state.players?.[pid])
-    .sort((a, b) => b[1] - a[1]);
+  // Team-pill multi-select filter: clicking a team pill restricts visible
+  // trades to those where that team participated. Multiple pills act as OR.
+  const selectedOwners = new Set();
+  const ownerCounts = countOwnerTrades(trades);
+  const sortedOwners = [...ownerCounts.entries()].sort((a, b) => b[1] - a[1]);
 
   const list = el('div', { class: 'trade-list' });
   const panelHead = el('div', { class: 'panel-head' },
@@ -92,17 +90,17 @@ export async function renderTrades(host) {
 
   function applyFilter() {
     list.innerHTML = '';
-    const visible = selectedPlayers.size === 0
+    const visible = selectedOwners.size === 0
       ? trades
-      : trades.filter(t => Object.keys(t.adds || {}).some(pid => selectedPlayers.has(pid)));
+      : trades.filter(t => t._participants.some(oid => selectedOwners.has(oid)));
     for (const t of visible) list.appendChild(renderTradeCard(t, draftedIndex, assetTradeIndex));
     panelHead.querySelector('.trade-list-title').textContent =
-      selectedPlayers.size === 0
+      selectedOwners.size === 0
         ? `All trades (${trades.length})`
         : `Filtered trades (${visible.length} of ${trades.length})`;
   }
 
-  const pillRow = renderPlayerPills(sortedPlayers, selectedPlayers, applyFilter);
+  const pillRow = renderTeamPills(sortedOwners, selectedOwners, applyFilter);
   wrap.appendChild(el('section', { class: 'panel' },
     panelHead,
     pillRow,
@@ -111,47 +109,50 @@ export async function renderTrades(host) {
   applyFilter();
 }
 
-function countPlayersInTrades(trades) {
+function countOwnerTrades(trades) {
   const counts = new Map();
   for (const t of trades) {
-    for (const pid of Object.keys(t.adds || {})) {
-      counts.set(pid, (counts.get(pid) || 0) + 1);
+    for (const oid of t._participants) {
+      counts.set(oid, (counts.get(oid) || 0) + 1);
     }
   }
   return counts;
 }
 
-function renderPlayerPills(sorted, selected, onChange) {
+function teamNameForOwner(ownerId) {
+  for (const sc of state.scope) {
+    const u = sc.users.find(u => u.user_id === ownerId);
+    if (u) return u.metadata?.team_name || u.display_name || `User ${ownerId}`;
+  }
+  return 'Unknown';
+}
+
+function renderTeamPills(sortedOwners, selected, onChange) {
   const TOP = 24;
-  const top = sorted.slice(0, TOP);
-  const rest = sorted.slice(TOP);
+  const top = sortedOwners.slice(0, TOP);
+  const rest = sortedOwners.slice(TOP);
   const wrap = el('div', { class: 'trade-pill-wrap' });
   const pillRow = el('div', { class: 'trade-pill-row' });
 
-  function makePill(pid, count) {
-    const p = state.players?.[pid];
-    if (!p) return null;
-    const pos = (p.position || '').toUpperCase();
-    const cls = ['QB','RB','WR','TE','K','DEF'].includes(pos) ? pos.toLowerCase() : '';
+  function makePill(oid, count) {
+    const name = teamNameForOwner(oid);
     const pill = el('button', {
-      class: `trade-pill ${cls}${selected.has(pid) ? ' active' : ''}`,
-      title: `${playerLabel(pid)} — ${count} trade${count === 1 ? '' : 's'}`,
+      class: `trade-pill${selected.has(oid) ? ' active' : ''}`,
+      title: `${name} — ${count} trade${count === 1 ? '' : 's'}`,
       onclick: () => {
-        if (selected.has(pid)) selected.delete(pid);
-        else selected.add(pid);
+        if (selected.has(oid)) selected.delete(oid);
+        else selected.add(oid);
         pill.classList.toggle('active');
         onChange();
       },
     },
-      el('span', { class: `trade-pill-tag ${cls}` }, pos || '—'),
-      el('span', { class: 'trade-pill-name' }, playerLabel(pid)),
+      el('span', { class: 'trade-pill-name' }, name),
       el('span', { class: 'trade-pill-count' }, String(count)),
     );
     return pill;
   }
 
-  // Clear-all chip
-  const clear = el('button', {
+  const clearBtn = el('button', {
     class: 'trade-pill clear',
     onclick: () => {
       selected.clear();
@@ -159,12 +160,9 @@ function renderPlayerPills(sorted, selected, onChange) {
       onChange();
     },
   }, 'All');
-  pillRow.appendChild(clear);
+  pillRow.appendChild(clearBtn);
 
-  for (const [pid, count] of top) {
-    const pill = makePill(pid, count);
-    if (pill) pillRow.appendChild(pill);
-  }
+  for (const [oid, count] of top) pillRow.appendChild(makePill(oid, count));
   wrap.appendChild(pillRow);
 
   if (rest.length) {
@@ -172,10 +170,7 @@ function renderPlayerPills(sorted, selected, onChange) {
       el('summary', {}, `+ ${rest.length} more`),
     );
     const moreRow = el('div', { class: 'trade-pill-row' });
-    for (const [pid, count] of rest) {
-      const pill = makePill(pid, count);
-      if (pill) moreRow.appendChild(pill);
-    }
+    for (const [oid, count] of rest) moreRow.appendChild(makePill(oid, count));
     more.appendChild(moreRow);
     wrap.appendChild(more);
   }

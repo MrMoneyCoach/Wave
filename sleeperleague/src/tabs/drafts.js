@@ -30,10 +30,11 @@ export async function renderDrafts(host) {
   const slotMap = draft.slot_to_roster_id || {};
 
   // Annotate with current value.
+  // Use p.roster_id (actual drafter after any pick trades) over slotMap (original slot owner).
   const annotated = picks.map(p => ({
     ...p,
     value: state.values?.get(String(p.player_id)) || 0,
-    rosterId: slotMap[p.draft_slot] || null,
+    rosterId: p.roster_id || slotMap[p.draft_slot] || null,
   }));
 
   // Best value: highest current value relative to pick number
