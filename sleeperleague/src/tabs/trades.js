@@ -211,6 +211,81 @@ function tradesForPick(p, idx) {
   return idx.get(`pick:${p.season}|${p.round}|${p.roster_id}`) || [];
 }
 
+// ============ Impact scoring ============
+// Estimates how much difference an asset makes to a starting lineup.
+// Factors: position scarcity (for the league format), age curve, startability.
+// Returns a dimensionless-multiplied version of rawValue in the same units —
+// the adjustment amount is always capped at a fraction of the raw asset value
+// so it stays grounded even when multipliers push impact scores high.
+
+let _posMaxCache = null;
+let _posMaxTag = null;
+function _posMaxValues() {
+  const tag = state.values?.size ?? 0;
+  if (_posMaxCache && _posMaxTag === tag) return _posMaxCache;
+  const maxes = {};
+  if (state.players && state.values) {
+    for (const [sid, val] of state.values) {
+      const pos = state.players[sid]?.position?.toUpperCase();
+      if (pos && ['QB','WR','RB','TE'].includes(pos))
+        if (!(pos in maxes) || val > maxes[pos]) maxes[pos] = val;
+    }
+  }
+  _posMaxTag = tag;
+  return (_posMaxCache = maxes);
+}
+
+function _posWeight(pos, isSuperflex) {
+  if (pos === 'QB') return isSuperflex ? 1.35 : 0.80;
+  if (pos === 'TE') return 1.20; // elite TEs are the scarcest
+  if (pos === 'WR') return 1.10;
+  if (pos === 'RB') return 1.05;
+  return 0.40; // K, DEF
+}
+
+function _ageWeight(pos, age) {
+  if (!age || age < 18) return 0.80;
+  // [rampStart, peakStart, peakEnd, declineEnd]
+  const c = ({
+    QB: [22, 26, 34, 40], RB: [21, 22, 26, 31],
+    WR: [21, 23, 29, 35], TE: [22, 25, 30, 36],
+  })[pos] || [21, 23, 29, 35];
+  if (age < c[0]) return 0.78;
+  if (age < c[1]) return 0.78 + 0.22 * (age - c[0]) / (c[1] - c[0]);
+  if (age <= c[2]) return 1.00;
+  if (age <= c[3]) return Math.max(0.45, 1.00 - 0.55 * (age - c[2]) / (c[3] - c[2]));
+  return 0.35;
+}
+
+function _startWeight(rawValue, pos) {
+  const max = _posMaxValues()[pos] || 1;
+  const pct = rawValue / max;
+  if (pct >= 0.65) return 1.00; // elite starter
+  if (pct >= 0.40) return 0.88; // reliable starter
+  if (pct >= 0.22) return 0.75; // flex / borderline
+  if (pct >= 0.10) return 0.62; // depth
+  return 0.50;                  // fringe
+}
+
+function playerImpactScore(pid, rawValue, isSuperflex) {
+  const p = state.players?.[pid];
+  if (!p || !rawValue) return rawValue || 0;
+  const pos = (p.position || '').toUpperCase();
+  return rawValue * _posWeight(pos, isSuperflex) * _ageWeight(pos, p.age) * _startWeight(rawValue, pos);
+}
+
+// Picks carry embedded upside: early 1sts = elite starter-level impact,
+// later rounds taper to depth. Uses draft_slot when known (post-draft picks);
+// otherwise assumes the midpoint of the round.
+function pickImpactScore(pickValue, round, draftSlot) {
+  if (!pickValue || !round) return pickValue || 0;
+  const slot = draftSlot != null ? Math.max(1, Math.min(12, draftSlot)) : 6.5;
+  const effectivePick = (round - 1) * 12 + slot; // 1=1.01 … 48=4.12
+  const normed = Math.min(1, (effectivePick - 1) / 47);
+  const mult = 1.40 - normed * 0.80; // 1.40 (1.01) → 0.60 (late 4th+)
+  return pickValue * mult;
+}
+
 function renderTradeCard(t, draftedIndex, assetTradeIndex) {
   const sc = t._scope;
   const rosters = t.roster_ids || [];
@@ -243,23 +318,31 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
     ? Math.min(lastReg, state.nflState?.week || lastReg)
     : lastReg;
 
-  // Compute totals per side. bestPlayerValue is the largest single-PLAYER
-  // value (picks excluded — even drafted picks aren't "players" at the time
-  // of the trade) and drives the stud-premium Value Adjustment below.
+  // Determine league format for position weighting in impact scoring.
+  const sfCount = (lg.roster_positions || []).filter(p => p === 'SUPER_FLEX').length;
+  const qbCount = (lg.roster_positions || []).filter(p => p === 'QB').length;
+  const isSuperflex = sfCount > 0 || qbCount >= 2;
+
+  // Compute totals per side.
+  // bestImpactScore = highest impact-weighted asset score on this side,
+  // including both players and picks. Impact score = rawValue × position
+  // scarcity × age curve × startability (see helpers above).
   const sideTotals = {};
   for (const rid of rosters) {
     const r = received[rid];
     let vn = 0, vt = 0, realized = 0;
     let assetCount = 0;
-    let bestPlayerValue = 0;
+    let bestImpactScore = 0;
     let bestAssetValue = 0;
     for (const pid of r.players) {
       const v = playerValue(pid);
+      const vAt = tradeDate ? (playerValueAtDate(pid, tradeDate) || v) : v;
       vn += v;
-      vt += tradeDate ? (playerValueAtDate(pid, tradeDate) || v) : v;
+      vt += vAt;
       realized += realizedPointsForPlayer(pid, t._week, maxWeek, sc);
       assetCount++;
-      if (v > bestPlayerValue) bestPlayerValue = v;
+      const impact = playerImpactScore(pid, vAt, isSuperflex);
+      if (impact > bestImpactScore) bestImpactScore = impact;
       if (v > bestAssetValue) bestAssetValue = v;
     }
     for (const p of r.picks) {
@@ -267,42 +350,41 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
       vn += pv.valueNow;
       vt += pv.valueThen;
       if (pv.source === 'drafted' && pv.playerId) {
-        // Drafted player's points still count toward realized pts (post-trade
-        // production from the asset), but the player does NOT count toward
-        // bestPlayerValue because at the time of the trade it was a pick,
-        // not a player. So the stud-premium Value Adjustment correctly
-        // reads pick-for-pick trades as having no stud advantage.
         realized += realizedPointsForPlayer(pv.playerId, t._week, maxWeek, sc);
       }
       assetCount++;
+      // Impact uses the pick's trade-date value + round/slot (if the pick has
+      // since been made, we know the exact slot from the draft).
+      const pickThen = pv.valueThen || pv.valueNow;
+      const impact = pickImpactScore(pickThen, p.round, pv.drafted?.draft_slot);
+      if (impact > bestImpactScore) bestImpactScore = impact;
       if (pv.valueNow > bestAssetValue) bestAssetValue = pv.valueNow;
     }
-    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount, bestPlayerValue, bestAssetValue };
+    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount, bestImpactScore, bestAssetValue };
   }
 
-  // KTC-style Value Adjustment (stud premium).
+  // Impact-based Value Adjustment.
   //
-  // The side with the meaningfully bigger best PLAYER asset gets a bonus.
-  // Picks alone don't trigger the premium - one elite player anchors a
-  // starting lineup; future picks don't (yet).
+  // The side whose top asset has meaningfully higher "starting lineup impact"
+  // gets a bonus reflecting what the other side would need to level the trade.
+  // Impact = rawValue × positionScarcity × ageCurve × startabilityWeight.
+  // Picks are included: a 1.01 has elite impact; a late-3rd has depth impact.
   //
-  // Formula:
-  //   gap = self.bestPlayer - other.bestPlayer
-  //   countAdvantage = max(0, other.assetCount - self.assetCount)
-  //   bonus = min(self.bestPlayer * 0.6, gap * 0.5 + countAdvantage * 1500)
-  //
-  // Triggers when self.bestPlayer is at least 1.2x other.bestPlayer (or the
-  // other side has zero players). No trigger if both sides have similar
-  // best-player values - the trade is already balanced in star quality.
+  // Triggers only when one side's best impact exceeds the other's by >25%.
+  // That threshold prevents tiny pick-quality differences from firing.
   function computeValueAdjustment(self, other) {
-    const selfBest = self.bestPlayerValue || 0;
-    const otherBest = other.bestPlayerValue || 0;
-    if (selfBest <= 0) return 0;
-    if (otherBest > 0 && selfBest <= otherBest * 1.2) return 0;
-    const gap = selfBest - otherBest;
-    const countAdvantage = Math.max(0, other.assetCount - self.assetCount);
-    const raw = gap * 0.5 + countAdvantage * 1500;
-    const cap = selfBest * 0.6;
+    const selfImpact = self.bestImpactScore || 0;
+    const otherImpact = other.bestImpactScore || 0;
+    if (selfImpact <= 0) return 0;
+    if (otherImpact > 0 && selfImpact <= otherImpact * 1.25) return 0;
+    const gap = selfImpact - otherImpact;
+    const countAdv = Math.max(0, other.assetCount - self.assetCount);
+    const avgImpact = (selfImpact + otherImpact) / 2;
+    // countAdv bonus: each extra asset the other side brought = ~20% of avg impact
+    const raw = gap * 0.45 + countAdv * avgImpact * 0.20;
+    // Cap at 50% of the top asset's RAW value so the bonus stays grounded
+    // in actual value units rather than inflated impact units.
+    const cap = (self.bestAssetValue || 0) * 0.50;
     return Math.round(Math.min(raw, cap));
   }
 
@@ -385,21 +467,21 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
   // Body: per-side received blocks + totals strip.
   const body = el('div', { class: 'trade-body' });
 
-  // Value Adjustment: KTC-style stud premium box.
+  // Value Adjustment: KTC-style impact premium box.
   if (valueAdjustment) {
     const studSideName = teamLabelInScope(valueAdjustment.side, sc);
     const otherSide = rosters.find(r => r !== valueAdjustment.side);
     const otherName = teamLabelInScope(otherSide, sc);
     body.appendChild(el('div', { class: 'value-adj',
-      title: 'Bonus added to the side getting the elite asset. Reverse-engineered from "the player needed to even the trade." Inspired by KTC\'s Value Adjustment.',
+      title: 'Impact premium: the bonus awarded to the side with the higher-impact asset, weighted for position scarcity, age curve, and startability. Inspired by KTC\'s Value Adjustment.',
     },
       el('div', { class: 'value-adj-head' },
         el('span', { class: 'value-adj-label' }, 'VALUE ADJUSTMENT'),
         el('span', { class: 'value-adj-amount' }, `+${fmtInt(valueAdjustment.amount)} to ${studSideName}`),
       ),
       el('div', { class: 'value-adj-explain muted small' },
-        `Stud premium: ${studSideName}'s top player is significantly more valuable than ${otherName}'s. ` +
-        `${otherName} would need a player worth around ${fmtInt(valueAdjustment.amount)} to even the trade.`),
+        `Impact premium: ${studSideName}'s top asset scores higher for position scarcity, age, and startability. ` +
+        `${otherName} would need roughly ${fmtInt(valueAdjustment.amount)} more in impact assets to balance the trade.`),
     ));
   }
 
