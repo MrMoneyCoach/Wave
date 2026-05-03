@@ -122,9 +122,21 @@ export async function ensureAllScopeTransactions() {
 
 // ---- Drafts ----
 
+// Fetch the full draft for each summary returned by /league/<id>/drafts so we
+// pick up slot_to_roster_id (the list endpoint omits it). Falls back to the
+// summary if the per-draft fetch fails so we never lose the entry.
+async function _fullDraftsFor(leagueId) {
+  const summaries = await sleeper.leagueDrafts(leagueId);
+  return Promise.all((summaries || []).map(async d => {
+    if (d?.slot_to_roster_id && Object.keys(d.slot_to_roster_id).length) return d;
+    const full = await sleeper.draft(d.draft_id).catch(() => null);
+    return full || d;
+  }));
+}
+
 export async function ensureDrafts() {
   if (state.drafts.length) return state.drafts;
-  state.drafts = await sleeper.leagueDrafts(state.league.league_id);
+  state.drafts = await _fullDraftsFor(state.league.league_id);
   if (state.scope[0]) state.scope[0].drafts = state.drafts;
   return state.drafts;
 }
@@ -142,7 +154,7 @@ export async function ensureDraftPicks(draftId) {
 export async function ensureAllScopeDrafts() {
   await Promise.all(state.scope.map(async sc => {
     if (!sc.drafts || !sc.drafts.length) {
-      sc.drafts = await sleeper.leagueDrafts(sc.leagueId);
+      sc.drafts = await _fullDraftsFor(sc.leagueId);
     }
     await Promise.all((sc.drafts || []).map(async d => {
       if (!sc.draftPicks[d.draft_id]) {
@@ -173,8 +185,13 @@ export async function ensureAllAvailableDrafts() {
     // the data lives even when filtering hides it from state.scope.
     const inLoaded = fullScope.find(sc => sc.leagueId === s.leagueId);
     if (inLoaded) {
-      if (!inLoaded.drafts || !inLoaded.drafts.length) {
-        inLoaded.drafts = await sleeper.leagueDrafts(inLoaded.leagueId);
+      // Re-fetch full drafts if any are missing slot_to_roster_id (the list
+      // endpoint omits it, so old cached entries from before this fix won't
+      // have it either).
+      const needsFull = !inLoaded.drafts?.length
+        || inLoaded.drafts.some(d => !d?.slot_to_roster_id || !Object.keys(d.slot_to_roster_id).length);
+      if (needsFull) {
+        inLoaded.drafts = await _fullDraftsFor(inLoaded.leagueId);
       }
       await Promise.all((inLoaded.drafts || []).map(async d => {
         if (!inLoaded.draftPicks[d.draft_id]) {
@@ -185,11 +202,14 @@ export async function ensureAllAvailableDrafts() {
     }
     // Otherwise load minimal data into auxLeagues.
     const existing = state.auxLeagues[s.leagueId];
-    if (existing && existing.drafts?.length) return;
+    if (existing && existing.drafts?.length
+        && existing.drafts.every(d => d?.slot_to_roster_id && Object.keys(d.slot_to_roster_id).length)) {
+      return;
+    }
     const [users, rosters, drafts] = await Promise.all([
       sleeper.leagueUsers(s.leagueId),
       sleeper.rosters(s.leagueId),
-      sleeper.leagueDrafts(s.leagueId),
+      _fullDraftsFor(s.leagueId),
     ]);
     const draftPicks = {};
     await Promise.all((drafts || []).map(async d => {

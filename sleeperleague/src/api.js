@@ -194,6 +194,9 @@ export const sleeper = {
   transactions(leagueId, week) { return getJSONsoft(`${SLEEPER}/league/${leagueId}/transactions/${week}`).then(d => d || []); },
   nflState() { return getJSON(`${SLEEPER}/state/nfl`); },
   leagueDrafts(leagueId) { return getJSONsoft(`${SLEEPER}/league/${leagueId}/drafts`).then(d => d || []); },
+  // The /league/<id>/drafts endpoint returns SUMMARY draft objects without slot_to_roster_id.
+  // Use this to fetch the full draft (including the slot mapping) by id.
+  draft(draftId) { return getJSONsoft(`${SLEEPER}/draft/${draftId}`); },
   draftPicks(draftId) { return getJSONsoft(`${SLEEPER}/draft/${draftId}/picks`).then(d => d || []); },
   winnersBracket(leagueId) { return getJSONsoft(`${SLEEPER}/league/${leagueId}/winners_bracket`).then(d => d || []); },
   losersBracket(leagueId) { return getJSONsoft(`${SLEEPER}/league/${leagueId}/losers_bracket`).then(d => d || []); },
@@ -252,18 +255,27 @@ export async function fetchKtcLatest({ force = false } = {}) {
 
 // Optional: per-day snapshot for "value at trade date" lookups.
 // Tries the requested date, then walks backward up to 7 days.
+// Caches BOTH hits and misses so trade dates older than the snapshot
+// archive don't keep retrying 8 dates × N renders × M trades = thousands
+// of 404s.
+const _snapshotMisses = new Set(); // in-memory miss cache for this session
 export async function fetchKtcSnapshotForDate(isoDate) {
   const tryOne = async (d) => {
+    if (_snapshotMisses.has(d)) return null;
     const cacheKey = `${KTC_SNAPSHOT_CACHE_PREFIX}${d}`;
     try {
       const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-      if (cached) return cached.d;
+      if (cached?.miss) { _snapshotMisses.add(d); return null; }
+      if (cached?.d) return cached.d;
     } catch {}
     const data = await getJSONsoft(`${KTC_SNAPSHOT_PREFIX}${d}.json`);
     if (data) {
       try { localStorage.setItem(cacheKey, JSON.stringify({ d: data })); } catch {}
+      return data;
     }
-    return data;
+    _snapshotMisses.add(d);
+    try { localStorage.setItem(cacheKey, JSON.stringify({ miss: true, t: Date.now() })); } catch {}
+    return null;
   };
   let d = isoDate;
   for (let i = 0; i < 8; i++) {
