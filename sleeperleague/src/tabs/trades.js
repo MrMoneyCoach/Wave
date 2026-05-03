@@ -43,6 +43,8 @@ export async function renderTrades(host) {
   }
 
   const draftedIndex = buildDraftedPicksIndex();
+  // Asset journey index: maps each asset to every trade it appeared in.
+  const assetTradeIndex = buildAssetTradeIndex(trades);
 
   wrap.innerHTML = '';
 
@@ -72,7 +74,7 @@ export async function renderTrades(host) {
   }
 
   const list = el('div', { class: 'trade-list' });
-  for (const t of trades) list.appendChild(renderTradeCard(t, draftedIndex));
+  for (const t of trades) list.appendChild(renderTradeCard(t, draftedIndex, assetTradeIndex));
   wrap.appendChild(el('section', { class: 'panel' },
     el('div', { class: 'panel-head' },
       el('h3', {}, `All trades (${trades.length})`),
@@ -176,7 +178,40 @@ function pickValueWithDraftAware(p, draftedIndex, tradeDate) {
 
 // ============ Render ============
 
-function renderTradeCard(t, draftedIndex) {
+// Build a map from "asset key" to the chronological list of trades that
+// involved that asset. Used to mark re-traded assets and to render the
+// trade journey when the user clicks the * marker.
+//   player:<sleeper_id>
+//   pick:<season>|<round>|<original_roster_id_within_family>
+function buildAssetTradeIndex(trades) {
+  const idx = new Map();
+  const push = (key, t) => {
+    if (!idx.has(key)) idx.set(key, []);
+    idx.get(key).push(t);
+  };
+  for (const t of trades) {
+    for (const pid of Object.keys(t.adds || {})) push(`player:${pid}`, t);
+    for (const p of (t.draft_picks || [])) {
+      if (p.season && p.round != null && p.roster_id != null) {
+        push(`pick:${p.season}|${p.round}|${p.roster_id}`, t);
+      }
+    }
+  }
+  // Sort each chain chronologically (by status_updated, falling back to week).
+  for (const list of idx.values()) {
+    list.sort((a, b) => (a.status_updated || a._week) - (b.status_updated || b._week));
+  }
+  return idx;
+}
+
+// Look up how many trades an asset has appeared in (across all loaded trades).
+function tradesForPlayer(pid, idx) { return idx.get(`player:${pid}`) || []; }
+function tradesForPick(p, idx) {
+  if (!p.season || p.round == null || p.roster_id == null) return [];
+  return idx.get(`pick:${p.season}|${p.round}|${p.roster_id}`) || [];
+}
+
+function renderTradeCard(t, draftedIndex, assetTradeIndex) {
   const sc = t._scope;
   const rosters = t.roster_ids || [];
   const tradeDate = tradeIsoDate(t);
@@ -373,8 +408,8 @@ function renderTradeCard(t, draftedIndex) {
     const block = el('div', { class: 'trade-side-block received' },
       el('div', { class: 'trade-side-title' }, `${teamName} received:`),
     );
-    for (const pid of r.players) block.appendChild(renderPlayerAsset(pid, tradeDate));
-    for (const p of r.picks) block.appendChild(renderPickAsset(p, draftedIndex, tradeDate));
+    for (const pid of r.players) block.appendChild(renderPlayerAsset(pid, tradeDate, assetTradeIndex, t));
+    for (const p of r.picks) block.appendChild(renderPickAsset(p, draftedIndex, tradeDate, assetTradeIndex, t));
     if (r.faab) block.appendChild(el('div', { class: 'trade-asset' },
       el('span', { class: 'asset-tag faab' }, 'FAAB'),
       el('span', { class: 'asset-name' }, `$${r.faab}`),
@@ -450,22 +485,29 @@ function summarizeReceived(received, rosters, sc) {
   return `Got ${descSide(ra)}  |  Gave ${descSide(rb)}`;
 }
 
-function renderPlayerAsset(pid, tradeDate) {
+function renderPlayerAsset(pid, tradeDate, assetTradeIndex, currentTrade) {
   const p = state.players?.[pid];
   const pos = (p?.position || '').toUpperCase();
   const tagCls = ['QB','RB','WR','TE','K','DEF'].includes(pos) ? pos.toLowerCase() : '';
   const valueNow = playerValue(pid);
   const valueThen = tradeDate ? (playerValueAtDate(pid, tradeDate) || valueNow) : valueNow;
   const showThenAndNow = valueThen && valueNow && Math.abs(valueThen - valueNow) / Math.max(valueThen, valueNow) > 0.05;
+
+  const journey = assetTradeIndex ? tradesForPlayer(pid, assetTradeIndex) : [];
+  const reTraded = journey.length > 1;
+  const journeyMarker = reTraded ? journeyStarFor({
+    type: 'player', label: playerLabel(pid), pid, journey, currentTrade,
+  }) : null;
+
   return el('div', { class: 'trade-asset', title: playerMeta(pid) },
     el('span', { class: `asset-tag ${tagCls}` }, pos || '?'),
-    el('span', { class: 'asset-name' }, playerLabel(pid)),
+    el('span', { class: 'asset-name' }, playerLabel(pid), journeyMarker),
     el('span', { class: 'asset-value' },
       showThenAndNow ? `${fmtInt(valueThen)} → ${fmtInt(valueNow)}` : fmtInt(valueNow || valueThen)),
   );
 }
 
-function renderPickAsset(p, draftedIndex, tradeDate) {
+function renderPickAsset(p, draftedIndex, tradeDate, assetTradeIndex, currentTrade) {
   const v = pickValueWithDraftAware(p, draftedIndex, tradeDate);
   const baseLabel = pickLabel(p);
   let label = baseLabel;
@@ -475,11 +517,151 @@ function renderPickAsset(p, draftedIndex, tradeDate) {
     label = `${baseLabel} → ${slot ? slot + ' ' : ''}${playerName}`;
   }
   const showThen = v.valueThen && v.valueNow && Math.abs(v.valueThen - v.valueNow) / Math.max(v.valueThen, v.valueNow) > 0.05;
+
+  const journey = assetTradeIndex ? tradesForPick(p, assetTradeIndex) : [];
+  const reTraded = journey.length > 1;
+  const journeyMarker = reTraded ? journeyStarFor({
+    type: 'pick', label: baseLabel, pickKey: p, draftedInfo: v.drafted, journey, currentTrade,
+  }) : null;
+
   return el('div', { class: 'trade-asset' },
     el('span', { class: 'asset-tag' }, 'PICK'),
-    el('span', { class: 'asset-name' }, label),
+    el('span', { class: 'asset-name' }, label, journeyMarker),
     el('span', { class: 'asset-value' },
       showThen ? `${fmtInt(v.valueThen)} → ${fmtInt(v.valueNow)}` : fmtInt(v.valueNow || v.valueThen)),
+  );
+}
+
+// Click target: a small * after the asset name. Tap to open the journey modal.
+function journeyStarFor(payload) {
+  const star = el('button', {
+    class: 'asset-journey-star',
+    title: `Re-traded ${payload.journey.length} times — tap to see the journey`,
+    'aria-label': 'Show trade journey',
+    onclick: (e) => {
+      e.stopPropagation();
+      openJourneyModal(payload);
+    },
+  }, '*');
+  return star;
+}
+
+// Build and show a modal popup with the asset's trade journey.
+function openJourneyModal(payload) {
+  closeJourneyModal();
+  const { type, label, journey, draftedInfo } = payload;
+
+  const overlay = el('div', { class: 'journey-overlay', id: 'journeyOverlay',
+    onclick: (e) => { if (e.target.id === 'journeyOverlay') closeJourneyModal(); },
+  });
+
+  const dialog = el('div', { class: 'journey-dialog' });
+
+  const head = el('div', { class: 'journey-head' },
+    el('div', {},
+      el('div', { class: 'journey-kicker' }, type === 'pick' ? 'PICK JOURNEY' : 'PLAYER JOURNEY'),
+      el('div', { class: 'journey-title' }, label),
+    ),
+    el('button', {
+      class: 'journey-close',
+      'aria-label': 'Close',
+      onclick: closeJourneyModal,
+    }, '×'),
+  );
+  dialog.appendChild(head);
+
+  const chain = el('ol', { class: 'journey-chain' });
+  journey.forEach((trade, i) => {
+    chain.appendChild(renderJourneyStep(trade, i + 1, type, payload));
+  });
+
+  // If this is a pick that was eventually drafted, add a final "Drafted" node.
+  if (type === 'pick' && draftedInfo && draftedInfo.player_id) {
+    chain.appendChild(renderJourneyDraftStep(draftedInfo, journey.length + 1));
+  }
+  dialog.appendChild(chain);
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+}
+
+function closeJourneyModal() {
+  const o = document.getElementById('journeyOverlay');
+  if (o) o.remove();
+}
+
+function renderJourneyStep(trade, idx, type, payload) {
+  const sc = trade._scope;
+  const dateStr = trade.status_updated ? fmtDate(trade.status_updated) : `Week ${trade._week}`;
+  const rosters = trade.roster_ids || [];
+
+  // Figure out from→to for this asset in this trade.
+  let fromName = '?', toName = '?';
+  if (type === 'player') {
+    const toRid = trade.adds?.[payload.pid];
+    const fromRid = trade.drops?.[payload.pid];
+    if (toRid != null) toName = teamLabelInScope(toRid, sc);
+    if (fromRid != null) fromName = teamLabelInScope(fromRid, sc);
+    else if (rosters.length === 2 && toRid != null) {
+      // Fallback: the other roster gave the player.
+      const other = rosters.find(r => r !== toRid);
+      if (other != null) fromName = teamLabelInScope(other, sc);
+    }
+  } else if (type === 'pick') {
+    // Find the matching draft_pick entry in this trade.
+    const dp = (trade.draft_picks || []).find(dp =>
+      String(dp.season) === String(payload.pickKey.season) &&
+      Number(dp.round) === Number(payload.pickKey.round) &&
+      Number(dp.roster_id) === Number(payload.pickKey.roster_id));
+    if (dp) {
+      if (dp.previous_owner_id != null) fromName = teamLabelInScope(dp.previous_owner_id, sc);
+      if (dp.owner_id != null) toName = teamLabelInScope(dp.owner_id, sc);
+    }
+  }
+
+  return el('li', { class: 'journey-step' },
+    el('div', { class: 'journey-step-num' }, String(idx)),
+    el('div', { class: 'journey-step-body' },
+      el('div', { class: 'journey-step-meta' },
+        el('span', { class: 'year-tag' }, String(sc.season)),
+        ' Week ', String(trade._week),
+        ' · ', dateStr,
+      ),
+      el('div', { class: 'journey-step-arrow' },
+        el('strong', {}, fromName),
+        el('span', { class: 'muted' }, ' → '),
+        el('strong', {}, toName),
+      ),
+      // Brief context: what else was in the trade.
+      tradeContextLine(trade),
+    ),
+  );
+}
+
+function tradeContextLine(trade) {
+  // List up to 4 assets total (players + picks) on either side, comma-separated.
+  const items = [];
+  for (const pid of Object.keys(trade.adds || {})) items.push(playerLabel(pid));
+  for (const p of (trade.draft_picks || [])) items.push(pickLabel(p));
+  if (!items.length) return null;
+  const display = items.slice(0, 4).join(', ') + (items.length > 4 ? ` +${items.length - 4}` : '');
+  return el('div', { class: 'journey-step-context muted small' }, 'Other assets: ', display);
+}
+
+function renderJourneyDraftStep(drafted, idx) {
+  const slot = formatDraftSlot(drafted);
+  const playerName = playerLabel(drafted.player_id);
+  return el('li', { class: 'journey-step journey-step-draft' },
+    el('div', { class: 'journey-step-num' }, String(idx)),
+    el('div', { class: 'journey-step-body' },
+      el('div', { class: 'journey-step-meta' },
+        el('span', { class: 'chip good' }, 'DRAFTED'),
+        ' ', drafted.season, ' rookie draft',
+      ),
+      el('div', { class: 'journey-step-arrow' },
+        el('strong', {}, slot ? `${slot} ${playerName}` : playerName),
+      ),
+    ),
   );
 }
 
