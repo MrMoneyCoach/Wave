@@ -153,29 +153,32 @@ export async function ensureAllScopeDrafts() {
 }
 
 // Load drafts/users/rosters for every season the league has played, regardless
-// of what's currently in scope. The pick->player join needs the draft of the
-// pick's *target* season (e.g. a 2024 trade for a 2025 R4 pick needs the 2025
-// rookie draft, which lives in the 2025 league). Without this, picks from
-// past trades can't be matched to the players they became.
+// of what's currently in scope OR currently in the active filter view. The
+// pick->player join needs the draft of the pick's *target* season (e.g. a
+// 2024 trade for a 2025 R4 pick needs the 2025 rookie draft, which lives in
+// the 2025 league). Without this, picks from past trades can't be matched
+// to the players they became.
 //
-// Stores results in state.auxLeagues keyed by leagueId. Skips seasons that
-// are already loaded as part of the active scope. Self-discovers if
-// availableSeasons hasn't been populated yet.
+// Stores results into the matching scope entry from state._allLoadedScope
+// (the FULL loaded set, not the filter-derived state.scope) so that
+// filtering doesn't lose draft data for filtered-out years.
 export async function ensureAllAvailableDrafts() {
   if (!state.availableSeasons || !state.availableSeasons.length) {
     await discoverAvailableSeasons();
   }
   const seasons = state.availableSeasons || [];
+  const fullScope = state._allLoadedScope || state.scope || [];
   await Promise.all(seasons.map(async s => {
-    // Already loaded fully via scope? Make sure its drafts are loaded.
-    const inScope = state.scope.find(sc => sc.leagueId === s.leagueId);
-    if (inScope) {
-      if (!inScope.drafts || !inScope.drafts.length) {
-        inScope.drafts = await sleeper.leagueDrafts(inScope.leagueId);
+    // Try to find this season in the full loaded set first - that's where
+    // the data lives even when filtering hides it from state.scope.
+    const inLoaded = fullScope.find(sc => sc.leagueId === s.leagueId);
+    if (inLoaded) {
+      if (!inLoaded.drafts || !inLoaded.drafts.length) {
+        inLoaded.drafts = await sleeper.leagueDrafts(inLoaded.leagueId);
       }
-      await Promise.all((inScope.drafts || []).map(async d => {
-        if (!inScope.draftPicks[d.draft_id]) {
-          inScope.draftPicks[d.draft_id] = await sleeper.draftPicks(d.draft_id);
+      await Promise.all((inLoaded.drafts || []).map(async d => {
+        if (!inLoaded.draftPicks[d.draft_id]) {
+          inLoaded.draftPicks[d.draft_id] = await sleeper.draftPicks(d.draft_id);
         }
       }));
       return;
@@ -204,7 +207,7 @@ export async function ensureAllAvailableDrafts() {
 
   // Diagnostic: surface what got loaded so we can spot missing years.
   const loaded = [
-    ...state.scope.map(s => `${s.season} (scope)`),
+    ...((state._allLoadedScope || state.scope || []).map(s => `${s.season}`)),
     ...Object.values(state.auxLeagues).map(s => `${s.season} (aux)`),
   ];
   // eslint-disable-next-line no-console
@@ -463,17 +466,22 @@ export function pickValueForTradeAtDateShifted({ season, round, slot }, tradeIso
       || _lookupPickWithFallback(idx, season, round, slot).value;
 }
 
-// For every season we know about (scope + auxLeagues), build a lookup
-//   `(season, round, original_roster_id) -> {player_id, pick_no, draft_slot}`
-// where `original_roster_id` is the team that *originally* owned the pick (its
-// slot in the draft). Sleeper's draft objects expose `slot_to_roster_id`
+// For every season we know about (FULL loaded scope + auxLeagues), build a
+// lookup `(season, round, original_roster_id) -> {player_id, pick_no, draft_slot}`
+// where `original_roster_id` is the team that *originally* owned the pick
+// (its slot in the draft). Sleeper's draft objects expose `slot_to_roster_id`
 // keyed by draft slot; we invert that to resolve "which slot belongs to
 // roster X" so each traded pick lands on its actual draft position rather
 // than collapsing to the first season+round match.
+//
+// IMPORTANT: we read from state._allLoadedScope, NOT state.scope, because
+// active filters (single-year view) shouldn't drop draft data for other
+// years - a 2025 trade for a 2026 R2 pick still needs the 2026 draft data
+// even when the user has filtered to "2025 only".
 export function buildDraftedPicksIndex() {
   const out = new Map();
   const sources = [
-    ...state.scope,
+    ...(state._allLoadedScope || state.scope || []),
     ...Object.values(state.auxLeagues || {}),
   ];
   let withPlayer = 0;
