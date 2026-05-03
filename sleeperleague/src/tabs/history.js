@@ -4,13 +4,20 @@
 import { el, fmtNum } from '../helpers.js';
 import { state } from '../state.js';
 import { ensureHistory } from '../data.js';
+import { sleeper } from '../api.js';
 
 export async function renderHistory(host) {
   const wrap = el('div', { class: 'tab-section' });
   host.appendChild(wrap);
   wrap.appendChild(el('div', { class: 'muted small' }, 'Walking through past seasons…'));
 
-  const past = await ensureHistory();
+  // Walk past seasons AND fetch the current league's winners bracket in
+  // parallel — without it we can't show a champion for the current league
+  // even when its playoffs have completed.
+  const [past, currentBracket] = await Promise.all([
+    ensureHistory(),
+    sleeper.winnersBracket(state.league.league_id).catch(() => null),
+  ]);
   if (state.activeTab !== 'history') return;
 
   // Build entries: [current league, ...past] all standardized.
@@ -22,7 +29,7 @@ export async function renderHistory(host) {
     leagueId: state.league.league_id,
     users: state.leagueUsers,
     rosters: state.rosters,
-    bracket: null,
+    bracket: currentBracket,
     isCurrent: true,
   });
   for (const h of past) {
@@ -113,14 +120,21 @@ export async function renderHistory(host) {
 
 function findChampion(e) {
   if (!e.bracket || !e.bracket.length) return null;
-  // The champion is the winner of the highest-round match (the championship game).
-  const maxRound = Math.max(...e.bracket.map(b => b.r || 0));
-  const finals = e.bracket.filter(b => b.r === maxRound);
-  if (!finals.length) return null;
-  // Take the latest match in the finals (sometimes multiple at max round; take first)
-  const final = finals[0];
+  // Sleeper marks the championship game with p === 1. Other matches at the
+  // same round (3rd-place, 5th-place games) have higher p values, so picking
+  // by max round alone can return the wrong winner — or null if the 3rd-place
+  // game hasn't been played but the championship has.
+  let final = e.bracket.find(b => b.p === 1 && b.w);
+  if (!final) {
+    // Fallback for legacy/edge brackets without p set: take the highest-round
+    // match that has a winner recorded.
+    const maxRound = Math.max(...e.bracket.map(b => b.r || 0));
+    final = e.bracket.find(b => b.r === maxRound && b.w)
+        || e.bracket.find(b => b.r === maxRound)
+        || null;
+  }
+  if (!final || !final.w) return null;
   const winnerRid = final.w;
-  if (!winnerRid) return null;
   const roster = e.rosters.find(r => r.roster_id === winnerRid);
   if (!roster) return null;
   const u = e.users.find(u => u.user_id === roster.owner_id);

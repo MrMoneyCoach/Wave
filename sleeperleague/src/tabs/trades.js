@@ -15,6 +15,9 @@ import {
   pickValueForTrade, pickValueForTradeAtDateShifted,
   playerValueAtDate, buildDraftedPicksIndex,
 } from '../data.js';
+import {
+  playerImpactScore, pickImpactScore, valueAdjustment, isSuperflexLeague,
+} from '../impact.js';
 
 export async function renderTrades(host) {
   const wrap = el('div', { class: 'tab-section' });
@@ -73,16 +76,110 @@ export async function renderTrades(host) {
     return;
   }
 
+  // Player-pill multi-select filter: clicking a pill restricts the visible
+  // trades to those involving that player. Multiple pills act as OR.
+  const selectedPlayers = new Set();
+  const playerCounts = countPlayersInTrades(trades);
+  const sortedPlayers = [...playerCounts.entries()]
+    .filter(([pid]) => state.players?.[pid])
+    .sort((a, b) => b[1] - a[1]);
+
   const list = el('div', { class: 'trade-list' });
-  for (const t of trades) list.appendChild(renderTradeCard(t, draftedIndex, assetTradeIndex));
+  const panelHead = el('div', { class: 'panel-head' },
+    el('h3', { class: 'trade-list-title' }, `All trades (${trades.length})`),
+    el('span', { class: 'muted small' }, `Values: ${valuesLabel(state.valuesSource)}`),
+  );
+
+  function applyFilter() {
+    list.innerHTML = '';
+    const visible = selectedPlayers.size === 0
+      ? trades
+      : trades.filter(t => Object.keys(t.adds || {}).some(pid => selectedPlayers.has(pid)));
+    for (const t of visible) list.appendChild(renderTradeCard(t, draftedIndex, assetTradeIndex));
+    panelHead.querySelector('.trade-list-title').textContent =
+      selectedPlayers.size === 0
+        ? `All trades (${trades.length})`
+        : `Filtered trades (${visible.length} of ${trades.length})`;
+  }
+
+  const pillRow = renderPlayerPills(sortedPlayers, selectedPlayers, applyFilter);
   wrap.appendChild(el('section', { class: 'panel' },
-    el('div', { class: 'panel-head' },
-      el('h3', {}, `All trades (${trades.length})`),
-      el('span', { class: 'muted small' },
-        `Values: ${valuesLabel(state.valuesSource)}`),
-    ),
+    panelHead,
+    pillRow,
     list,
   ));
+  applyFilter();
+}
+
+function countPlayersInTrades(trades) {
+  const counts = new Map();
+  for (const t of trades) {
+    for (const pid of Object.keys(t.adds || {})) {
+      counts.set(pid, (counts.get(pid) || 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function renderPlayerPills(sorted, selected, onChange) {
+  const TOP = 24;
+  const top = sorted.slice(0, TOP);
+  const rest = sorted.slice(TOP);
+  const wrap = el('div', { class: 'trade-pill-wrap' });
+  const pillRow = el('div', { class: 'trade-pill-row' });
+
+  function makePill(pid, count) {
+    const p = state.players?.[pid];
+    if (!p) return null;
+    const pos = (p.position || '').toUpperCase();
+    const cls = ['QB','RB','WR','TE','K','DEF'].includes(pos) ? pos.toLowerCase() : '';
+    const pill = el('button', {
+      class: `trade-pill ${cls}${selected.has(pid) ? ' active' : ''}`,
+      title: `${playerLabel(pid)} — ${count} trade${count === 1 ? '' : 's'}`,
+      onclick: () => {
+        if (selected.has(pid)) selected.delete(pid);
+        else selected.add(pid);
+        pill.classList.toggle('active');
+        onChange();
+      },
+    },
+      el('span', { class: `trade-pill-tag ${cls}` }, pos || '—'),
+      el('span', { class: 'trade-pill-name' }, playerLabel(pid)),
+      el('span', { class: 'trade-pill-count' }, String(count)),
+    );
+    return pill;
+  }
+
+  // Clear-all chip
+  const clear = el('button', {
+    class: 'trade-pill clear',
+    onclick: () => {
+      selected.clear();
+      pillRow.querySelectorAll('.trade-pill.active').forEach(p => p.classList.remove('active'));
+      onChange();
+    },
+  }, 'All');
+  pillRow.appendChild(clear);
+
+  for (const [pid, count] of top) {
+    const pill = makePill(pid, count);
+    if (pill) pillRow.appendChild(pill);
+  }
+  wrap.appendChild(pillRow);
+
+  if (rest.length) {
+    const more = el('details', { class: 'trade-pill-more' },
+      el('summary', {}, `+ ${rest.length} more`),
+    );
+    const moreRow = el('div', { class: 'trade-pill-row' });
+    for (const [pid, count] of rest) {
+      const pill = makePill(pid, count);
+      if (pill) moreRow.appendChild(pill);
+    }
+    more.appendChild(moreRow);
+    wrap.appendChild(more);
+  }
+  return wrap;
 }
 
 function valuesLabel(src) {
@@ -217,81 +314,6 @@ function tradesForPick(p, idx) {
   return idx.get(`pick:${p.season}|${p.round}|${p.roster_id}`) || [];
 }
 
-// ============ Impact scoring ============
-// Estimates how much difference an asset makes to a starting lineup.
-// Factors: position scarcity (for the league format), age curve, startability.
-// Returns a dimensionless-multiplied version of rawValue in the same units —
-// the adjustment amount is always capped at a fraction of the raw asset value
-// so it stays grounded even when multipliers push impact scores high.
-
-let _posMaxCache = null;
-let _posMaxTag = null;
-function _posMaxValues() {
-  const tag = state.values?.size ?? 0;
-  if (_posMaxCache && _posMaxTag === tag) return _posMaxCache;
-  const maxes = {};
-  if (state.players && state.values) {
-    for (const [sid, val] of state.values) {
-      const pos = state.players[sid]?.position?.toUpperCase();
-      if (pos && ['QB','WR','RB','TE'].includes(pos))
-        if (!(pos in maxes) || val > maxes[pos]) maxes[pos] = val;
-    }
-  }
-  _posMaxTag = tag;
-  return (_posMaxCache = maxes);
-}
-
-function _posWeight(pos, isSuperflex) {
-  if (pos === 'QB') return isSuperflex ? 1.35 : 0.80;
-  if (pos === 'TE') return 1.20; // elite TEs are the scarcest
-  if (pos === 'WR') return 1.10;
-  if (pos === 'RB') return 1.05;
-  return 0.40; // K, DEF
-}
-
-function _ageWeight(pos, age) {
-  if (!age || age < 18) return 0.80;
-  // [rampStart, peakStart, peakEnd, declineEnd]
-  const c = ({
-    QB: [22, 26, 34, 40], RB: [21, 22, 26, 31],
-    WR: [21, 23, 29, 35], TE: [22, 25, 30, 36],
-  })[pos] || [21, 23, 29, 35];
-  if (age < c[0]) return 0.78;
-  if (age < c[1]) return 0.78 + 0.22 * (age - c[0]) / (c[1] - c[0]);
-  if (age <= c[2]) return 1.00;
-  if (age <= c[3]) return Math.max(0.45, 1.00 - 0.55 * (age - c[2]) / (c[3] - c[2]));
-  return 0.35;
-}
-
-function _startWeight(rawValue, pos) {
-  const max = _posMaxValues()[pos] || 1;
-  const pct = rawValue / max;
-  if (pct >= 0.65) return 1.00; // elite starter
-  if (pct >= 0.40) return 0.88; // reliable starter
-  if (pct >= 0.22) return 0.75; // flex / borderline
-  if (pct >= 0.10) return 0.62; // depth
-  return 0.50;                  // fringe
-}
-
-function playerImpactScore(pid, rawValue, isSuperflex) {
-  const p = state.players?.[pid];
-  if (!p || !rawValue) return rawValue || 0;
-  const pos = (p.position || '').toUpperCase();
-  return rawValue * _posWeight(pos, isSuperflex) * _ageWeight(pos, p.age) * _startWeight(rawValue, pos);
-}
-
-// Picks carry embedded upside: early 1sts = elite starter-level impact,
-// later rounds taper to depth. Uses draft_slot when known (post-draft picks);
-// otherwise assumes the midpoint of the round.
-function pickImpactScore(pickValue, round, draftSlot) {
-  if (!pickValue || !round) return pickValue || 0;
-  const slot = draftSlot != null ? Math.max(1, Math.min(12, draftSlot)) : 6.5;
-  const effectivePick = (round - 1) * 12 + slot; // 1=1.01 … 48=4.12
-  const normed = Math.min(1, (effectivePick - 1) / 47);
-  const mult = 1.40 - normed * 0.80; // 1.40 (1.01) → 0.60 (late 4th+)
-  return pickValue * mult;
-}
-
 function renderTradeCard(t, draftedIndex, assetTradeIndex) {
   const sc = t._scope;
   const rosters = t.roster_ids || [];
@@ -324,10 +346,7 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
     ? Math.min(lastReg, state.nflState?.week || lastReg)
     : lastReg;
 
-  // Determine league format for position weighting in impact scoring.
-  const sfCount = (lg.roster_positions || []).filter(p => p === 'SUPER_FLEX').length;
-  const qbCount = (lg.roster_positions || []).filter(p => p === 'QB').length;
-  const isSuperflex = sfCount > 0 || qbCount >= 2;
+  const isSuperflex = isSuperflexLeague(lg);
 
   // Compute totals per side.
   // bestImpactScore = highest impact-weighted asset score on this side,
@@ -369,38 +388,13 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
     sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount, bestImpactScore, bestAssetValue };
   }
 
-  // Impact-based Value Adjustment.
-  //
-  // The side whose top asset has meaningfully higher "starting lineup impact"
-  // gets a bonus reflecting what the other side would need to level the trade.
-  // Impact = rawValue × positionScarcity × ageCurve × startabilityWeight.
-  // Picks are included: a 1.01 has elite impact; a late-3rd has depth impact.
-  //
-  // Triggers only when one side's best impact exceeds the other's by >25%.
-  // That threshold prevents tiny pick-quality differences from firing.
-  function computeValueAdjustment(self, other) {
-    const selfImpact = self.bestImpactScore || 0;
-    const otherImpact = other.bestImpactScore || 0;
-    if (selfImpact <= 0) return 0;
-    if (otherImpact > 0 && selfImpact <= otherImpact * 1.25) return 0;
-    const gap = selfImpact - otherImpact;
-    const countAdv = Math.max(0, other.assetCount - self.assetCount);
-    const avgImpact = (selfImpact + otherImpact) / 2;
-    // countAdv bonus: each extra asset the other side brought = ~20% of avg impact
-    const raw = gap * 0.45 + countAdv * avgImpact * 0.20;
-    // Cap at 50% of the top asset's RAW value so the bonus stays grounded
-    // in actual value units rather than inflated impact units.
-    const cap = (self.bestAssetValue || 0) * 0.50;
-    return Math.round(Math.min(raw, cap));
-  }
-
-  let valueAdjustment = null;
+  let valueAdj = null;
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const adjA = computeValueAdjustment(sideTotals[a], sideTotals[b]);
-    const adjB = computeValueAdjustment(sideTotals[b], sideTotals[a]);
-    if (adjA > adjB && adjA > 0) valueAdjustment = { side: a, amount: adjA };
-    else if (adjB > 0) valueAdjustment = { side: b, amount: adjB };
+    const adjA = valueAdjustment(sideTotals[a], sideTotals[b]);
+    const adjB = valueAdjustment(sideTotals[b], sideTotals[a]);
+    if (adjA > adjB && adjA > 0) valueAdj = { side: a, amount: adjA };
+    else if (adjB > 0) valueAdj = { side: b, amount: adjB };
   }
 
   // Determine winner / fleece headline using value-at-trade + realized,
@@ -409,8 +403,8 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
   let cardTone = 'even';
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const adjA = (valueAdjustment && valueAdjustment.side === a) ? valueAdjustment.amount : 0;
-    const adjB = (valueAdjustment && valueAdjustment.side === b) ? valueAdjustment.amount : 0;
+    const adjA = (valueAdj && valueAdj.side === a) ? valueAdj.amount : 0;
+    const adjB = (valueAdj && valueAdj.side === b) ? valueAdj.amount : 0;
     const aS = sideTotals[a].valueAtTrade + sideTotals[a].realized + adjA;
     const bS = sideTotals[b].valueAtTrade + sideTotals[b].realized + adjB;
     const margin = Math.abs(aS - bS);
@@ -474,20 +468,20 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
   const body = el('div', { class: 'trade-body' });
 
   // Value Adjustment: KTC-style impact premium box.
-  if (valueAdjustment) {
-    const studSideName = teamLabelInScope(valueAdjustment.side, sc);
-    const otherSide = rosters.find(r => r !== valueAdjustment.side);
+  if (valueAdj) {
+    const studSideName = teamLabelInScope(valueAdj.side, sc);
+    const otherSide = rosters.find(r => r !== valueAdj.side);
     const otherName = teamLabelInScope(otherSide, sc);
     body.appendChild(el('div', { class: 'value-adj',
       title: 'Impact premium: the bonus awarded to the side with the higher-impact asset, weighted for position scarcity, age curve, and startability. Inspired by KTC\'s Value Adjustment.',
     },
       el('div', { class: 'value-adj-head' },
         el('span', { class: 'value-adj-label' }, 'VALUE ADJUSTMENT'),
-        el('span', { class: 'value-adj-amount' }, `+${fmtInt(valueAdjustment.amount)} to ${studSideName}`),
+        el('span', { class: 'value-adj-amount' }, `+${fmtInt(valueAdj.amount)} to ${studSideName}`),
       ),
       el('div', { class: 'value-adj-explain muted small' },
         `Impact premium: ${studSideName}'s top asset scores higher for position scarcity, age, and startability. ` +
-        `${otherName} would need roughly ${fmtInt(valueAdjustment.amount)} more in impact assets to balance the trade.`),
+        `${otherName} would need roughly ${fmtInt(valueAdj.amount)} more in impact assets to balance the trade.`),
     ));
   }
 

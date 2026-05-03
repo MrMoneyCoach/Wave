@@ -12,6 +12,7 @@ import { renderMatchups }  from './tabs/matchups.js';
 import { renderPlayers }   from './tabs/players.js';
 import { renderAwards }    from './tabs/awards.js';
 import { renderTrades }    from './tabs/trades.js';
+import { renderAnalyser }  from './tabs/analyser.js';
 import { renderPartners }  from './tabs/partners.js';
 import { renderRosters }   from './tabs/rosters.js';
 import { renderDrafts }    from './tabs/drafts.js';
@@ -28,6 +29,7 @@ const TABS = {
   players:   renderPlayers,
   awards:    renderAwards,
   trades:    renderTrades,
+  analyser:  renderAnalyser,
   partners:  renderPartners,
   rosters:   renderRosters,
   drafts:    renderDrafts,
