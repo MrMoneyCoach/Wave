@@ -208,42 +208,80 @@ function renderTradeCard(t, draftedIndex) {
     ? Math.min(lastReg, state.nflState?.week || lastReg)
     : lastReg;
 
-  // Compute totals per side: { valueAtTrade, valueNow, realized, assetCount }.
+  // Compute totals per side: { valueAtTrade, valueNow, realized, assetCount,
+  // bestAssetValue }. bestAssetValue is the largest single-asset value on
+  // that side - used to compute the stud-premium Value Adjustment below.
   const sideTotals = {};
   for (const rid of rosters) {
     const r = received[rid];
     let vn = 0, vt = 0, realized = 0;
     let assetCount = 0;
+    let bestAssetValue = 0;
     for (const pid of r.players) {
-      vn += playerValue(pid);
-      vt += tradeDate ? (playerValueAtDate(pid, tradeDate) || playerValue(pid)) : playerValue(pid);
+      const v = playerValue(pid);
+      vn += v;
+      vt += tradeDate ? (playerValueAtDate(pid, tradeDate) || v) : v;
       realized += realizedPointsForPlayer(pid, t._week, maxWeek, sc);
       assetCount++;
+      if (v > bestAssetValue) bestAssetValue = v;
     }
     for (const p of r.picks) {
-      const v = pickValueWithDraftAware(p, draftedIndex, tradeDate);
-      vn += v.valueNow;
-      vt += v.valueThen;
-      if (v.source === 'drafted' && v.playerId) {
-        realized += realizedPointsForPlayer(v.playerId, t._week, maxWeek, sc);
+      const pv = pickValueWithDraftAware(p, draftedIndex, tradeDate);
+      vn += pv.valueNow;
+      vt += pv.valueThen;
+      if (pv.source === 'drafted' && pv.playerId) {
+        realized += realizedPointsForPlayer(pv.playerId, t._week, maxWeek, sc);
       }
       assetCount++;
+      if (pv.valueNow > bestAssetValue) bestAssetValue = pv.valueNow;
     }
-    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount };
+    sideTotals[rid] = { valueAtTrade: vt, valueNow: vn, realized, assetCount, bestAssetValue };
   }
 
-  // (Value Adjustment / Depth Discount intentionally removed. Roster spots
-  // don't have a real "refill cost" in fantasy - you pick up FAs - so the
-  // diminishing-returns formula was doing more harm than good. Raw values
-  // drive the verdict.)
+  // KTC-style Value Adjustment (stud premium).
+  //
+  // Reverse-engineered intuition: when one side concentrates its value in a
+  // single elite asset and the other side spreads it across multiple lesser
+  // assets, the concentrated side is the real winner because that elite asset
+  // anchors a starting lineup spot. The "bonus" is added to the elite-asset
+  // side as a separate line.
+  //
+  // Formula (approximation - KTC keeps theirs proprietary):
+  //   premium       = best_self - best_other    (gap in best assets)
+  //   countAdvantage = count_other - count_self (extra assets on other side)
+  //   bonus         = min(self.best * 0.6, premium * 0.5 + countAdvantage * 1500)
+  //
+  // Bonus only kicks in when the side has FEWER assets AND a better best asset
+  // (at least 20% bigger).
+  function computeValueAdjustment(self, other) {
+    if (self.assetCount >= other.assetCount) return 0;
+    if (!self.bestAssetValue || self.bestAssetValue <= other.bestAssetValue * 1.2) return 0;
+    const premium = self.bestAssetValue - other.bestAssetValue;
+    const countAdvantage = other.assetCount - self.assetCount;
+    const raw = premium * 0.5 + countAdvantage * 1500;
+    const cap = self.bestAssetValue * 0.6;
+    return Math.round(Math.min(raw, cap));
+  }
 
-  // Determine winner / fleece headline using raw value-at-trade + realized.
+  let valueAdjustment = null;
+  if (rosters.length === 2) {
+    const [a, b] = rosters;
+    const adjA = computeValueAdjustment(sideTotals[a], sideTotals[b]);
+    const adjB = computeValueAdjustment(sideTotals[b], sideTotals[a]);
+    if (adjA > 0) valueAdjustment = { side: a, amount: adjA };
+    else if (adjB > 0) valueAdjustment = { side: b, amount: adjB };
+  }
+
+  // Determine winner / fleece headline using value-at-trade + realized,
+  // PLUS the Value Adjustment bonus (added to the stud side, if any).
   let headline = null;
   let cardTone = 'even';
   if (rosters.length === 2) {
     const [a, b] = rosters;
-    const aS = sideTotals[a].valueAtTrade + sideTotals[a].realized;
-    const bS = sideTotals[b].valueAtTrade + sideTotals[b].realized;
+    const adjA = (valueAdjustment && valueAdjustment.side === a) ? valueAdjustment.amount : 0;
+    const adjB = (valueAdjustment && valueAdjustment.side === b) ? valueAdjustment.amount : 0;
+    const aS = sideTotals[a].valueAtTrade + sideTotals[a].realized + adjA;
+    const bS = sideTotals[b].valueAtTrade + sideTotals[b].realized + adjB;
     const margin = Math.abs(aS - bS);
     const total = aS + bS || 1;
     const winnerRid = aS > bS ? a : (bS > aS ? b : null);
@@ -314,6 +352,24 @@ function renderTradeCard(t, draftedIndex) {
     if (Math.abs(deltaA) > 50 || Math.abs(deltaB) > 50) {
       body.appendChild(adjustmentBox(a, deltaA, b, deltaB, sc));
     }
+  }
+
+  // Value Adjustment: KTC-style stud premium box.
+  if (valueAdjustment) {
+    const studSideName = teamLabelInScope(valueAdjustment.side, sc);
+    const otherSide = rosters.find(r => r !== valueAdjustment.side);
+    const otherName = teamLabelInScope(otherSide, sc);
+    body.appendChild(el('div', { class: 'value-adj',
+      title: 'Bonus added to the side getting the elite asset. Reverse-engineered from "the player needed to even the trade." Inspired by KTC\'s Value Adjustment.',
+    },
+      el('div', { class: 'value-adj-head' },
+        el('span', { class: 'value-adj-label' }, 'VALUE ADJUSTMENT'),
+        el('span', { class: 'value-adj-amount' }, `+${fmtInt(valueAdjustment.amount)} to ${studSideName}`),
+      ),
+      el('div', { class: 'value-adj-explain muted small' },
+        `Stud premium: ${studSideName}'s top asset is significantly more valuable than ${otherName}'s top asset, and ${otherName} traded multiple lesser assets. ` +
+        `${otherName} would need a player worth around ${fmtInt(valueAdjustment.amount)} to even the trade.`),
+    ));
   }
 
   for (const rid of rosters) {

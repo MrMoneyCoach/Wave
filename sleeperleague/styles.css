@@ -858,6 +858,41 @@ button.link-btn:hover { text-decoration: underline; }
   .trade-adjust-rows { grid-template-columns: 1fr; }
 }
 
+/* Value Adjustment box (KTC-style stud premium) */
+.value-adj {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.value-adj-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.value-adj-label {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.value-adj-amount {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+}
+.value-adj-explain {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .trade-totals-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
