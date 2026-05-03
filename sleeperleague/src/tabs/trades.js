@@ -162,18 +162,22 @@ function findDraftedFor(p, draftedIndex) {
 
 function pickValueWithDraftAware(p, draftedIndex, tradeDate) {
   const drafted = findDraftedFor(p, draftedIndex);
+  const sr = { season: p.season, round: p.round };
+  const pickValueNow = pickValueForTrade(sr);
+  const pickValueThen = tradeDate ? pickValueForTradeAtDateShifted(sr, tradeDate) : pickValueNow;
+
   if (drafted && drafted.player_id) {
     const pid = drafted.player_id;
     const valueNow = playerValue(pid);
-    const valueThen = tradeDate
-      ? (playerValueAtDate(pid, tradeDate) || valueNow)
-      : valueNow;
+    // valueThen: if the player had a value on the trade date use it; otherwise
+    // the rookie draft hadn't happened yet, so the asset was still a PICK at
+    // trade time — use the pick's round value rather than the player's current
+    // value (which would understate busts and overstate hits).
+    const playerThen = tradeDate ? playerValueAtDate(pid, tradeDate) : null;
+    const valueThen = playerThen || pickValueThen || valueNow;
     return { valueNow, valueThen, source: 'drafted', drafted, playerId: pid };
   }
-  const sr = { season: p.season, round: p.round };
-  const valueThen = tradeDate ? pickValueForTradeAtDateShifted(sr, tradeDate) : pickValueForTrade(sr);
-  const valueNow = pickValueForTrade(sr);
-  return { valueNow, valueThen, source: 'pick', drafted: null };
+  return { valueNow: pickValueNow, valueThen: pickValueThen, source: 'pick', drafted: null };
 }
 
 // ============ Render ============

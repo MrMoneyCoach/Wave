@@ -75,6 +75,10 @@ def norm_name(name: str | None) -> str:
     # Strip accents, lowercase, drop punctuation, drop suffixes.
     n = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
     n = _SUFFIX_RE.sub("", n).strip()
+    # Drop dots WITHOUT inserting a space, so "D.J. Moore" → "dj moore"
+    # and matches Sleeper's "DJ Moore". Other punctuation still becomes a
+    # space (so "Amon-Ra" → "amon ra", matching Sleeper's tokenization).
+    n = n.replace(".", "")
     n = _NON_ALNUM.sub(" ", n).strip()
     return " ".join(n.split())
 
