@@ -88,6 +88,11 @@ def fetch_sleeper_index() -> dict[str, str]:
 
     A second-pass adds team-disambiguated keys when the same name+position
     occurs more than once.
+
+    A third-pass adds last_name|pos|team fallback keys for players whose
+    first name differs between KTC and Sleeper (e.g. nickname vs. full name).
+    These fallback keys are only written when the slot is not already taken
+    by a primary full-name match so they don't silently displace real entries.
     """
     print("Fetching Sleeper player database…", flush=True)
     r = requests.get(SLEEPER_PLAYERS, timeout=60)
@@ -126,6 +131,23 @@ def fetch_sleeper_index() -> dict[str, str]:
                 ),
             )
             out[key] = entries_sorted[0][0]
+
+    # Fallback index: last_name|pos|team — handles nickname vs. full name
+    # mismatches (e.g. Sleeper "Chig Okonkwo" vs. KTC "Chigoziem Okonkwo").
+    # Only add entries that don't already exist so primary matches win.
+    for key, entries in buckets.items():
+        norm_full, pos_str = key.rsplit("|", 1)
+        words = norm_full.split()
+        if not words:
+            continue
+        last = words[-1]
+        for sid, p in entries:
+            team = (p.get("team") or "").upper()
+            if team:
+                fb_key = f"{last}|{pos_str}|{team}"
+                if fb_key not in out:
+                    out[fb_key] = sid
+
     print(f"  {len(players)} players in Sleeper DB", flush=True)
     return out
 
@@ -149,8 +171,18 @@ def player_to_sleeper(p: dict, idx: dict[str, str]) -> str | None:
     pos = (p.get("position") or "").upper()
     team = (p.get("team") or "").upper()
     n = norm_name(name)
-    # Try team-disambiguated, then bare.
-    return idx.get(f"{n}|{pos}|{team}") or idx.get(f"{n}|{pos}")
+    # 1. Team-disambiguated full name.
+    if (sid := idx.get(f"{n}|{pos}|{team}")):
+        return sid
+    # 2. Bare full name.
+    if (sid := idx.get(f"{n}|{pos}")):
+        return sid
+    # 3. Last-name + pos + team fallback for nickname mismatches
+    #    (e.g. KTC "Chigoziem Okonkwo" vs. Sleeper "Chig Okonkwo").
+    words = n.split()
+    if words:
+        return idx.get(f"{words[-1]}|{pos}|{team}")
+    return None
 
 
 def player_row(p: dict, sleeper_id: str | None, sf: bool, redraft: bool) -> dict:
