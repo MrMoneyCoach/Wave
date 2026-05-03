@@ -467,17 +467,15 @@ export function pickValueForTradeAtDateShifted({ season, round, slot }, tradeIso
 }
 
 // For every season we know about (FULL loaded scope + auxLeagues), build a
-// lookup `(season, round, original_roster_id) -> {player_id, pick_no, draft_slot}`
-// where `original_roster_id` is the team that *originally* owned the pick
-// (its slot in the draft). Sleeper's draft objects expose `slot_to_roster_id`
-// keyed by draft slot; we invert that to resolve "which slot belongs to
-// roster X" so each traded pick lands on its actual draft position rather
-// than collapsing to the first season+round match.
+// lookup `(season, round, original_roster_id) -> {player_id, pick_no, draft_slot}`.
 //
-// IMPORTANT: we read from state._allLoadedScope, NOT state.scope, because
-// active filters (single-year view) shouldn't drop draft data for other
-// years - a 2025 trade for a 2026 R2 pick still needs the 2026 draft data
-// even when the user has filtered to "2025 only".
+// We rely on Sleeper's `slot_to_roster_id` mapping (slot -> original owner)
+// to produce a stable key. We deliberately DON'T fall back to the pick's
+// drafter (`p.roster_id`) when the mapping is missing - that fallback
+// causes wrong-player matches when a single team made multiple picks in
+// the same round. Better to leave the pick unresolved than to mislabel.
+//
+// Reads from state._allLoadedScope (full set, including filter-hidden years).
 export function buildDraftedPicksIndex() {
   const out = new Map();
   const sources = [
@@ -485,20 +483,21 @@ export function buildDraftedPicksIndex() {
     ...Object.values(state.auxLeagues || {}),
   ];
   let withPlayer = 0;
+  let missingMapping = [];
   for (const src of sources) {
     const drafts = src.drafts || [];
     for (const d of drafts) {
       const season = d.season;
-      const slotToRoster = d.slot_to_roster_id || {};
+      const slotToRoster = d.slot_to_roster_id || null;
       const picks = src.draftPicks?.[d.draft_id] || [];
+      if (!slotToRoster || Object.keys(slotToRoster).length === 0) {
+        if (picks.length) missingMapping.push(`${season} (${picks.length} picks)`);
+        continue;
+      }
       for (const p of picks) {
-        // The pick's *original* owner is whichever roster owns its slot in
-        // the draft. Falls back to the actual drafter (p.roster_id) when
-        // the mapping is missing - imperfect, but better than nothing.
-        const originalRosterId = slotToRoster[p.draft_slot] ?? p.roster_id;
+        const originalRosterId = slotToRoster[p.draft_slot];
         if (originalRosterId == null) continue;
         const key = `${season}|${p.round}|${originalRosterId}`;
-        // Don't clobber a populated entry with an empty one.
         const existing = out.get(key);
         if (existing && existing.player_id && !p.player_id) continue;
         out.set(key, {
@@ -514,6 +513,10 @@ export function buildDraftedPicksIndex() {
   }
   // eslint-disable-next-line no-console
   console.info(`[drafts] index built: ${out.size} entries (${withPlayer} with players)`);
+  if (missingMapping.length) {
+    // eslint-disable-next-line no-console
+    console.warn(`[drafts] missing slot_to_roster_id for: ${missingMapping.join(', ')} - traded picks for those drafts won't resolve to drafted players`);
+  }
   return out;
 }
 

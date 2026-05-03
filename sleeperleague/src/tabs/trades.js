@@ -244,9 +244,8 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
     : lastReg;
 
   // Compute totals per side. bestPlayerValue is the largest single-PLAYER
-  // value (picks excluded) and drives the stud-premium Value Adjustment
-  // below — picks aren't "studs" in the lineup-anchoring sense, so they
-  // don't earn the premium.
+  // value (picks excluded — even drafted picks aren't "players" at the time
+  // of the trade) and drives the stud-premium Value Adjustment below.
   const sideTotals = {};
   for (const rid of rosters) {
     const r = received[rid];
@@ -268,10 +267,12 @@ function renderTradeCard(t, draftedIndex, assetTradeIndex) {
       vn += pv.valueNow;
       vt += pv.valueThen;
       if (pv.source === 'drafted' && pv.playerId) {
+        // Drafted player's points still count toward realized pts (post-trade
+        // production from the asset), but the player does NOT count toward
+        // bestPlayerValue because at the time of the trade it was a pick,
+        // not a player. So the stud-premium Value Adjustment correctly
+        // reads pick-for-pick trades as having no stud advantage.
         realized += realizedPointsForPlayer(pv.playerId, t._week, maxWeek, sc);
-        // Drafted picks count as players for stud-premium purposes.
-        const dv = playerValue(pv.playerId);
-        if (dv > bestPlayerValue) bestPlayerValue = dv;
       }
       assetCount++;
       if (pv.valueNow > bestAssetValue) bestAssetValue = pv.valueNow;
