@@ -315,14 +315,24 @@ function buildRows() {
   const projStats = state.projStats || {};
   const useProj = !!state.useProjections;
 
-  // One-time diagnostic: dump the field names + first row of projection data
-  // so we can see if Sleeper is sending pass_yd/rec/etc. or only pts_ppr.
+  // One-time diagnostic: find the projection entry with the most fields
+  // (i.e. a populated star player, not the first dict key which tends to be
+  // an old/inactive player like player_id "17") and dump it.
   if (!state._projDumped) {
-    const samplePid = Object.keys(projStats)[0];
-    if (samplePid) {
-      console.log('[playervalue] sample projection player_id:', samplePid,
-        'fields:', Object.keys(projStats[samplePid] || {}),
-        'values:', projStats[samplePid]);
+    const ids = Object.keys(projStats);
+    let bestId = ids[0], bestSize = 0;
+    for (const pid of ids) {
+      const n = Object.keys(projStats[pid] || {}).length;
+      if (n > bestSize) { bestSize = n; bestId = pid; }
+    }
+    if (bestId) {
+      const player = state.players[bestId];
+      console.log(
+        `[playervalue] richest projection — player_id=${bestId}`,
+        player ? `(${player.full_name}, ${player.position} ${player.team})` : '',
+        '· fields:', Object.keys(projStats[bestId] || {}),
+        '· values:', projStats[bestId],
+      );
     }
     state._projDumped = true;
   }

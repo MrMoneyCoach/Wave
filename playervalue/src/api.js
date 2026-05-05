@@ -183,7 +183,12 @@ async function pickProjectionPattern(season) {
     const data = await getJSONsoft(u.url);
     const norm = normalizeProjResponse(u.kind, data);
     console.log(`[playervalue] projections probe ${u.url} → ${norm ? Object.keys(norm).length + ' players' : 'empty'}`);
-    if (norm) return u;
+    if (norm) {
+      // Dump one raw row so we can see the actual shape Sleeper sends.
+      const sampleRaw = Array.isArray(data) ? data.find(r => r && r.stats && Object.keys(r.stats).length > 3) || data[0] : Object.values(data)[0];
+      console.log(`[playervalue] sample raw projection row for ${season}:`, sampleRaw);
+      return u;
+    }
   }
   return null;
 }
