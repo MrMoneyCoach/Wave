@@ -71,6 +71,9 @@
         <label class="row" title="Use prior-season volume share vs current depth chart to flag inherited opportunity (offseason teammate departures, depth-chart promotions)">
           <input type="checkbox" id="apply-trend" checked /> Factor in prior-year trend
         </label>
+        <label class="row" title="Drive production and opportunity off Sleeper's per-week projections instead of realized stats — best for redraft / dynasty value during the offseason">
+          <input type="checkbox" id="use-projections" /> Score by projections (Sleeper)
+        </label>
       </section>
 
       <section>
@@ -137,8 +140,10 @@
               <th data-sort="targets" title="Targets (a target counts whether or not it was caught)">Tgt</th>
               <th data-sort="carries" title="Rush attempts">Car</th>
               <th data-sort="attempts" title="Pass attempts">Att</th>
-              <th data-sort="pts" title="Total fantasy points">FP</th>
-              <th data-sort="ppg" title="Fantasy points per game">PPG</th>
+              <th data-sort="pts" title="Total fantasy points (active source — see Score by projections toggle)">FP</th>
+              <th data-sort="ppg" title="Fantasy points per game (active source)">PPG</th>
+              <th data-sort="realPts" title="Realized fantasy points (selected season)">Real</th>
+              <th data-sort="projPts" title="Projected fantasy points (Sleeper)">Proj</th>
               <th data-sort="opportunity" title="Share of team volume at position — targets count as full opportunity, not just receptions">Opp</th>
               <th data-sort="trend" title="Prior-season trend: ↗ promoted/inherited opportunity, → established starter, ↘ declining/lost role, • unknown">Trend</th>
               <th data-sort="teTeamShare" title="Team's TE share of WR+TE targets — high = TE-heavy offense">TE%</th>

@@ -1,7 +1,7 @@
 // Sleeper Player Value — entry point.
 import {
   getUserByName, getUserLeagues, getLeague, getRosters, getLeagueUsers,
-  getAllPlayers, getSeasonStats,
+  getAllPlayers, getSeasonStats, getSeasonProjections,
 } from './src/api.js';
 import { buildScoring, pointsFor, normalizeLeagueScoring, PRESETS } from './src/scoring.js';
 import {
@@ -152,10 +152,16 @@ async function mountApp() {
   status.textContent = 'Loading players & stats…';
 
   const priorSeason = String(Number(state.season) - 1);
+  const nextSeason  = String(Number(state.season) + 1);
   const tasks = [
     getAllPlayers(),
     getSeasonStats(state.season),
     getSeasonStats(priorSeason),
+    // Pull projections for the selected season AND the next season — whichever
+    // comes back populated wins. Past seasons usually have no projections;
+    // upcoming season is what redraft/dynasty users actually want.
+    getSeasonProjections(state.season),
+    getSeasonProjections(nextSeason),
   ];
   if (state.league) {
     tasks.push(getRosters(state.league.league_id));
@@ -165,9 +171,12 @@ async function mountApp() {
   state.players = results[0];
   state.seasonStats = results[1];
   state.priorStats = results[2];
+  const projThis = results[3], projNext = results[4];
+  state.projStats = (projNext && Object.keys(projNext).length > 0) ? projNext : projThis;
+  state.projSeason = (state.projStats === projNext) ? nextSeason : state.season;
   if (state.league) {
-    state.rosters = results[3];
-    state.leagueUsers = results[4];
+    state.rosters = results[5];
+    state.leagueUsers = results[6];
   }
 
   // Configure preset selector for league mode.
@@ -191,7 +200,7 @@ async function mountApp() {
 
 function bindControls() {
   const ids = ['preset', 'te-premium', 'superflex', 'combine-wrte', 'apply-trend',
-              'w-prod', 'w-opp', 'w-age',
+              'use-projections', 'w-prod', 'w-opp', 'w-age',
               'filter-pos', 'min-games', 'rostered-only', 'search'];
   for (const id of ids) {
     const el = document.getElementById(id);
@@ -241,6 +250,7 @@ function readControls() {
   };
   state.combineWRTE = document.getElementById('combine-wrte').checked;
   state.applyTrend = document.getElementById('apply-trend').checked;
+  state.useProjections = document.getElementById('use-projections').checked;
 }
 
 function recomputeAndRender() {
@@ -272,18 +282,26 @@ function buildRows() {
   }
 
   // Build candidate list from players.
-  const stats = state.seasonStats || {};
+  const realStats = state.seasonStats || {};
+  const projStats = state.projStats || {};
+  const useProj = !!state.useProjections;
+  // The "primary" stat source drives production AND opportunity; the other
+  // is still computed and surfaced as a side column.
+  const primary = useProj ? projStats : realStats;
   const candidates = [];
   for (const pid in state.players) {
     const p = state.players[pid];
     if (!p || !p.position) continue;
     if (!FANTASY_POSITIONS.has(p.position)) continue;
-    const s = stats[pid];
+    const s = primary[pid];
     const games = (s && s.gp) || 0;
-    // We still include 0-game players for opportunity-driven (rookie/starter) appearances.
     const pts = pointsFor(s, state.scoring, p.position);
     const ppg = games > 0 ? pts / games : 0;
     const vol = getVolume(s, p.position);
+    // Always also compute realized fantasy points + projected fantasy points
+    // so the user can see both side by side.
+    const realPts = pointsFor(realStats[pid], state.scoring, p.position);
+    const projPts = pointsFor(projStats[pid], state.scoring, p.position);
     candidates.push({
       ...p,
       _stats: s || {},
@@ -293,6 +311,8 @@ function buildRows() {
       _attempts: vol.attempts,
       _pts: pts,
       _ppg: ppg,
+      _realPts: realPts,
+      _projPts: projPts,
       _rostered: rosterOwnerByPid.has(pid),
       _rosteredBy: rosterOwnerByPid.get(pid) || null,
     });
@@ -358,6 +378,11 @@ function summaryPills(rows) {
   pills.push(`<span class="pill">Weights: prod ${state.weights.prod} · opp ${state.weights.opp} · age ${state.weights.age}</span>`);
   if (state.scoring._superflex) pills.push(`<span class="pill">Superflex</span>`);
   if (state.scoring._tePremium) pills.push(`<span class="pill">TE +${state.scoring._tePremium}</span>`);
+  if (state.useProjections) {
+    pills.push(`<span class="pill">Source: projections (${state.projSeason})</span>`);
+  } else {
+    pills.push(`<span class="pill">Source: realized (${state.season})</span>`);
+  }
   return pills.join('');
 }
 

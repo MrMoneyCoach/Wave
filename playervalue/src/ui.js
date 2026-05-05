@@ -21,6 +21,8 @@ export function renderTable(tbody, rows) {
       <td>${p._attempts || 0}</td>
       <td>${fmt(p._pts)}</td>
       <td>${fmt(p._ppg)}</td>
+      <td class="muted">${fmt(p._realPts)}</td>
+      <td class="muted">${fmt(p._projPts)}</td>
       <td>${bar(p._opportunity)}${fmtInt(p._opportunity)}</td>
       <td title="${trendTitle(p)}">${trendIcon(p._trend)}</td>
       <td>${fmtInt(p._teTeamShare)}</td>
@@ -97,6 +99,8 @@ function pickSort(p, key) {
     case 'attempts': return p._attempts || 0;
     case 'pts': return p._pts || 0;
     case 'ppg': return p._ppg || 0;
+    case 'realPts': return p._realPts || 0;
+    case 'projPts': return p._projPts || 0;
     case 'opportunity': return p._opportunity || 0;
     case 'trend': {
       const order = { promoted: 4, established: 3, unknown: 2, declining: 1 };

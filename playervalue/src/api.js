@@ -7,6 +7,8 @@ const PLAYERS_KEY = 'pv:players:nfl';
 const PLAYERS_TTL = 24 * 60 * 60 * 1000;  // 24h
 const STATS_KEY = (season) => `pv:stats:${season}`;
 const STATS_TTL = 6 * 60 * 60 * 1000;     // 6h
+const PROJ_KEY  = (season) => `pv:proj:${season}`;
+const PROJ_TTL  = 6 * 60 * 60 * 1000;     // 6h
 
 async function getJSON(url) {
   const r = await fetch(url);
@@ -129,6 +131,42 @@ export async function getSeasonStats(season, { weeks = 18 } = {}) {
         const flat = s && s.stats ? s.stats : s;
         if (flat && typeof flat === 'object') totals[pid] = { ...flat };
       }
+    }
+  }
+
+  writeCache(cacheKey, totals);
+  return totals;
+}
+
+// Sleeper's projections endpoint — undocumented but stable. Same shape as
+// the per-week stats endpoint. We aggregate season totals client-side.
+export async function getSeasonProjections(season, { weeks = 18 } = {}) {
+  const cacheKey = PROJ_KEY(season);
+  const cached = readCache(cacheKey, PROJ_TTL);
+  if (cached) return cached;
+
+  const requests = [];
+  for (let w = 1; w <= weeks; w++) {
+    requests.push(getJSONsoft(`${BASE}/projections/nfl/regular/${season}/${w}`));
+  }
+  const weekly = await Promise.all(requests);
+
+  const totals = {};
+  for (const wk of weekly) {
+    if (!wk || typeof wk !== 'object') continue;
+    for (const pid in wk) {
+      const entry = wk[pid];
+      if (!entry) continue;
+      const flat = entry.stats && typeof entry.stats === 'object' ? entry.stats : entry;
+      const dest = totals[pid] || (totals[pid] = {});
+      let any = false;
+      for (const k in flat) {
+        const v = flat[k];
+        if (typeof v !== 'number' || !isFinite(v)) continue;
+        dest[k] = (dest[k] || 0) + v;
+        any = true;
+      }
+      if (any) dest.gp = (dest.gp || 0) + 1;
     }
   }
 
