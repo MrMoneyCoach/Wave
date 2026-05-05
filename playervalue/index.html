@@ -109,6 +109,9 @@
         <label class="row">
           <input type="checkbox" id="rostered-only" /> Only players in my league
         </label>
+        <label class="row" title="Show only players whose projection beats prior-year realized by 10%+, OR whose Trend is promoted (↗), OR who have no prior production but a real projection (rookies / new starters)">
+          <input type="checkbox" id="ascending-only" /> Ascending only (value lens)
+        </label>
         <label>Search
           <input id="search" type="search" placeholder="Player name…" />
         </label>
@@ -144,6 +147,7 @@
               <th data-sort="ppg" title="Fantasy points per game (active source)">PPG</th>
               <th data-sort="realPts" title="Realized fantasy points (selected season)">Real</th>
               <th data-sort="projPts" title="Projected fantasy points (Sleeper)">Proj</th>
+              <th data-sort="projRealRatio" title="Projected ÷ Realized — >1 = Sleeper expects a step up; <1 = expected regression. Dash means no prior-season production.">P/R</th>
               <th data-sort="opportunity" title="Share of team volume at position — targets count as full opportunity, not just receptions">Opp</th>
               <th data-sort="trend" title="Prior-season trend: ↗ promoted/inherited opportunity, → established starter, ↘ declining/lost role, • unknown">Trend</th>
               <th data-sort="teTeamShare" title="Team's TE share of WR+TE targets — high = TE-heavy offense">TE%</th>

@@ -23,6 +23,7 @@ export function renderTable(tbody, rows) {
       <td>${fmt(p._ppg)}</td>
       <td class="muted">${fmt(p._realPts)}</td>
       <td class="muted">${fmt(p._projPts)}</td>
+      <td title="${ratioTitle(p)}">${ratioCell(p._projRealRatio)}</td>
       <td>${bar(p._opportunity)}${fmtInt(p._opportunity)}</td>
       <td title="${trendTitle(p)}">${trendIcon(p._trend)}</td>
       <td>${fmtInt(p._teTeamShare)}</td>
@@ -40,6 +41,18 @@ function fmtInt(n) { if (n == null || !isFinite(n)) return '—'; return Math.ro
 function bar(v) {
   const pct = Math.max(0, Math.min(100, v || 0));
   return `<span class="bar" style="width:${pct * 0.6}px"></span>`;
+}
+function ratioCell(r) {
+  if (r == null || !isFinite(r)) return '<span class="muted">—</span>';
+  const pct = (r * 100).toFixed(0) + '%';
+  let color = '#8b949e';
+  if (r >= 1.1) color = '#3fb950';        // green: ascending
+  else if (r <= 0.9) color = '#f85149';   // red: descending
+  return `<span style="color:${color};font-weight:600">${pct}</span>`;
+}
+function ratioTitle(p) {
+  if (p._projRealRatio == null) return 'No prior-season realized production to compare against.';
+  return `Proj ${p._projPts.toFixed(0)} ÷ Real ${p._realPts.toFixed(0)} = ${(p._projRealRatio * 100).toFixed(0)}%`;
 }
 function trendIcon(t) {
   switch (t) {
@@ -101,6 +114,7 @@ function pickSort(p, key) {
     case 'ppg': return p._ppg || 0;
     case 'realPts': return p._realPts || 0;
     case 'projPts': return p._projPts || 0;
+    case 'projRealRatio': return p._projRealRatio == null ? -1 : p._projRealRatio;
     case 'opportunity': return p._opportunity || 0;
     case 'trend': {
       const order = { promoted: 4, established: 3, unknown: 2, declining: 1 };

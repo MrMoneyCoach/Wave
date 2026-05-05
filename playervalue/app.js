@@ -256,7 +256,7 @@ async function mountApp() {
 function bindControls() {
   const ids = ['preset', 'te-premium', 'superflex', 'combine-wrte', 'apply-trend',
               'use-projections', 'w-prod', 'w-opp', 'w-age',
-              'filter-pos', 'min-games', 'rostered-only', 'search'];
+              'filter-pos', 'min-games', 'rostered-only', 'ascending-only', 'search'];
   for (const id of ids) {
     const el = document.getElementById(id);
     el.addEventListener('input', recomputeAndRender);
@@ -302,6 +302,7 @@ function readControls() {
     minGames: +document.getElementById('min-games').value,
     rosteredOnly: document.getElementById('rostered-only').checked,
     search: document.getElementById('search').value.trim().toLowerCase(),
+    ascendingOnly: document.getElementById('ascending-only').checked,
   };
   state.combineWRTE = document.getElementById('combine-wrte').checked;
   state.applyTrend = document.getElementById('apply-trend').checked;
@@ -391,6 +392,7 @@ function buildRows() {
       _ppg: ppg,
       _realPts: realPts,
       _projPts: projPts,
+      _projRealRatio: realPts > 5 ? projPts / realPts : null,
       _rostered: rosterOwnerByPid.has(pid),
       _rosteredBy: rosterOwnerByPid.get(pid) || null,
     });
@@ -441,6 +443,17 @@ function buildRows() {
       return false;
     }
     if (f.rosteredOnly && !p._rostered) return false;
+    if (f.ascendingOnly) {
+      // Show only players whose projection or trend signals upward role.
+      // Either Proj is meaningfully higher than Real (>10%), or trend is
+      // 'promoted', or the player has no prior-season production at all
+      // (rookie/new starter) but does have a current projection.
+      const ratio = p._projRealRatio;
+      const ratioUp = (typeof ratio === 'number') && ratio > 1.1;
+      const trendUp = p._trend === 'promoted';
+      const newStarter = p._realPts < 5 && p._projPts > 50;
+      if (!(ratioUp || trendUp || newStarter)) return false;
+    }
     if (f.search) {
       const name = (p.full_name || `${p.first_name} ${p.last_name}`).toLowerCase();
       if (!name.includes(f.search)) return false;
