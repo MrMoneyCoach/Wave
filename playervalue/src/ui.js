@@ -16,6 +16,9 @@ export function renderTable(tbody, rows) {
       <td>${escape(p.team || '—')}</td>
       <td>${p.age ?? '—'}</td>
       <td>${p._games || 0}</td>
+      <td>${p._targets || 0}</td>
+      <td>${p._carries || 0}</td>
+      <td>${p._attempts || 0}</td>
       <td>${fmt(p._pts)}</td>
       <td>${fmt(p._ppg)}</td>
       <td>${bar(p._opportunity)}${fmtInt(p._opportunity)}</td>
@@ -75,6 +78,9 @@ function pickSort(p, key) {
     case 'team': return p.team || '';
     case 'age': return p.age || 0;
     case 'games': return p._games || 0;
+    case 'targets': return p._targets || 0;
+    case 'carries': return p._carries || 0;
+    case 'attempts': return p._attempts || 0;
     case 'pts': return p._pts || 0;
     case 'ppg': return p._ppg || 0;
     case 'opportunity': return p._opportunity || 0;

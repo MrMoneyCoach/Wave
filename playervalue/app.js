@@ -5,7 +5,8 @@ import {
 } from './src/api.js';
 import { buildScoring, pointsFor, normalizeLeagueScoring, PRESETS } from './src/scoring.js';
 import {
-  ageScore, productionScore, computeOpportunity, compositeValue, FANTASY_POSITIONS,
+  ageScore, productionScore, computeOpportunity, compositeValue,
+  getVolume, FANTASY_POSITIONS,
 } from './src/value.js';
 import { renderTable, setupSortableHeaders } from './src/ui.js';
 
@@ -273,10 +274,14 @@ function buildRows() {
     // We still include 0-game players for opportunity-driven (rookie/starter) appearances.
     const pts = pointsFor(s, state.scoring, p.position);
     const ppg = games > 0 ? pts / games : 0;
+    const vol = getVolume(s, p.position);
     candidates.push({
       ...p,
       _stats: s || {},
       _games: games,
+      _targets: vol.targets,
+      _carries: vol.carries,
+      _attempts: vol.attempts,
       _pts: pts,
       _ppg: ppg,
       _rostered: rosterOwnerByPid.has(pid),

@@ -66,8 +66,10 @@ export function productionScore(player, cohortSorted) {
 }
 
 // Opportunity: share of team's positional volume.
-// For RBs: rush attempts + targets. WR/TE: targets. QB: pass attempts.
-// We compute team totals across our enriched player rows.
+// Targets count as full opportunity (not just completed receptions) — a target
+// is a chance to produce regardless of whether it was caught.
+// QB: pass attempts. RB: rush attempts + targets (1:1, since RB targets are
+// high-value touches). WR/TE: targets.
 function relevantVolume(stats, position) {
   if (!stats) return 0;
   const ratt = stats.rush_att || 0;
@@ -75,11 +77,21 @@ function relevantVolume(stats, position) {
   const patt = stats.pass_att || 0;
   switch (position) {
     case 'QB': return patt + (stats.rush_att || 0) * 0.5;
-    case 'RB': return ratt + tgts * 0.7;
-    case 'WR': return tgts;
-    case 'TE': return tgts;
+    case 'RB': return ratt + tgts;          // targets count fully
+    case 'WR': return tgts;                  // pure target share
+    case 'TE': return tgts;                  // pure target share
     default:   return ratt + tgts + patt;
   }
+}
+
+// Convenience: extract raw target / attempt counts for display.
+export function getVolume(stats, position) {
+  if (!stats) return { targets: 0, carries: 0, attempts: 0 };
+  return {
+    targets:  stats.rec_tgt || stats.tgt || 0,
+    carries:  stats.rush_att || 0,
+    attempts: stats.pass_att || 0,
+  };
 }
 
 export function computeOpportunity(playersWithStats) {
