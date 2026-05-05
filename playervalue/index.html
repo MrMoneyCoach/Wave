@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sleeper Player Value</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="login" class="login">
+    <div class="login-card">
+      <h1>Sleeper Player Value</h1>
+      <p class="muted">Find undervalued fantasy players using stats, age curves, and opportunity.</p>
+      <form id="login-form">
+        <label>Sleeper username
+          <input id="username" name="username" autocomplete="username" required />
+        </label>
+        <label>Season
+          <select id="season"></select>
+        </label>
+        <button type="submit">Continue</button>
+        <p id="login-error" class="error"></p>
+      </form>
+      <p class="muted small">Or <a href="#" id="skip-league">skip league and analyze all NFL players</a>.</p>
+    </div>
+  </div>
+
+  <div id="league-pick" class="hidden league-pick">
+    <div class="login-card">
+      <h2>Pick a league</h2>
+      <ul id="league-list"></ul>
+      <button id="back-to-login" class="ghost">Back</button>
+    </div>
+  </div>
+
+  <div id="app" class="hidden app">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>Player Value</strong>
+        <span id="league-label" class="muted small"></span>
+      </div>
+
+      <section>
+        <h3>Scoring</h3>
+        <label>Preset
+          <select id="preset">
+            <option value="league">League settings</option>
+            <option value="ppr">Full PPR</option>
+            <option value="half">Half PPR</option>
+            <option value="std">Standard</option>
+          </select>
+        </label>
+        <label>TE premium
+          <select id="te-premium">
+            <option value="0">0 (none)</option>
+            <option value="0.5">+0.5</option>
+            <option value="1">+1.0</option>
+            <option value="1.5">+1.5</option>
+          </select>
+        </label>
+        <label class="row">
+          <input type="checkbox" id="superflex" /> Superflex (boost QBs)
+        </label>
+      </section>
+
+      <section>
+        <h3>Value weights</h3>
+        <label>Production <span id="w-prod-label">60%</span>
+          <input type="range" id="w-prod" min="0" max="100" value="60" />
+        </label>
+        <label>Opportunity <span id="w-opp-label">25%</span>
+          <input type="range" id="w-opp" min="0" max="100" value="25" />
+        </label>
+        <label>Age curve <span id="w-age-label">15%</span>
+          <input type="range" id="w-age" min="0" max="100" value="15" />
+        </label>
+      </section>
+
+      <section>
+        <h3>Filters</h3>
+        <label>Position
+          <select id="filter-pos">
+            <option value="ALL">All</option>
+            <option value="QB">QB</option>
+            <option value="RB">RB</option>
+            <option value="WR">WR</option>
+            <option value="TE">TE</option>
+            <option value="K">K</option>
+            <option value="DEF">DEF</option>
+            <option value="FLEX">FLEX (RB/WR/TE)</option>
+          </select>
+        </label>
+        <label>Min games <span id="min-games-label">4</span>
+          <input type="range" id="min-games" min="0" max="17" value="4" />
+        </label>
+        <label class="row">
+          <input type="checkbox" id="rostered-only" /> Only players in my league
+        </label>
+        <label>Search
+          <input id="search" type="search" placeholder="Player name…" />
+        </label>
+      </section>
+
+      <section>
+        <button id="logout" class="ghost">Switch league</button>
+      </section>
+    </aside>
+
+    <main>
+      <header class="top">
+        <h2 id="title">Top Value Players</h2>
+        <div id="status" class="muted small"></div>
+      </header>
+
+      <div id="summary" class="summary"></div>
+
+      <div class="table-wrap">
+        <table id="players">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th data-sort="name">Player</th>
+              <th data-sort="pos">Pos</th>
+              <th data-sort="team">Team</th>
+              <th data-sort="age">Age</th>
+              <th data-sort="games" title="Games played">G</th>
+              <th data-sort="pts" title="Total fantasy points">FP</th>
+              <th data-sort="ppg" title="Fantasy points per game">PPG</th>
+              <th data-sort="opportunity" title="Share of team volume at position (0-100)">Opp</th>
+              <th data-sort="ageScore" title="Dynasty age score (0-100)">Age+</th>
+              <th data-sort="prodScore" title="Production percentile vs position (0-100)">Prod</th>
+              <th data-sort="value" title="Composite value score">Value</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
