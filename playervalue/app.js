@@ -174,6 +174,15 @@ async function mountApp() {
   const projThis = results[3], projNext = results[4];
   state.projStats = (projNext && Object.keys(projNext).length > 0) ? projNext : projThis;
   state.projSeason = (state.projStats === projNext) ? nextSeason : state.season;
+  state.projAvailable = !!(state.projStats && Object.keys(state.projStats).length > 0);
+  // If projections came back empty (offseason gap, endpoint change), disable
+  // the toggle so users aren't confused by zero columns everywhere.
+  const useProjEl = document.getElementById('use-projections');
+  useProjEl.disabled = !state.projAvailable;
+  if (!state.projAvailable) {
+    useProjEl.checked = false;
+    useProjEl.parentElement.title = `No Sleeper projections returned for ${state.season} or ${nextSeason}.`;
+  }
   if (state.league) {
     state.rosters = results[5];
     state.leagueUsers = results[6];

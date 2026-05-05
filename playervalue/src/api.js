@@ -7,7 +7,8 @@ const PLAYERS_KEY = 'pv:players:nfl';
 const PLAYERS_TTL = 24 * 60 * 60 * 1000;  // 24h
 const STATS_KEY = (season) => `pv:stats:${season}`;
 const STATS_TTL = 6 * 60 * 60 * 1000;     // 6h
-const PROJ_KEY  = (season) => `pv:proj:${season}`;
+// v2 — was caching empty results from a wrong URL.
+const PROJ_KEY  = (season) => `pv:proj2:${season}`;
 const PROJ_TTL  = 6 * 60 * 60 * 1000;     // 6h
 
 async function getJSON(url) {
@@ -138,36 +139,69 @@ export async function getSeasonStats(season, { weeks = 18 } = {}) {
   return totals;
 }
 
-// Sleeper's projections endpoint — undocumented but stable. Same shape as
-// the per-week stats endpoint. We aggregate season totals client-side.
+// Sleeper's projections endpoint is undocumented and lives under TWO different
+// hostnames with different response shapes:
+//   1) api.sleeper.com (newer, used by web app) — returns an ARRAY of objects:
+//      [{ player_id, stats: {...}, ... }, ...]. Requires position[] filters
+//      or you get an empty array.
+//   2) api.sleeper.app/projections/... (older, no /v1) — returns a DICT keyed
+//      by player_id: { "1234": {...stats...}, ... }
+// We try (1) first, fall back to (2). We aggregate season totals client-side.
+const PROJ_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+
+async function fetchProjectionsWeek(season, week) {
+  const qs = PROJ_POSITIONS.map(p => `position[]=${p}`).join('&');
+  const urlCom = `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular&${qs}`;
+  const arr = await getJSONsoft(urlCom);
+  if (Array.isArray(arr) && arr.length > 0) {
+    const dict = {};
+    for (const row of arr) {
+      if (row && row.player_id) dict[row.player_id] = row.stats || row;
+    }
+    return dict;
+  }
+  // Fallback hostname (no /v1/ prefix).
+  const urlApp = `https://api.sleeper.app/projections/nfl/regular/${season}/${week}`;
+  const obj = await getJSONsoft(urlApp);
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) return obj;
+  return null;
+}
+
 export async function getSeasonProjections(season, { weeks = 18 } = {}) {
   const cacheKey = PROJ_KEY(season);
   const cached = readCache(cacheKey, PROJ_TTL);
   if (cached) return cached;
 
   const requests = [];
-  for (let w = 1; w <= weeks; w++) {
-    requests.push(getJSONsoft(`${BASE}/projections/nfl/regular/${season}/${w}`));
-  }
+  for (let w = 1; w <= weeks; w++) requests.push(fetchProjectionsWeek(season, w));
   const weekly = await Promise.all(requests);
 
   const totals = {};
+  let weeksWithData = 0;
   for (const wk of weekly) {
     if (!wk || typeof wk !== 'object') continue;
+    let any = false;
     for (const pid in wk) {
       const entry = wk[pid];
       if (!entry) continue;
       const flat = entry.stats && typeof entry.stats === 'object' ? entry.stats : entry;
       const dest = totals[pid] || (totals[pid] = {});
-      let any = false;
+      let pany = false;
       for (const k in flat) {
         const v = flat[k];
         if (typeof v !== 'number' || !isFinite(v)) continue;
         dest[k] = (dest[k] || 0) + v;
-        any = true;
+        pany = true;
       }
-      if (any) dest.gp = (dest.gp || 0) + 1;
+      if (pany) { dest.gp = (dest.gp || 0) + 1; any = true; }
     }
+    if (any) weeksWithData++;
+  }
+
+  if (weeksWithData === 0) {
+    console.warn(`[playervalue] No Sleeper projections returned for season ${season}.`);
+  } else {
+    console.log(`[playervalue] Loaded projections for ${weeksWithData}/${weeks} weeks of ${season}.`);
   }
 
   writeCache(cacheKey, totals);
