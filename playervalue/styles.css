@@ -175,6 +175,11 @@ tbody td {
   white-space: nowrap;
 }
 tbody tr:hover { background: var(--panel-2); }
+tbody tr.row-highlight {
+  background: rgba(79, 140, 255, 0.12);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+tbody tr.row-highlight:hover { background: rgba(79, 140, 255, 0.18); }
 .player-name { font-weight: 600; }
 .bar {
   display: inline-block;

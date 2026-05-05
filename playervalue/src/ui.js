@@ -7,6 +7,7 @@ export function renderTable(tbody, rows) {
   const frag = document.createDocumentFragment();
   rows.forEach((p, i) => {
     const tr = document.createElement('tr');
+    if (p._highlight) tr.classList.add('row-highlight');
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td class="player-name">${escape(p.full_name || p.first_name + ' ' + p.last_name)}${

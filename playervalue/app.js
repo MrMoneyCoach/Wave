@@ -248,6 +248,25 @@ async function mountApp() {
     document.getElementById('rostered-only').disabled = true;
   }
 
+  // Populate "Highlight team" dropdown with league rosters.
+  const hl = document.getElementById('highlight-team');
+  hl.innerHTML = '<option value="">None</option>';
+  if (state.rosters && state.leagueUsers) {
+    const items = state.rosters.map(r => {
+      const u = state.leagueUsers.find(x => x.user_id === r.owner_id);
+      const labelText = u?.metadata?.team_name || u?.display_name || `Team ${r.roster_id}`;
+      return { rid: String(r.roster_id), label: labelText };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+    for (const it of items) {
+      const o = document.createElement('option');
+      o.value = it.rid;
+      o.textContent = it.label;
+      hl.appendChild(o);
+    }
+  } else {
+    hl.disabled = true;
+  }
+
   bindControls();
   recomputeAndRender();
   status.textContent = '';
@@ -256,7 +275,8 @@ async function mountApp() {
 function bindControls() {
   const ids = ['preset', 'te-premium', 'superflex', 'combine-wrte', 'apply-trend',
               'use-projections', 'w-prod', 'w-opp', 'w-age',
-              'filter-pos', 'min-games', 'rostered-only', 'ascending-only', 'search'];
+              'filter-pos', 'min-games', 'rostered-only', 'ascending-only',
+              'highlight-team', 'search'];
   for (const id of ids) {
     const el = document.getElementById(id);
     el.addEventListener('input', recomputeAndRender);
@@ -304,6 +324,7 @@ function readControls() {
     search: document.getElementById('search').value.trim().toLowerCase(),
     ascendingOnly: document.getElementById('ascending-only').checked,
   };
+  state.highlightTeam = document.getElementById('highlight-team').value;
   state.combineWRTE = document.getElementById('combine-wrte').checked;
   state.applyTrend = document.getElementById('apply-trend').checked;
   state.useProjections = document.getElementById('use-projections').checked;
@@ -326,6 +347,7 @@ function recomputeAndRender() {
 function buildRows() {
   const playerIdsByRoster = new Map();
   const rosterOwnerByPid = new Map();
+  const rosterIdByPid = new Map();
   if (state.rosters) {
     for (const r of state.rosters) {
       const owner = state.leagueUsers?.find(u => u.user_id === r.owner_id);
@@ -333,6 +355,7 @@ function buildRows() {
       const all = [...(r.players || []), ...(r.taxi || []), ...(r.reserve || [])];
       for (const pid of all) {
         rosterOwnerByPid.set(pid, tag);
+        rosterIdByPid.set(pid, String(r.roster_id));
       }
     }
   }
@@ -395,6 +418,8 @@ function buildRows() {
       _projRealRatio: realPts > 5 ? projPts / realPts : null,
       _rostered: rosterOwnerByPid.has(pid),
       _rosteredBy: rosterOwnerByPid.get(pid) || null,
+      _rosterId: rosterIdByPid.get(pid) || null,
+      _highlight: state.highlightTeam && rosterIdByPid.get(pid) === state.highlightTeam,
     });
   }
 
