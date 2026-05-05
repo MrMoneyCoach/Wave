@@ -64,6 +64,16 @@
       </section>
 
       <section>
+        <h3>Opportunity model</h3>
+        <label class="row" title="Score TE and WR opportunity against a single combined target pool — surfaces TE-heavy offenses">
+          <input type="checkbox" id="combine-wrte" /> Combine WR + TE target pool
+        </label>
+        <label class="row" title="Use prior-season volume share vs current depth chart to flag inherited opportunity (offseason teammate departures, depth-chart promotions)">
+          <input type="checkbox" id="apply-trend" checked /> Factor in prior-year trend
+        </label>
+      </section>
+
+      <section>
         <h3>Value weights</h3>
         <label>Production <span id="w-prod-label">60%</span>
           <input type="range" id="w-prod" min="0" max="100" value="60" />
@@ -130,6 +140,8 @@
               <th data-sort="pts" title="Total fantasy points">FP</th>
               <th data-sort="ppg" title="Fantasy points per game">PPG</th>
               <th data-sort="opportunity" title="Share of team volume at position — targets count as full opportunity, not just receptions">Opp</th>
+              <th data-sort="trend" title="Prior-season trend: ↗ promoted/inherited opportunity, → established starter, ↘ declining/lost role, • unknown">Trend</th>
+              <th data-sort="teTeamShare" title="Team's TE share of WR+TE targets — high = TE-heavy offense">TE%</th>
               <th data-sort="ageScore" title="Dynasty age score (0-100)">Age+</th>
               <th data-sort="prodScore" title="Production percentile vs position (0-100)">Prod</th>
               <th data-sort="value" title="Composite value score">Value</th>

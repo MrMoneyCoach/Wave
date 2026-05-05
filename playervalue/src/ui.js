@@ -22,6 +22,8 @@ export function renderTable(tbody, rows) {
       <td>${fmt(p._pts)}</td>
       <td>${fmt(p._ppg)}</td>
       <td>${bar(p._opportunity)}${fmtInt(p._opportunity)}</td>
+      <td title="${trendTitle(p)}">${trendIcon(p._trend)}</td>
+      <td>${fmtInt(p._teTeamShare)}</td>
       <td>${bar(p._ageScore)}${fmtInt(p._ageScore)}</td>
       <td>${bar(p._prodScore)}${fmtInt(p._prodScore)}</td>
       <td class="value-cell">${fmt(p._value)}</td>
@@ -36,6 +38,18 @@ function fmtInt(n) { if (n == null || !isFinite(n)) return '—'; return Math.ro
 function bar(v) {
   const pct = Math.max(0, Math.min(100, v || 0));
   return `<span class="bar" style="width:${pct * 0.6}px"></span>`;
+}
+function trendIcon(t) {
+  switch (t) {
+    case 'promoted':    return '<span style="color:#3fb950">↗</span>';
+    case 'established': return '<span style="color:#8b949e">→</span>';
+    case 'declining':   return '<span style="color:#f85149">↘</span>';
+    default:            return '<span style="color:#6e7681">•</span>';
+  }
+}
+function trendTitle(p) {
+  const share = p._priorShare != null ? `${(p._priorShare * 100).toFixed(0)}%` : 'no data';
+  return `${p._trend || 'unknown'} · prior-year share: ${share}`;
 }
 function escape(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -84,6 +98,11 @@ function pickSort(p, key) {
     case 'pts': return p._pts || 0;
     case 'ppg': return p._ppg || 0;
     case 'opportunity': return p._opportunity || 0;
+    case 'trend': {
+      const order = { promoted: 4, established: 3, unknown: 2, declining: 1 };
+      return order[p._trend || 'unknown'];
+    }
+    case 'teTeamShare': return p._teTeamShare || 0;
     case 'ageScore': return p._ageScore || 0;
     case 'prodScore': return p._prodScore || 0;
     case 'value': return p._value || 0;

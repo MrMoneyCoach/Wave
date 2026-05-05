@@ -94,27 +94,121 @@ export function getVolume(stats, position) {
   };
 }
 
-export function computeOpportunity(playersWithStats) {
+export function computeOpportunity(playersWithStats, opts = {}) {
+  const { combineWRTE = false } = opts;
   // Build per-team-per-position totals.
   const teamTotals = new Map();
+  // Combined WR+TE target pool per team (used when combineWRTE is on).
+  const teamPassPool = new Map();
+  // Team-level passing target distribution: targets to TE / (TE + WR), useful
+  // for surfacing TE-heavy offenses regardless of toggle.
+  const teamTeShare = new Map();
+
   for (const p of playersWithStats) {
     if (!p.team || !p.position) continue;
     const key = `${p.team}|${p.position}`;
     const v = relevantVolume(p._stats, p.position);
     teamTotals.set(key, (teamTotals.get(key) || 0) + v);
+    if (p.position === 'WR' || p.position === 'TE') {
+      const tgts = (p._stats?.rec_tgt) || (p._stats?.tgt) || 0;
+      teamPassPool.set(p.team, (teamPassPool.get(p.team) || 0) + tgts);
+      const cur = teamTeShare.get(p.team) || { te: 0, wr: 0 };
+      if (p.position === 'TE') cur.te += tgts; else cur.wr += tgts;
+      teamTeShare.set(p.team, cur);
+    }
   }
+
   // Annotate.
   for (const p of playersWithStats) {
-    if (!p.team || !p.position) { p._opportunity = 0; continue; }
-    const key = `${p.team}|${p.position}`;
-    const total = teamTotals.get(key) || 0;
-    const v = relevantVolume(p._stats, p.position);
-    let share = total > 0 ? v / total : 0;
+    if (!p.team || !p.position) { p._opportunity = 0; p._teTeamShare = 0; continue; }
+
+    // Team-level TE share of WR+TE targets (always computed for context).
+    const tt = teamTeShare.get(p.team);
+    const denom = tt ? tt.te + tt.wr : 0;
+    p._teTeamShare = denom > 0 ? (tt.te / denom) * 100 : 0;
+
+    // Opportunity: pure positional share, OR combined WR+TE pool if requested.
+    let share;
+    if (combineWRTE && (p.position === 'WR' || p.position === 'TE')) {
+      const pool = teamPassPool.get(p.team) || 0;
+      const tgts = (p._stats?.rec_tgt) || (p._stats?.tgt) || 0;
+      share = pool > 0 ? tgts / pool : 0;
+    } else {
+      const key = `${p.team}|${p.position}`;
+      const total = teamTotals.get(key) || 0;
+      const v = relevantVolume(p._stats, p.position);
+      share = total > 0 ? v / total : 0;
+    }
     // Boost share for clear depth-chart starters with no recorded volume yet
     // (rookies, returning starters), so we don't punish them with 0.
     if (share === 0 && p.depth_chart_order === 1) share = 0.4;
-    // Convert to 0–100. Single-team-share 1.0 → 100.
     p._opportunity = Math.min(100, share * 100);
+  }
+}
+
+// Trend: compare each player's prior-season volume share to their current
+// depth chart position. Identifies "inherited opportunity" — players who are
+// now the projected starter (depth_chart_order = 1) but didn't dominate the
+// touches last year, suggesting a teammate departed or was demoted.
+//
+// Returns one of:
+//  'promoted'   — depth #1 now, low prior share (likely inheriting volume)
+//  'established'— depth #1 now, high prior share (consistent starter)
+//  'declining'  — depth ≥2 now, was high prior share (lost a job)
+//  'unknown'    — no prior data or no current depth signal
+export function computeTrend(playersWithStats, priorSeasonStats) {
+  if (!priorSeasonStats) {
+    for (const p of playersWithStats) { p._trend = 'unknown'; p._priorShare = null; }
+    return;
+  }
+
+  // Build per-(team, position) totals from PRIOR season — using the player's
+  // CURRENT team. Note: prior-season stats are by player_id, not team, so a
+  // player who switched teams this offseason will be assessed against their
+  // current team's prior totals (where their stats correctly contribute 0).
+  // That's the right frame: "what slice of THIS team's prior production did
+  // I bring with me?"
+  const priorTeamTotals = new Map();
+  for (const p of playersWithStats) {
+    if (!p.team || !p.position) continue;
+    const prior = priorSeasonStats[p.player_id];
+    const v = relevantVolume(prior, p.position);
+    const key = `${p.team}|${p.position}`;
+    priorTeamTotals.set(key, (priorTeamTotals.get(key) || 0) + v);
+  }
+
+  for (const p of playersWithStats) {
+    if (!p.team || !p.position) { p._trend = 'unknown'; p._priorShare = null; continue; }
+    const prior = priorSeasonStats[p.player_id];
+    const v = relevantVolume(prior, p.position);
+    const total = priorTeamTotals.get(`${p.team}|${p.position}`) || 0;
+    const priorShare = total > 0 ? v / total : 0;
+    p._priorShare = priorShare;
+
+    const depth = p.depth_chart_order;
+    const startedLastYear = priorShare > 0.55;
+    const minorLastYear = priorShare > 0 && priorShare < 0.30;
+    const noLastYear = priorShare === 0;
+
+    if (depth === 1 && (minorLastYear || noLastYear)) {
+      p._trend = 'promoted';     // inherited / new starter
+    } else if (depth === 1 && startedLastYear) {
+      p._trend = 'established';
+    } else if ((depth || 99) >= 2 && startedLastYear) {
+      p._trend = 'declining';
+    } else {
+      p._trend = 'unknown';
+    }
+  }
+}
+
+// Apply trend nudges to opportunity (in place, capped 0–100).
+// Promoted players get a +15 lift to reflect inherited volume; declining
+// players get a -10 nudge. Established and unknown are unchanged.
+export function applyTrendToOpportunity(playersWithStats) {
+  for (const p of playersWithStats) {
+    if (p._trend === 'promoted')   p._opportunity = Math.min(100, p._opportunity + 15);
+    else if (p._trend === 'declining') p._opportunity = Math.max(0, p._opportunity - 10);
   }
 }
 

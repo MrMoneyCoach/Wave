@@ -6,7 +6,7 @@ import {
 import { buildScoring, pointsFor, normalizeLeagueScoring, PRESETS } from './src/scoring.js';
 import {
   ageScore, productionScore, computeOpportunity, compositeValue,
-  getVolume, FANTASY_POSITIONS,
+  computeTrend, applyTrendToOpportunity, getVolume, FANTASY_POSITIONS,
 } from './src/value.js';
 import { renderTable, setupSortableHeaders } from './src/ui.js';
 
@@ -151,7 +151,12 @@ async function mountApp() {
   const status = document.getElementById('status');
   status.textContent = 'Loading players & stats…';
 
-  const tasks = [getAllPlayers(), getSeasonStats(state.season)];
+  const priorSeason = String(Number(state.season) - 1);
+  const tasks = [
+    getAllPlayers(),
+    getSeasonStats(state.season),
+    getSeasonStats(priorSeason),
+  ];
   if (state.league) {
     tasks.push(getRosters(state.league.league_id));
     tasks.push(getLeagueUsers(state.league.league_id));
@@ -159,9 +164,10 @@ async function mountApp() {
   const results = await Promise.all(tasks);
   state.players = results[0];
   state.seasonStats = results[1];
+  state.priorStats = results[2];
   if (state.league) {
-    state.rosters = results[2];
-    state.leagueUsers = results[3];
+    state.rosters = results[3];
+    state.leagueUsers = results[4];
   }
 
   // Configure preset selector for league mode.
@@ -184,7 +190,8 @@ async function mountApp() {
 }
 
 function bindControls() {
-  const ids = ['preset', 'te-premium', 'superflex', 'w-prod', 'w-opp', 'w-age',
+  const ids = ['preset', 'te-premium', 'superflex', 'combine-wrte', 'apply-trend',
+              'w-prod', 'w-opp', 'w-age',
               'filter-pos', 'min-games', 'rostered-only', 'search'];
   for (const id of ids) {
     const el = document.getElementById(id);
@@ -232,6 +239,8 @@ function readControls() {
     rosteredOnly: document.getElementById('rostered-only').checked,
     search: document.getElementById('search').value.trim().toLowerCase(),
   };
+  state.combineWRTE = document.getElementById('combine-wrte').checked;
+  state.applyTrend = document.getElementById('apply-trend').checked;
 }
 
 function recomputeAndRender() {
@@ -290,7 +299,10 @@ function buildRows() {
   }
 
   // Compute opportunity (needs full set so team totals are right).
-  computeOpportunity(candidates);
+  computeOpportunity(candidates, { combineWRTE: state.combineWRTE });
+  // Compute prior-season trend and optionally fold into opportunity.
+  computeTrend(candidates, state.priorStats);
+  if (state.applyTrend) applyTrendToOpportunity(candidates);
 
   // Group by position to compute production percentile.
   const byPos = new Map();
