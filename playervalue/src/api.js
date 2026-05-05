@@ -7,8 +7,8 @@ const PLAYERS_KEY = 'pv:players:nfl';
 const PLAYERS_TTL = 24 * 60 * 60 * 1000;  // 24h
 const STATS_KEY = (season) => `pv:stats:${season}`;
 const STATS_TTL = 6 * 60 * 60 * 1000;     // 6h
-// v3 — added multi-URL probe and upcoming-season fetch.
-const PROJ_KEY  = (season) => `pv:proj3:${season}`;
+// v4 — fixed gp double-count and pick-by-richness logic in app.js.
+const PROJ_KEY  = (season) => `pv:proj4:${season}`;
 const PROJ_TTL  = 6 * 60 * 60 * 1000;     // 6h
 
 async function getJSON(url) {
@@ -229,6 +229,7 @@ export async function getSeasonProjections(season, { weeks = 18 } = {}) {
       const dest = totals[pid] || (totals[pid] = {});
       let pany = false;
       for (const k in flat) {
+        if (k === 'gp') continue;          // we'll count weeks ourselves below
         const v = flat[k];
         if (typeof v !== 'number' || !isFinite(v)) continue;
         dest[k] = (dest[k] || 0) + v;

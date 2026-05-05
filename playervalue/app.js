@@ -175,14 +175,31 @@ async function mountApp() {
   state.seasonStats = results[1];
   state.priorStats = results[2];
 
-  // Pick the first projection season that returned data.
-  let chosenProj = null, chosenProjSeason = null;
+  // Pick the projection season with the richest data. Sleeper sometimes
+  // returns thousands of placeholder entries (e.g. {adp_dd_ppr:18000, gp:18}
+  // only) for an upcoming season before projections are published. We score
+  // each result by summed pts_ppr across players and pick the highest — that
+  // reliably distinguishes "real projections" from "ADP placeholders".
+  function projectionScore(dict) {
+    if (!dict) return 0;
+    let total = 0;
+    for (const pid in dict) {
+      const v = dict[pid];
+      if (!v) continue;
+      const pts = Number(v.pts_ppr) || Number(v.pts_half_ppr) || Number(v.pts_std) || 0;
+      total += pts;
+    }
+    return total;
+  }
+  let chosenProj = null, chosenProjSeason = null, chosenScore = 0;
   for (let i = 0; i < projSeasonsToTry.length; i++) {
     const data = results[3 + i];
-    if (data && Object.keys(data).length > 0) {
+    const score = projectionScore(data);
+    console.log(`[playervalue] projection richness for ${projSeasonsToTry[i]}: ${Math.round(score)} pts_ppr summed across ${data ? Object.keys(data).length : 0} players`);
+    if (score > chosenScore) {
       chosenProj = data;
       chosenProjSeason = projSeasonsToTry[i];
-      break;
+      chosenScore = score;
     }
   }
   state.projStats = chosenProj || {};
