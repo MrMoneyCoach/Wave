@@ -40,6 +40,9 @@ export function buildScoring({ preset, leagueScoring, tePremium = 0, superflex =
 }
 
 // Apply scoring to one player. `player` must have .position.
+// If the line-item scoring produces 0 but Sleeper's precomputed pts_* total
+// is present (common in projections, which often only carry the bottom-line
+// scoring totals), fall back to that based on PPR value in the scoring set.
 export function pointsFor(stats, scoring, position) {
   if (!stats) return 0;
   let pts = 0;
@@ -55,7 +58,35 @@ export function pointsFor(stats, scoring, position) {
   if (position === 'TE' && scoring._tePremium && typeof stats.rec === 'number') {
     pts += stats.rec * scoring._tePremium;
   }
+  if (pts === 0) {
+    const fallback = pickPrecomputedPts(stats, scoring);
+    if (fallback) {
+      let bonus = 0;
+      if (position === 'TE' && scoring._tePremium && typeof stats.rec === 'number') {
+        bonus = stats.rec * scoring._tePremium;
+      }
+      return fallback + bonus;
+    }
+  }
   return pts;
+}
+
+// Pick whichever pre-aggregated points field most closely matches the
+// scoring's PPR setting.
+function pickPrecomputedPts(stats, scoring) {
+  const rec = Number(scoring.rec) || 0;
+  const ppr = Number(stats.pts_ppr);
+  const half = Number(stats.pts_half_ppr);
+  const std = Number(stats.pts_std);
+  let chosen = null;
+  if (rec >= 0.75 && isFinite(ppr)) chosen = ppr;
+  else if (rec >= 0.25 && isFinite(half)) chosen = half;
+  else if (isFinite(std)) chosen = std;
+  // Fall through if the preferred bucket is missing.
+  if (!isFinite(chosen)) {
+    chosen = isFinite(ppr) ? ppr : (isFinite(half) ? half : (isFinite(std) ? std : 0));
+  }
+  return chosen || 0;
 }
 
 // Sleeper's scoring_settings sometimes uses different keys; this maps

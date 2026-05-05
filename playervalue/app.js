@@ -314,6 +314,19 @@ function buildRows() {
   const realStats = state.seasonStats || {};
   const projStats = state.projStats || {};
   const useProj = !!state.useProjections;
+
+  // One-time diagnostic: dump the field names + first row of projection data
+  // so we can see if Sleeper is sending pass_yd/rec/etc. or only pts_ppr.
+  if (!state._projDumped) {
+    const samplePid = Object.keys(projStats)[0];
+    if (samplePid) {
+      console.log('[playervalue] sample projection player_id:', samplePid,
+        'fields:', Object.keys(projStats[samplePid] || {}),
+        'values:', projStats[samplePid]);
+    }
+    state._projDumped = true;
+  }
+
   // The "primary" stat source drives production AND opportunity; the other
   // is still computed and surfaced as a side column.
   const primary = useProj ? projStats : realStats;
