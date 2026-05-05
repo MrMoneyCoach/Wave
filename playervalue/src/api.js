@@ -7,8 +7,8 @@ const PLAYERS_KEY = 'pv:players:nfl';
 const PLAYERS_TTL = 24 * 60 * 60 * 1000;  // 24h
 const STATS_KEY = (season) => `pv:stats:${season}`;
 const STATS_TTL = 6 * 60 * 60 * 1000;     // 6h
-// v2 — was caching empty results from a wrong URL.
-const PROJ_KEY  = (season) => `pv:proj2:${season}`;
+// v3 — added multi-URL probe and upcoming-season fetch.
+const PROJ_KEY  = (season) => `pv:proj3:${season}`;
 const PROJ_TTL  = 6 * 60 * 60 * 1000;     // 6h
 
 async function getJSON(url) {
@@ -149,32 +149,68 @@ export async function getSeasonStats(season, { weeks = 18 } = {}) {
 // We try (1) first, fall back to (2). We aggregate season totals client-side.
 const PROJ_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
-async function fetchProjectionsWeek(season, week) {
+function projUrls(season, week) {
   const qs = PROJ_POSITIONS.map(p => `position[]=${p}`).join('&');
-  const urlCom = `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular&${qs}`;
-  const arr = await getJSONsoft(urlCom);
-  if (Array.isArray(arr) && arr.length > 0) {
+  return [
+    // 1) api.sleeper.com — returns ARRAY of projection rows. Newest endpoint.
+    { kind: 'array', url: `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular&${qs}` },
+    // 2) api.sleeper.app /v1 — referenced by older community libraries.
+    { kind: 'dict',  url: `https://api.sleeper.app/v1/projections/nfl/regular/${season}/${week}` },
+    // 3) api.sleeper.app no /v1 — sometimes works.
+    { kind: 'dict',  url: `https://api.sleeper.app/projections/nfl/regular/${season}/${week}` },
+  ];
+}
+
+function normalizeProjResponse(kind, data) {
+  if (!data) return null;
+  if (kind === 'array') {
+    if (!Array.isArray(data) || data.length === 0) return null;
     const dict = {};
-    for (const row of arr) {
+    for (const row of data) {
       if (row && row.player_id) dict[row.player_id] = row.stats || row;
     }
     return dict;
   }
-  // Fallback hostname (no /v1/ prefix).
-  const urlApp = `https://api.sleeper.app/projections/nfl/regular/${season}/${week}`;
-  const obj = await getJSONsoft(urlApp);
-  if (obj && typeof obj === 'object' && !Array.isArray(obj)) return obj;
+  if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) return data;
+  return null;
+}
+
+// Probe URLs once for week 1 to pick the working pattern; then reuse it for
+// all subsequent weeks of that season.
+async function pickProjectionPattern(season) {
+  const urls = projUrls(season, 1);
+  for (const u of urls) {
+    const data = await getJSONsoft(u.url);
+    const norm = normalizeProjResponse(u.kind, data);
+    console.log(`[playervalue] projections probe ${u.url} → ${norm ? Object.keys(norm).length + ' players' : 'empty'}`);
+    if (norm) return u;
+  }
   return null;
 }
 
 export async function getSeasonProjections(season, { weeks = 18 } = {}) {
   const cacheKey = PROJ_KEY(season);
   const cached = readCache(cacheKey, PROJ_TTL);
-  if (cached) return cached;
+  if (cached && Object.keys(cached).length > 0) return cached;
 
+  // Pick a working URL pattern once for week 1; reuse for the rest.
+  const pattern = await pickProjectionPattern(season);
+  if (!pattern) {
+    console.warn(`[playervalue] No Sleeper projections endpoint returned data for season ${season}.`);
+    writeCache(cacheKey, {});
+    return {};
+  }
+  console.log(`[playervalue] Using projections pattern for ${season}: ${pattern.url.split('?')[0]}`);
+
+  // Build URLs for weeks 2..N from the same kind.
   const requests = [];
-  for (let w = 1; w <= weeks; w++) requests.push(fetchProjectionsWeek(season, w));
-  const weekly = await Promise.all(requests);
+  for (let w = 2; w <= weeks; w++) {
+    const u = projUrls(season, w).find(x => x.kind === pattern.kind && x.url.startsWith(pattern.url.split('/').slice(0, 4).join('/')));
+    requests.push(getJSONsoft(u.url).then(d => normalizeProjResponse(u.kind, d)));
+  }
+  const week1 = await getJSONsoft(pattern.url).then(d => normalizeProjResponse(pattern.kind, d));
+  const rest = await Promise.all(requests);
+  const weekly = [week1, ...rest];
 
   const totals = {};
   let weeksWithData = 0;
@@ -198,12 +234,7 @@ export async function getSeasonProjections(season, { weeks = 18 } = {}) {
     if (any) weeksWithData++;
   }
 
-  if (weeksWithData === 0) {
-    console.warn(`[playervalue] No Sleeper projections returned for season ${season}.`);
-  } else {
-    console.log(`[playervalue] Loaded projections for ${weeksWithData}/${weeks} weeks of ${season}.`);
-  }
-
+  console.log(`[playervalue] Projections ${season}: ${weeksWithData}/${weeks} weeks with data, ${Object.keys(totals).length} players.`);
   writeCache(cacheKey, totals);
   return totals;
 }

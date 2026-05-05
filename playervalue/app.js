@@ -153,15 +153,18 @@ async function mountApp() {
 
   const priorSeason = String(Number(state.season) - 1);
   const nextSeason  = String(Number(state.season) + 1);
+  // Real-world upcoming NFL season — typically what projections actually
+  // exist for. NFL season is named by its starting calendar year.
+  const now = new Date();
+  const upcomingSeason = String(now.getMonth() >= 1 ? now.getFullYear() : now.getFullYear() - 1);
+  // De-dupe the seasons we'll probe for projections.
+  const projSeasonsToTry = [...new Set([upcomingSeason, nextSeason, state.season])];
+
   const tasks = [
     getAllPlayers(),
     getSeasonStats(state.season),
     getSeasonStats(priorSeason),
-    // Pull projections for the selected season AND the next season — whichever
-    // comes back populated wins. Past seasons usually have no projections;
-    // upcoming season is what redraft/dynasty users actually want.
-    getSeasonProjections(state.season),
-    getSeasonProjections(nextSeason),
+    ...projSeasonsToTry.map(s => getSeasonProjections(s)),
   ];
   if (state.league) {
     tasks.push(getRosters(state.league.league_id));
@@ -171,17 +174,34 @@ async function mountApp() {
   state.players = results[0];
   state.seasonStats = results[1];
   state.priorStats = results[2];
-  const projThis = results[3], projNext = results[4];
-  state.projStats = (projNext && Object.keys(projNext).length > 0) ? projNext : projThis;
-  state.projSeason = (state.projStats === projNext) ? nextSeason : state.season;
-  state.projAvailable = !!(state.projStats && Object.keys(state.projStats).length > 0);
-  // If projections came back empty (offseason gap, endpoint change), disable
-  // the toggle so users aren't confused by zero columns everywhere.
+
+  // Pick the first projection season that returned data.
+  let chosenProj = null, chosenProjSeason = null;
+  for (let i = 0; i < projSeasonsToTry.length; i++) {
+    const data = results[3 + i];
+    if (data && Object.keys(data).length > 0) {
+      chosenProj = data;
+      chosenProjSeason = projSeasonsToTry[i];
+      break;
+    }
+  }
+  state.projStats = chosenProj || {};
+  state.projSeason = chosenProjSeason || upcomingSeason;
+  state.projAvailable = !!chosenProj;
+
+  const offset = 3 + projSeasonsToTry.length;
+  if (state.league) {
+    state.rosters = results[offset];
+    state.leagueUsers = results[offset + 1];
+  }
+
   const useProjEl = document.getElementById('use-projections');
   useProjEl.disabled = !state.projAvailable;
   if (!state.projAvailable) {
     useProjEl.checked = false;
-    useProjEl.parentElement.title = `No Sleeper projections returned for ${state.season} or ${nextSeason}.`;
+    useProjEl.parentElement.title = `No Sleeper projections returned for ${projSeasonsToTry.join(', ')}.`;
+  } else {
+    useProjEl.parentElement.title = `Projections loaded from Sleeper for ${chosenProjSeason}.`;
   }
   if (state.league) {
     state.rosters = results[5];
