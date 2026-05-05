@@ -16,9 +16,9 @@ export function renderTable(tbody, rows) {
       <td>${escape(p.team || '—')}</td>
       <td>${p.age ?? '—'}</td>
       <td>${p._games || 0}</td>
-      <td>${p._targets || 0}</td>
-      <td>${p._carries || 0}</td>
-      <td>${p._attempts || 0}</td>
+      <td>${fmtInt(p._targets)}</td>
+      <td>${fmtInt(p._carries)}</td>
+      <td>${fmtInt(p._attempts)}</td>
       <td>${fmt(p._pts)}</td>
       <td>${fmt(p._ppg)}</td>
       <td class="muted">${fmt(p._realPts)}</td>
