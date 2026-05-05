@@ -7,8 +7,10 @@ const PLAYERS_KEY = 'pv:players:nfl';
 const PLAYERS_TTL = 24 * 60 * 60 * 1000;  // 24h
 const STATS_KEY = (season) => `pv:stats:${season}`;
 const STATS_TTL = 6 * 60 * 60 * 1000;     // 6h
-// v4 — fixed gp double-count and pick-by-richness logic in app.js.
-const PROJ_KEY  = (season) => `pv:proj4:${season}`;
+// v5 — added season-aggregate endpoint probes (sleeper web app uses these for
+// 2026 projections; per-week endpoint returns only ADP placeholders early in
+// the offseason).
+const PROJ_KEY  = (season) => `pv:proj5:${season}`;
 const PROJ_TTL  = 6 * 60 * 60 * 1000;     // 6h
 
 async function getJSON(url) {
@@ -152,13 +154,53 @@ const PROJ_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 function projUrls(season, week) {
   const qs = PROJ_POSITIONS.map(p => `position[]=${p}`).join('&');
   return [
-    // 1) api.sleeper.com — returns ARRAY of projection rows. Newest endpoint.
+    // 1) api.sleeper.com base — returns ARRAY of projection rows.
     { kind: 'array', url: `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular&${qs}` },
-    // 2) api.sleeper.app /v1 — referenced by older community libraries.
+    // 2) Same with order_by=ppr (some sources only populate when ranked).
+    { kind: 'array', url: `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular&${qs}&order_by=ppr` },
+    // 3) Without any position filter — just bare endpoint.
+    { kind: 'array', url: `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular` },
+    // 4) api.sleeper.app /v1 — older community-library shape.
     { kind: 'dict',  url: `https://api.sleeper.app/v1/projections/nfl/regular/${season}/${week}` },
-    // 3) api.sleeper.app no /v1 — sometimes works.
+    // 5) api.sleeper.app no /v1.
     { kind: 'dict',  url: `https://api.sleeper.app/projections/nfl/regular/${season}/${week}` },
   ];
+}
+
+// Real-stat richness: count entries that have at least one true production
+// stat (pass_yd / rush_yd / rec_yd) rather than just ADP placeholders.
+function realProjEntryCount(dict) {
+  if (!dict) return 0;
+  let n = 0;
+  for (const pid in dict) {
+    const v = dict[pid];
+    if (!v) continue;
+    if (v.pass_yd || v.rush_yd || v.rec_yd || v.pts_ppr) n++;
+  }
+  return n;
+}
+
+// Season-aggregate projection URLs. The per-week endpoint returns only ADP
+// placeholders very early in the offseason; the web app shows rich season
+// totals (J.Allen 362 PTS for 2026) so there must be a season-level endpoint.
+// We try several common patterns and keep whichever returns real data.
+function seasonProjUrls(season) {
+  const qs = PROJ_POSITIONS.map(p => `position[]=${p}`).join('&');
+  return [
+    { kind: 'array', url: `https://api.sleeper.com/projections/nfl/${season}?season_type=regular&${qs}&order_by=ppr` },
+    { kind: 'array', url: `https://api.sleeper.com/projections/nfl/${season}?season_type=regular&${qs}` },
+    { kind: 'array', url: `https://api.sleeper.com/projections/nfl/${season}?season_type=regular&grouping=season&${qs}` },
+    { kind: 'dict',  url: `https://api.sleeper.app/v1/projections/nfl/regular/${season}` },
+    { kind: 'dict',  url: `https://api.sleeper.app/projections/nfl/regular/${season}` },
+  ];
+}
+
+// Score a projection dict by total pts_ppr — used to detect placeholders.
+function projTotalPpr(dict) {
+  if (!dict) return 0;
+  let t = 0;
+  for (const pid in dict) t += Number(dict[pid]?.pts_ppr) || 0;
+  return t;
 }
 
 function normalizeProjResponse(kind, data) {
@@ -182,9 +224,12 @@ async function pickProjectionPattern(season) {
   for (const u of urls) {
     const data = await getJSONsoft(u.url);
     const norm = normalizeProjResponse(u.kind, data);
-    console.log(`[playervalue] projections probe ${u.url} → ${norm ? Object.keys(norm).length + ' players' : 'empty'}`);
-    if (norm) {
-      // Dump one raw row so we can see the actual shape Sleeper sends.
+    const real = realProjEntryCount(norm);
+    const total = norm ? Object.keys(norm).length : 0;
+    console.log(`[playervalue] per-week probe ${u.url} → ${total} players, ${real} with real stats`);
+    // Only accept a pattern if it returns meaningful production stats — not
+    // just adp_dd_ppr placeholders.
+    if (real >= 50) {
       const sampleRaw = Array.isArray(data) ? data.find(r => r && r.stats && Object.keys(r.stats).length > 3) || data[0] : Object.values(data)[0];
       console.log(`[playervalue] sample raw projection row for ${season}:`, sampleRaw);
       return u;
@@ -198,7 +243,22 @@ export async function getSeasonProjections(season, { weeks = 18 } = {}) {
   const cached = readCache(cacheKey, PROJ_TTL);
   if (cached && Object.keys(cached).length > 0) return cached;
 
-  // Pick a working URL pattern once for week 1; reuse for the rest.
+  // Try season-aggregate endpoints first. If any returns rich data
+  // (non-zero pts_ppr in aggregate), use that — it's what the Sleeper web
+  // app uses for offseason 2026 projections.
+  for (const u of seasonProjUrls(season)) {
+    const data = await getJSONsoft(u.url);
+    const norm = normalizeProjResponse(u.kind, data);
+    const score = projTotalPpr(norm);
+    console.log(`[playervalue] season-projection probe ${u.url} → ${norm ? Object.keys(norm).length : 0} players, ${Math.round(score)} pts_ppr`);
+    if (norm && score > 100) {
+      console.log(`[playervalue] Using SEASON-AGGREGATE projections for ${season}: ${u.url}`);
+      writeCache(cacheKey, norm);
+      return norm;
+    }
+  }
+
+  // Fallback: aggregate per-week endpoint.
   const pattern = await pickProjectionPattern(season);
   if (!pattern) {
     console.warn(`[playervalue] No Sleeper projections endpoint returned data for season ${season}.`);
