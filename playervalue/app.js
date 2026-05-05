@@ -175,11 +175,10 @@ async function mountApp() {
   state.seasonStats = results[1];
   state.priorStats = results[2];
 
-  // Pick the projection season with the richest data. Sleeper sometimes
+  // Pick the projection season — prefer the most-future season whose data
+  // is rich enough to be real (not just ADP placeholders). Sleeper sometimes
   // returns thousands of placeholder entries (e.g. {adp_dd_ppr:18000, gp:18}
-  // only) for an upcoming season before projections are published. We score
-  // each result by summed pts_ppr across players and pick the highest — that
-  // reliably distinguishes "real projections" from "ADP placeholders".
+  // only) before projections are published; those score 0 on pts_ppr.
   function projectionScore(dict) {
     if (!dict) return 0;
     let total = 0;
@@ -191,16 +190,26 @@ async function mountApp() {
     }
     return total;
   }
-  let chosenProj = null, chosenProjSeason = null, chosenScore = 0;
-  for (let i = 0; i < projSeasonsToTry.length; i++) {
-    const data = results[3 + i];
-    const score = projectionScore(data);
-    console.log(`[playervalue] projection richness for ${projSeasonsToTry[i]}: ${Math.round(score)} pts_ppr summed across ${data ? Object.keys(data).length : 0} players`);
-    if (score > chosenScore) {
-      chosenProj = data;
-      chosenProjSeason = projSeasonsToTry[i];
-      chosenScore = score;
-    }
+  const RICH_THRESHOLD = 10000;
+  const ranked = projSeasonsToTry
+    .map((s, i) => ({ season: s, data: results[3 + i], score: projectionScore(results[3 + i]) }))
+    .filter(x => x.score > 0);
+  for (const r of ranked) {
+    console.log(`[playervalue] projection richness for ${r.season}: ${Math.round(r.score)} pts_ppr summed across ${r.data ? Object.keys(r.data).length : 0} players`);
+  }
+  // Among candidates with "rich enough" data, take the highest season number
+  // (most future). If none are rich enough, fall back to the highest-scoring
+  // available data so we still show something.
+  const rich = ranked.filter(r => r.score >= RICH_THRESHOLD)
+                     .sort((a, b) => Number(b.season) - Number(a.season));
+  let chosenProj = null, chosenProjSeason = null;
+  if (rich.length > 0) {
+    chosenProj = rich[0].data;
+    chosenProjSeason = rich[0].season;
+  } else if (ranked.length > 0) {
+    ranked.sort((a, b) => b.score - a.score);
+    chosenProj = ranked[0].data;
+    chosenProjSeason = ranked[0].season;
   }
   state.projStats = chosenProj || {};
   state.projSeason = chosenProjSeason || upcomingSeason;
