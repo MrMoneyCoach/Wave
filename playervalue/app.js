@@ -261,16 +261,6 @@ async function mountApp() {
     useProjEl.parentElement.title = `Projections loaded from Sleeper for ${chosenProjSeason}.`;
   }
 
-  // If the user loaded an older season's league, check for a successor league
-  // (e.g., they picked the 2025 league but a 2026 dynasty league for them
-  // exists). Offer to switch — rosters / trades only reflect the season's
-  // own snapshot, not subsequent years.
-  await checkForSuccessorLeague();
-  if (state.league) {
-    state.rosters = results[5];
-    state.leagueUsers = results[6];
-  }
-
   // Configure preset selector for league mode.
   const preset = document.getElementById('preset');
   preset.querySelector('option[value="league"]').disabled = !state.league;
@@ -307,6 +297,12 @@ async function mountApp() {
   bindControls();
   recomputeAndRender();
   status.textContent = '';
+
+  // Background: if the user loaded an older season's league, look for a
+  // successor (e.g., they picked the 2025 league but a 2026 dynasty league
+  // exists). Surface a 'switch' link in the status bar without blocking the
+  // initial render.
+  checkForSuccessorLeague().catch(e => console.warn('successor lookup', e));
 }
 
 function bindControls() {
