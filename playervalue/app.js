@@ -154,6 +154,7 @@ async function mountApp() {
   status.textContent = 'Loading players & stats…';
 
   const priorSeason = String(Number(state.season) - 1);
+  const priorPriorSeason = String(Number(state.season) - 2);
   const nextSeason  = String(Number(state.season) + 1);
   // Real-world upcoming NFL season — typically what projections actually
   // exist for. NFL season is named by its starting calendar year.
@@ -166,6 +167,7 @@ async function mountApp() {
     getAllPlayers(),
     getSeasonStats(state.season),
     getSeasonStats(priorSeason),
+    getSeasonStats(priorPriorSeason),
     ...projSeasonsToTry.map(s => getSeasonProjections(s)),
   ];
   if (state.league) {
@@ -174,8 +176,35 @@ async function mountApp() {
   }
   const results = await Promise.all(tasks);
   state.players = results[0];
-  state.seasonStats = results[1];
-  state.priorStats = results[2];
+  const statsSelected = results[1];
+  const statsPrior = results[2];
+  const statsPriorPrior = results[3];
+
+  // Pick the freshest season whose realized stats are actually populated.
+  // The selected season may have no data (offseason / current dynasty year),
+  // in which case we fall back to last year for production + opportunity.
+  // Trend always compares one season earlier than the production source.
+  function statsRichness(s) {
+    if (!s) return 0;
+    let t = 0;
+    for (const pid in s) t += Number(s[pid]?.pts_ppr) || 0;
+    return t;
+  }
+  const STATS_RICH = 1000;  // any real season is in the hundreds of thousands
+  if (statsRichness(statsSelected) >= STATS_RICH) {
+    state.statsSeason = state.season;
+    state.seasonStats = statsSelected;
+    state.priorStats = statsPrior;
+  } else if (statsRichness(statsPrior) >= STATS_RICH) {
+    state.statsSeason = priorSeason;
+    state.seasonStats = statsPrior;
+    state.priorStats = statsPriorPrior;
+  } else {
+    state.statsSeason = priorPriorSeason;
+    state.seasonStats = statsPriorPrior;
+    state.priorStats = null;
+  }
+  console.log(`[playervalue] Using realized stats from ${state.statsSeason} (selected ${state.season}).`);
 
   // Pick the projection season — prefer the most-future season whose data
   // is rich enough to be real (not just ADP placeholders). Sleeper sometimes
@@ -194,7 +223,7 @@ async function mountApp() {
   }
   const RICH_THRESHOLD = 10000;
   const ranked = projSeasonsToTry
-    .map((s, i) => ({ season: s, data: results[3 + i], score: projectionScore(results[3 + i]) }))
+    .map((s, i) => ({ season: s, data: results[4 + i], score: projectionScore(results[4 + i]) }))
     .filter(x => x.score > 0);
   for (const r of ranked) {
     console.log(`[playervalue] projection richness for ${r.season}: ${Math.round(r.score)} pts_ppr summed across ${r.data ? Object.keys(r.data).length : 0} players`);
@@ -217,7 +246,7 @@ async function mountApp() {
   state.projSeason = chosenProjSeason || upcomingSeason;
   state.projAvailable = !!chosenProj;
 
-  const offset = 3 + projSeasonsToTry.length;
+  const offset = 4 + projSeasonsToTry.length;
   if (state.league) {
     state.rosters = results[offset];
     state.leagueUsers = results[offset + 1];
@@ -507,9 +536,12 @@ function summaryPills(rows) {
   if (state.scoring._superflex) pills.push(`<span class="pill">Superflex</span>`);
   if (state.scoring._tePremium) pills.push(`<span class="pill">TE +${state.scoring._tePremium}</span>`);
   if (state.useProjections) {
-    pills.push(`<span class="pill">Source: projections (${state.projSeason})</span>`);
+    pills.push(`<span class="pill">FP source: projections (${state.projSeason})</span>`);
   } else {
-    pills.push(`<span class="pill">Source: realized (${state.season})</span>`);
+    pills.push(`<span class="pill">FP source: realized (${state.statsSeason})</span>`);
+  }
+  if (state.statsSeason !== state.season) {
+    pills.push(`<span class="pill" title="Selected season has no stats yet — using the most recent completed season for realized data. Rosters are still from your selected league.">Realized fallback: ${state.statsSeason}</span>`);
   }
   return pills.join('');
 }
