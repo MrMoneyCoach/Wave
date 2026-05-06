@@ -65,14 +65,16 @@ async function init() {
 function populateSeasons() {
   const sel = document.getElementById('season');
   const now = new Date();
-  // NFL season is conventionally labeled by the year it starts in (Sep–Feb).
-  // If we're past August, current season is this year; else last year.
-  const currentSeason = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  // The "current" NFL season label is the year the season starts. Once Feb's
+  // Super Bowl is over, the next league year (with new rosters, free agency,
+  // draft) is conventionally referred to by the upcoming calendar year — so
+  // include it in the dropdown well before September.
+  const upcoming = now.getFullYear();
   const seasons = [];
-  for (let y = currentSeason; y >= currentSeason - 5; y--) seasons.push(y);
+  for (let y = upcoming; y >= upcoming - 6; y--) seasons.push(y);
   sel.innerHTML = seasons.map(y => `<option value="${y}">${y}</option>`).join('');
-  // Default to most recent fully-completed season (last year).
-  sel.value = String(currentSeason - 1);
+  // Default to upcoming — that's where dynasty rosters and projections live.
+  sel.value = String(upcoming);
 }
 
 function bindLogin() {
@@ -229,6 +231,12 @@ async function mountApp() {
   } else {
     useProjEl.parentElement.title = `Projections loaded from Sleeper for ${chosenProjSeason}.`;
   }
+
+  // If the user loaded an older season's league, check for a successor league
+  // (e.g., they picked the 2025 league but a 2026 dynasty league for them
+  // exists). Offer to switch — rosters / trades only reflect the season's
+  // own snapshot, not subsequent years.
+  await checkForSuccessorLeague();
   if (state.league) {
     state.rosters = results[5];
     state.leagueUsers = results[6];
@@ -273,6 +281,10 @@ async function mountApp() {
 }
 
 function bindControls() {
+  // Idempotent: this function is called from mountApp(), which can run more
+  // than once (league-switch flow). Re-binding listeners would multi-fire.
+  if (state.ui.bound) return;
+  state.ui.bound = true;
   const ids = ['preset', 'te-premium', 'superflex', 'combine-wrte', 'apply-trend',
               'use-projections', 'w-prod', 'w-opp', 'w-age',
               'filter-pos', 'min-games', 'rostered-only', 'ascending-only',
@@ -500,6 +512,35 @@ function summaryPills(rows) {
     pills.push(`<span class="pill">Source: realized (${state.season})</span>`);
   }
   return pills.join('');
+}
+
+async function checkForSuccessorLeague() {
+  if (!state.league || !state.user) return;
+  const upcoming = String(new Date().getFullYear());
+  if (String(state.season) === upcoming) return;
+  try {
+    const upcomingLeagues = await getUserLeagues(state.user.user_id, upcoming);
+    if (!upcomingLeagues || upcomingLeagues.length === 0) return;
+    // Walk the previous_league_id chain backwards from each upcoming league
+    // and see if it leads to the currently-loaded league.
+    let match = null;
+    for (const lg of upcomingLeagues) {
+      if (lg.previous_league_id === state.league.league_id) { match = lg; break; }
+    }
+    if (!match) return;
+    const status = document.getElementById('status');
+    status.innerHTML = `Showing ${state.season} rosters. A newer league exists for ${upcoming} (<a href="#" id="switch-league">switch to it</a>) — current rosters and trades live there.`;
+    document.getElementById('switch-league').addEventListener('click', async (e) => {
+      e.preventDefault();
+      state.season = upcoming;
+      state.league = match;
+      saveSession();
+      status.textContent = 'Switching league…';
+      await mountApp();
+    });
+  } catch (e) {
+    console.warn('successor-league lookup failed', e);
+  }
 }
 
 function describeScoring(sc) {
