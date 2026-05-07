@@ -1,4 +1,5 @@
 import Nav from "./components/Nav";
+import SmoothScroll from "./lib/SmoothScroll";
 import ColdOpen from "./sections/ColdOpen";
 import SleepingBaby from "./sections/SleepingBaby";
 import Promise from "./sections/Promise";
@@ -12,6 +13,7 @@ import Footer from "./sections/Footer";
 export default function App() {
   return (
     <div className="bg-bare text-earth">
+      <SmoothScroll />
       <Nav />
       <main>
         <ColdOpen />
