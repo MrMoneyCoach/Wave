@@ -1,5 +1,6 @@
 import Nav from "./components/Nav";
 import SmoothScroll from "./lib/SmoothScroll";
+import SoftDivide from "./components/SoftDivide";
 import ColdOpen from "./sections/ColdOpen";
 import SleepingBaby from "./sections/SleepingBaby";
 import Promise from "./sections/Promise";
@@ -20,7 +21,9 @@ export default function App() {
         <SleepingBaby />
         <Promise />
         <Anatomy />
+        <SoftDivide direction="down" height="36svh" />
         <Substance />
+        <SoftDivide direction="up" height="36svh" />
         <Planet />
         <Founder />
         <Reserve />

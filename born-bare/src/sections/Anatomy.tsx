@@ -88,11 +88,13 @@ export default function Anatomy() {
           </p>
 
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <div className="relative h-[55svh] lg:h-[72svh]">
+            <div
+              className="relative h-[55svh] lg:h-[72svh] anatomy-canvas-mask"
+            >
               <Suspense fallback={null}>
                 <NappyPlaceholder progressRef={progressRef} />
               </Suspense>
-              <p className="absolute bottom-2 left-2 font-sans text-[10px] uppercase tracking-[0.28em] text-earth/35">
+              <p className="absolute bottom-2 left-2 font-sans text-[10px] uppercase tracking-[0.28em] text-earth/30 mix-blend-multiply">
                 Placeholder · 3D model pending
               </p>
             </div>

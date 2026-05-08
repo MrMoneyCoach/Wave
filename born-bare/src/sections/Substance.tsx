@@ -116,14 +116,6 @@ export default function Substance() {
         </p>
       </div>
 
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-bare to-transparent pointer-events-none"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-bare to-transparent pointer-events-none"
-      />
     </section>
   );
 }

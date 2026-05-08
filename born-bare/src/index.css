@@ -46,6 +46,43 @@
     transform: translateY(110%);
     will-change: transform;
   }
+
+  .anatomy-canvas-mask {
+    -webkit-mask-image: radial-gradient(
+      ellipse 65% 70% at 50% 50%,
+      rgba(0, 0, 0, 1) 35%,
+      rgba(0, 0, 0, 0.85) 55%,
+      rgba(0, 0, 0, 0) 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 65% 70% at 50% 50%,
+      rgba(0, 0, 0, 1) 35%,
+      rgba(0, 0, 0, 0.85) 55%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  .soft-divide-down {
+    background: linear-gradient(
+      to bottom,
+      theme(colors.bare) 0%,
+      rgba(247, 244, 240, 0.92) 18%,
+      rgba(247, 244, 240, 0.55) 45%,
+      rgba(61, 54, 50, 0.55) 75%,
+      theme(colors.earth) 100%
+    );
+  }
+
+  .soft-divide-up {
+    background: linear-gradient(
+      to bottom,
+      theme(colors.earth) 0%,
+      rgba(61, 54, 50, 0.55) 25%,
+      rgba(247, 244, 240, 0.55) 55%,
+      rgba(247, 244, 240, 0.92) 82%,
+      theme(colors.bare) 100%
+    );
+  }
 }
 
 @keyframes leak-drift {
