@@ -148,8 +148,22 @@
   <section class="view view-settings" data-view="settings">
     <div class="settings-header"><h1>Settings</h1></div>
     <div class="settings-block">
-      <h2 class="section-title">Notifications</h2>
-      <p class="muted">Local browser notifications fire when the app is open or installed as a home-screen app. The keystone reminders below run on the schedule from your weekly rhythm.</p>
+      <h2 class="section-title">Reliable reminders — Calendar</h2>
+      <p class="muted">The right way to get every reminder, on time, even when the app is closed. Download the calendar file below and open it on your phone — Apple Calendar (or Google Calendar) imports all 365 days as real events with built-in 10-minute alerts. After importing once, your phone handles every notification natively.</p>
+      <div class="settings-row">
+        <span>Download all 365 days as a calendar</span>
+        <button class="btn primary" id="downloadICS">Download .ics</button>
+      </div>
+      <div class="settings-row muted" style="display:block;">
+        <strong>On iPhone:</strong> tap the downloaded file → it opens in Calendar → "Add All" → choose your calendar.<br>
+        <strong>On Mac:</strong> double-click the file → Calendar opens → confirm import.<br>
+        <strong>On Android:</strong> open the file in Google Calendar app → import to your account.
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h2 class="section-title">In-app notifications (foreground only)</h2>
+      <p class="muted">These fire only while the app is actually open. iOS suspends backgrounded PWAs, which kills any scheduled in-app reminders — that's why the calendar import above is the reliable option. Use these for live coaching while you're working, not as a primary alarm.</p>
       <div class="settings-row">
         <span>Notification permission</span>
         <span id="notifStatus" class="pill">unknown</span>

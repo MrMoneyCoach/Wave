@@ -373,6 +373,103 @@
     const cur = document.documentElement.getAttribute('data-theme') || 'light';
     applyTheme(cur === 'dark' ? 'light' : 'dark');
   });
+
+  // ---------- ICS calendar export ------------------------------------------
+  // Reliable reminders via the user's native Calendar app. iOS suspends
+  // backgrounded PWAs which kills setTimeout-based notifications; importing
+  // these as real calendar events bypasses that entirely.
+  function pad2n(n) { return String(n).padStart(2, '0'); }
+  function escapeICS(s) {
+    return String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\r?\n/g, '\\n');
+  }
+  function foldICSLine(line) {
+    // RFC 5545: lines longer than 75 octets must be folded.
+    if (line.length <= 75) return line;
+    const out = [];
+    let i = 0;
+    while (i < line.length) {
+      out.push((i === 0 ? '' : ' ') + line.slice(i, i + 73));
+      i += 73;
+    }
+    return out.join('\r\n');
+  }
+  function fmtFloating(date, hh, mm) {
+    return `${date.getFullYear()}${pad2n(date.getMonth()+1)}${pad2n(date.getDate())}T${pad2n(hh)}${pad2n(mm)}00`;
+  }
+  function buildICS() {
+    const start = W.getStartDate();
+    const now = new Date();
+    const dtstamp = `${now.getUTCFullYear()}${pad2n(now.getUTCMonth()+1)}${pad2n(now.getUTCDate())}T${pad2n(now.getUTCHours())}${pad2n(now.getUTCMinutes())}${pad2n(now.getUTCSeconds())}Z`;
+
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//wave365//Three Engines 365//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:Wave 365 — Three Engines',
+      'X-WR-CALDESC:Legacy Capital + Born Bare + MMP — 365-day plan',
+      'X-WR-TIMEZONE:Europe/London',
+    ];
+
+    PLAN.days.forEach((day) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + day.day - 1);
+      const dow = day.dow || W.dowOf(date);
+
+      day.tasks.forEach((task, i) => {
+        const eng = W.effectiveEngine(task, day);
+        const startTime = W.blockTimeFor(task, dow);
+        const [sh, sm] = startTime.split(':').map(Number);
+        const endTime = W.endTimeFor(task, startTime);
+        const [eh, em] = endTime.split(':').map(Number);
+
+        const uid = `wave365-d${day.day}-t${i}@wave365`;
+        const engineLabel = W.ENGINE_LABEL[eng] || eng;
+        const summary = `[${engineLabel}] ${task.headline || ''}`;
+        const descParts = [];
+        if (task.detail) descParts.push(task.detail);
+        descParts.push(`— Day ${day.day} of 365 · Week ${day.week} · ${day.month}${task.mins ? ` · ${task.mins} min` : ''}`);
+        const description = descParts.join('\n\n');
+
+        [
+          'BEGIN:VEVENT',
+          `UID:${uid}`,
+          `DTSTAMP:${dtstamp}`,
+          `DTSTART:${fmtFloating(date, sh, sm)}`,
+          `DTEND:${fmtFloating(date, eh, em)}`,
+          `SUMMARY:${escapeICS(summary)}`,
+          `DESCRIPTION:${escapeICS(description)}`,
+          `CATEGORIES:${escapeICS(engineLabel)}`,
+          'BEGIN:VALARM',
+          'ACTION:DISPLAY',
+          'TRIGGER:-PT10M',
+          `DESCRIPTION:${escapeICS(task.headline || 'Reminder')}`,
+          'END:VALARM',
+          'END:VEVENT',
+        ].forEach((l) => lines.push(foldICSLine(l)));
+      });
+    });
+
+    lines.push('END:VCALENDAR');
+    // RFC 5545 mandates CRLF.
+    return lines.join('\r\n') + '\r\n';
+  }
+
+  $('#downloadICS')?.addEventListener('click', () => {
+    const ics = buildICS();
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = el('a', { href: url, download: 'wave365.ics' });
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('Calendar file downloaded. On iPhone: open it in Mail and tap "Add All".');
+  });
+
   $('#exportData').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ done: W.DONE, metrics: W.METRICS }, null, 2)],
       { type: 'application/json' });
