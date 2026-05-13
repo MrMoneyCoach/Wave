@@ -51,6 +51,7 @@ export type Meeting = {
   transcript_text: string | null;
   summary: Record<string, string> | null;
   error: string | null;
+  recall_bot_id: string | null;
   created_at: string;
   updated_at: string;
 };

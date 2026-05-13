@@ -27,7 +27,26 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
   const [aliases, setAliases] = useState(initialAliases);
   const [editingSpeaker, setEditingSpeaker] = useState<number | null>(null);
   const [resummarizing, setResummarizing] = useState(false);
+  const [stoppingBot, setStoppingBot] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function stopBot() {
+    if (!confirm("Tell the bot to leave the call now? The recording will still be processed.")) return;
+    setStoppingBot(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/bots/${meeting.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || "Failed to stop the bot");
+      }
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setStoppingBot(false);
+    }
+  }
 
   // Poll while processing.
   useEffect(() => {
@@ -99,8 +118,18 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
       )}
 
       {POLL_STATUSES.includes(meeting.status) && (
-        <div className="mt-4 rounded-md border border-ink/15 bg-white px-3 py-2 text-sm text-ink/70">
-          {processingMessage(meeting.status)}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-ink/15 bg-white px-3 py-2 text-sm text-ink/70">
+          <span>{processingMessage(meeting.status, meeting.source)}</span>
+          {meeting.source === "meeting_bot" && meeting.recall_bot_id && (
+            <button
+              type="button"
+              onClick={stopBot}
+              disabled={stoppingBot}
+              className="rounded border border-ink/15 bg-white px-3 py-1 text-xs hover:bg-ink/5 disabled:opacity-50"
+            >
+              {stoppingBot ? "Stopping bot…" : "Stop bot"}
+            </button>
+          )}
         </div>
       )}
 
@@ -308,14 +337,18 @@ function StatusBadge({ status }: { status: Meeting["status"] }) {
   );
 }
 
-function processingMessage(status: Meeting["status"]) {
+function processingMessage(status: Meeting["status"], source: Meeting["source"]) {
   switch (status) {
     case "uploading":
       return "Audio is still uploading…";
     case "queued":
-      return "Queued for transcription…";
+      return source === "meeting_bot"
+        ? "Bot is on its way to the meeting. The host may need to admit it from the waiting room."
+        : "Queued for transcription…";
     case "transcribing":
-      return "Transcribing with Deepgram Nova-3 — this usually takes ~10% of the meeting length.";
+      return source === "meeting_bot"
+        ? "Bot recorded the meeting — now downloading and transcribing with Deepgram Nova-3."
+        : "Transcribing with Deepgram Nova-3 — this usually takes ~10% of the meeting length.";
     case "transcribed":
       return "Transcript ready, generating summary…";
     case "summarizing":

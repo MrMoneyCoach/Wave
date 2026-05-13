@@ -24,8 +24,8 @@ Everything below is implemented and builds cleanly:
 | 2 | ✅ Done | Live recording in the browser at `/dashboard/record` (system audio via `getDisplayMedia`, mic via `getUserMedia`, mixed, uploaded) |
 | 3 | ✅ Done | Downloadable **desktop recorder** (Electron) under [`recap/desktop/`](desktop/) — native system audio + mic capture, signs in via Supabase OTP, uploads to this app via Bearer-authed API |
 | 4 | ✅ Done | **Mobile app** (Expo / React Native) under [`recap/mobile/`](mobile/) — mic-only recorder for in-person meetings (iOS/Android don't allow third-party system-audio capture) |
-| 5 | Next | **Meeting bot** that joins Zoom/Meet/Teams, via Recall.ai |
-| 6 | | Premium plan: custom templates, Stripe billing |
+| 5 | ✅ Done | **Meeting bot** via [Recall.ai](https://recall.ai) — dispatches a bot to Zoom/Meet/Teams calls, recording is downloaded and pushed through the same pipeline |
+| 6 | Next | Premium plan: custom templates, Stripe billing |
 | 7 | | Sharing, comments, integrations (Slack/Notion export, Hubspot etc.) |
 
 ## Setup
@@ -70,6 +70,21 @@ recap/
 │   └── middleware.ts                # auth gate for /dashboard, /meetings
 └── supabase/schema.sql              # canonical schema + RLS + seeds
 ```
+
+## Meeting bot setup (Recall.ai)
+
+The Bot tab dispatches a Recall.ai bot to a Zoom / Google Meet / Microsoft Teams URL. Recall records the call; once it finishes, a webhook pings us, we download the recording to Supabase Storage, then run the existing Deepgram + Claude pipeline.
+
+To enable it:
+
+1. Sign up at https://recall.ai and create a workspace.
+2. Set `RECALL_API_KEY` in your env (and optionally `RECALL_BASE_URL` if you need a non-US region).
+3. In Recall's dashboard, add a **webhook endpoint** pointing at `https://<your-recap-domain>/api/recall/webhook`. Subscribe to `bot.status_change`. Recall will show you a signing secret prefixed with `whsec_…` — paste it into `RECALL_WEBHOOK_SECRET`.
+4. For local development, expose the webhook with a tunnel (e.g. `ngrok http 3000`) and point the endpoint at `https://<ngrok-id>.ngrok.app/api/recall/webhook`.
+
+If `RECALL_API_KEY` is missing, the Bot tab still renders but `POST /api/bots` returns a clear error. If `RECALL_WEBHOOK_SECRET` is missing, signature verification is skipped — fine for local dev, not safe for production. The webhook handler is idempotent: if Recall replays it, already-processed meetings are skipped.
+
+The webhook function downloads the recording and runs transcription inline (`maxDuration = 300`s on Vercel), so meetings up to ~90 minutes fit comfortably. For longer recordings, move the body into a queue worker (e.g. Inngest, Trigger.dev, or a Supabase Edge Function).
 
 ## How auth works (web vs. desktop / mobile)
 

@@ -46,10 +46,11 @@ export default function LandingPage() {
       <section className="mt-16 border-t border-ink/10 pt-10">
         <h2 className="text-xl font-semibold">Capture options</h2>
         <ul className="mt-4 space-y-2 text-ink/70">
-          <li><strong>Available now</strong> — upload a recording, or record system audio + mic directly from your browser</li>
-          <li>Coming soon — downloadable desktop recorder (macOS, Windows) for higher-quality local capture</li>
-          <li>Coming soon — iOS / Android app for in-person meetings on the go</li>
-          <li>Coming soon — bot that joins Zoom, Meet and Teams calls on your behalf</li>
+          <li>Upload a recording (mp3, m4a, mp4, wav)</li>
+          <li>Record system audio + mic directly from your browser</li>
+          <li>Send a bot to join your Zoom, Google Meet or Microsoft Teams call</li>
+          <li>Download the desktop recorder (macOS / Windows) for higher-quality local capture</li>
+          <li>Use the iOS / Android app for in-person meetings on the go</li>
         </ul>
       </section>
     </main>

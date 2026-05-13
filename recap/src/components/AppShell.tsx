@@ -41,6 +41,16 @@ export default function AppShell({ email, children }: Props) {
               Record
             </Link>
             <Link
+              href="/dashboard/bot"
+              className={
+                pathname.startsWith("/dashboard/bot")
+                  ? "font-medium"
+                  : "text-ink/60 hover:text-ink"
+              }
+            >
+              Bot
+            </Link>
+            <Link
               href="/dashboard/upload"
               className={
                 pathname.startsWith("/dashboard/upload")

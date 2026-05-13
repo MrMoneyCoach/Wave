@@ -58,12 +58,16 @@ create table if not exists public.meetings (
   transcript_text text,                  -- full plain-text transcript (denormalised for search)
   summary jsonb,                          -- { section_key: markdown_string, ... }
   error text,
+  recall_bot_id text,                     -- set when source = 'meeting_bot'
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists meetings_owner_created_idx
   on public.meetings (owner_id, created_at desc);
+
+create index if not exists meetings_recall_bot_idx
+  on public.meetings (recall_bot_id);
 
 -- --------------------------------------------------------------------------
 -- segments: one row per diarized utterance

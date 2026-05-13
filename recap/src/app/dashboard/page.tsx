@@ -20,14 +20,20 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Your meetings</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/dashboard/upload"
             className="rounded-md border border-ink/15 bg-white px-4 py-2 text-sm font-medium hover:bg-ink/5"
           >
             Upload
+          </Link>
+          <Link
+            href="/dashboard/bot"
+            className="rounded-md border border-ink/15 bg-white px-4 py-2 text-sm font-medium hover:bg-ink/5"
+          >
+            Send bot
           </Link>
           <Link
             href="/dashboard/record"
@@ -43,12 +49,18 @@ export default async function DashboardPage() {
           <p className="text-sm text-ink/70">
             No meetings yet. Upload your first recording to get a transcript and template summary in minutes.
           </p>
-          <div className="mt-4 flex justify-center gap-2">
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Link
               href="/dashboard/record"
               className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper hover:opacity-90"
             >
               Record a meeting
+            </Link>
+            <Link
+              href="/dashboard/bot"
+              className="rounded-md border border-ink/15 bg-white px-4 py-2 text-sm font-medium hover:bg-ink/5"
+            >
+              Send a meeting bot
             </Link>
             <Link
               href="/dashboard/upload"
