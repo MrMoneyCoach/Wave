@@ -13,8 +13,16 @@ create table if not exists public.profiles (
   display_name text,
   plan text not null default 'free' check (plan in ('free', 'pro')),
   speaker_aliases jsonb not null default '{}'::jsonb,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  plan_current_period_end timestamptz,
   created_at timestamptz not null default now()
 );
+
+create index if not exists profiles_stripe_customer_idx
+  on public.profiles (stripe_customer_id);
+create index if not exists profiles_stripe_subscription_idx
+  on public.profiles (stripe_subscription_id);
 
 -- --------------------------------------------------------------------------
 -- templates: built-in + user-owned summary templates

@@ -25,8 +25,8 @@ Everything below is implemented and builds cleanly:
 | 3 | ✅ Done | Downloadable **desktop recorder** (Electron) under [`recap/desktop/`](desktop/) — native system audio + mic capture, signs in via Supabase OTP, uploads to this app via Bearer-authed API |
 | 4 | ✅ Done | **Mobile app** (Expo / React Native) under [`recap/mobile/`](mobile/) — mic-only recorder for in-person meetings (iOS/Android don't allow third-party system-audio capture) |
 | 5 | ✅ Done | **Meeting bot** via [Recall.ai](https://recall.ai) — dispatches a bot to Zoom/Meet/Teams calls, recording is downloaded and pushed through the same pipeline |
-| 6 | Next | Premium plan: custom templates, Stripe billing |
-| 7 | | Sharing, comments, integrations (Slack/Notion export, Hubspot etc.) |
+| 6 | ✅ Done | **Pro plan**: custom templates and Stripe-powered billing (checkout + customer portal + webhook keeps `profiles.plan` in sync) |
+| 7 | Next | Sharing, comments, integrations (Slack/Notion export, Hubspot etc.) |
 
 ## Setup
 
@@ -70,6 +70,20 @@ recap/
 │   └── middleware.ts                # auth gate for /dashboard, /meetings
 └── supabase/schema.sql              # canonical schema + RLS + seeds
 ```
+
+## Billing setup (Stripe)
+
+1. Create a Stripe account at https://stripe.com and grab the secret key.
+2. Create a **Product** in Stripe with a **recurring price** (monthly/annual, whatever you want). Copy the price ID (`price_…`).
+3. In Stripe → Developers → Webhooks, add an endpoint pointing at `https://<your-recap-domain>/api/billing/webhook` and subscribe to `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`. Reveal the signing secret (`whsec_…`).
+4. Configure the **Customer portal** in Stripe (Settings → Billing → Customer portal) so users can cancel/update payment methods themselves.
+5. Set the env vars:
+   - `STRIPE_SECRET_KEY=sk_test_…` (or `sk_live_…`)
+   - `STRIPE_PRICE_ID=price_…`
+   - `STRIPE_WEBHOOK_SECRET=whsec_…`
+6. For local testing use `stripe listen --forward-to localhost:3000/api/billing/webhook` (Stripe CLI) — it overrides the signing secret with a CLI-issued one, which you paste into your `.env.local`.
+
+If those env vars are missing, the Billing page still loads but the Upgrade button errors helpfully. The custom-template editor is gated server-side (`/api/templates` returns 402 if the user isn't on Pro), so users can't bypass billing by hitting the API directly.
 
 ## Meeting bot setup (Recall.ai)
 

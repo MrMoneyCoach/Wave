@@ -19,11 +19,11 @@ export default function AppShell({ email, children }: Props) {
   return (
     <div className="min-h-screen">
       <header className="border-b border-ink/10 bg-white/60 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-y-2 px-6 py-3">
           <Link href="/dashboard" className="text-sm font-semibold tracking-wide">
             Recap
           </Link>
-          <nav className="flex items-center gap-5 text-sm">
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <Link
               href="/dashboard"
               className={pathname === "/dashboard" ? "font-medium" : "text-ink/60 hover:text-ink"}
@@ -60,7 +60,27 @@ export default function AppShell({ email, children }: Props) {
             >
               Upload
             </Link>
-            <span className="text-ink/50">{email}</span>
+            <Link
+              href="/dashboard/templates"
+              className={
+                pathname.startsWith("/dashboard/templates")
+                  ? "font-medium"
+                  : "text-ink/60 hover:text-ink"
+              }
+            >
+              Templates
+            </Link>
+            <Link
+              href="/dashboard/billing"
+              className={
+                pathname.startsWith("/dashboard/billing")
+                  ? "font-medium"
+                  : "text-ink/60 hover:text-ink"
+              }
+            >
+              Billing
+            </Link>
+            <span className="hidden text-ink/50 lg:inline">{email}</span>
             <button onClick={signOut} className="text-ink/60 hover:text-ink">
               Sign out
             </button>
