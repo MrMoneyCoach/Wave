@@ -1,36 +1,44 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { supabaseServer, supabaseAdmin } from "@/lib/supabase/server";
+import { supabaseFromRequest, corsHeaders, corsPreflight } from "@/lib/supabase/auth";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import { transcribeFromUrl } from "@/lib/deepgram";
 import { summarizeMeeting } from "@/lib/summarize";
 
 export const maxDuration = 300;
 
+export function OPTIONS() {
+  return corsPreflight();
+}
+
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const supabase = supabaseServer();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { supabase, user } = await supabaseFromRequest(request);
+  if (!user)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: corsHeaders() });
 
   const { data: meeting, error: getErr } = await supabase
     .from("meetings")
     .select("*")
     .eq("id", params.id)
-    .eq("owner_id", userData.user.id)
+    .eq("owner_id", user.id)
     .single();
-  if (getErr || !meeting) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (getErr || !meeting)
+    return NextResponse.json({ error: "not_found" }, { status: 404, headers: corsHeaders() });
   if (!meeting.audio_path)
-    return NextResponse.json({ error: "no_audio" }, { status: 400 });
+    return NextResponse.json({ error: "no_audio" }, { status: 400, headers: corsHeaders() });
 
   const admin = supabaseAdmin();
 
-  // Signed URL Deepgram can fetch.
   const { data: signed, error: signErr } = await admin.storage
     .from("recordings")
     .createSignedUrl(meeting.audio_path, 60 * 30);
   if (signErr || !signed)
-    return NextResponse.json({ error: signErr?.message ?? "sign_failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: signErr?.message ?? "sign_failed" },
+      { status: 500, headers: corsHeaders() },
+    );
 
   await admin.from("meetings").update({ status: "transcribing" }).eq("id", meeting.id);
 
@@ -62,24 +70,25 @@ export async function POST(
       })
       .eq("id", meeting.id);
 
-    // Kick off the summary in the same request — for short calls this is fine
-    // and gives us a fully-ready meeting on first page load.
     if (meeting.template_id) {
       try {
         await summarizeMeeting(meeting.id, meeting.template_id);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        await admin.from("meetings").update({ status: "failed", error: msg }).eq("id", meeting.id);
-        return NextResponse.json({ error: msg }, { status: 500 });
+        await admin
+          .from("meetings")
+          .update({ status: "failed", error: msg })
+          .eq("id", meeting.id);
+        return NextResponse.json({ error: msg }, { status: 500, headers: corsHeaders() });
       }
     } else {
       await admin.from("meetings").update({ status: "ready" }).eq("id", meeting.id);
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers: corsHeaders() });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await admin.from("meetings").update({ status: "failed", error: msg }).eq("id", meeting.id);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500, headers: corsHeaders() });
   }
 }

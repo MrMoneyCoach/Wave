@@ -1,0 +1,65 @@
+{
+  "name": "recap-desktop",
+  "version": "0.1.0",
+  "description": "Recap — desktop recorder. Records native system audio + mic and uploads to your Recap account.",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "author": "mrmoneycoach",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5174 && tsc -p electron/tsconfig.json && cross-env RECAP_DEV=1 electron .\"",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "build": "npm run build:renderer && npm run build:electron",
+    "package": "npm run build && electron-builder",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.2.0",
+    "electron-builder": "^24.13.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.mrmoneycoach.recap-desktop",
+    "productName": "Recap Recorder",
+    "directories": { "output": "release" },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "identity": null,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Recap captures your microphone alongside the other participants so the transcript covers both sides of the call.",
+        "NSAppleEventsUsageDescription": "Recap uses ScreenCaptureKit to capture system audio from your meeting tab or window.",
+        "NSCameraUsageDescription": "Recap only records audio; the camera permission is requested by macOS as part of the screen-sharing API but no video is captured."
+      },
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ]
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ]
+    },
+    "dmg": { "writeUpdateInfo": false }
+  }
+}

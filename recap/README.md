@@ -16,17 +16,17 @@ Everything below is implemented and builds cleanly:
 - **Dashboard**: list of meetings, status pills, and upload flow.
 - **Meeting detail page**: live status polling while Deepgram and Claude work, transcript with renamable speaker chips, summary panel with a live template switcher that re-runs summarisation.
 
-## Phase plan (everything else)
+## Phase plan
 
-| Phase | Scope |
-| --- | --- |
-| 1 (this PR) | Web app foundation: upload → transcribe → templated summary |
-| 2 | Live recording in the browser (system audio via `getDisplayMedia`, mic via `getUserMedia`, mixed, uploaded) |
-| 3 | Downloadable **desktop recorder** (Electron) — native system audio + mic capture, uploads to this app |
-| 4 | **Mobile app** (Expo / React Native) — in-person meetings, record and upload |
-| 5 | **Meeting bot** that joins Zoom/Meet/Teams, via Recall.ai |
-| 6 | Premium plan: custom templates, Stripe billing |
-| 7 | Sharing, comments, integrations (Slack/Notion export, Hubspot etc.) |
+| Phase | Status | Scope |
+| --- | --- | --- |
+| 1 | ✅ Done | Web app foundation: upload → transcribe → templated summary |
+| 2 | ✅ Done | Live recording in the browser at `/dashboard/record` (system audio via `getDisplayMedia`, mic via `getUserMedia`, mixed, uploaded) |
+| 3 | ✅ Done | Downloadable **desktop recorder** (Electron) under [`recap/desktop/`](desktop/) — native system audio + mic capture, signs in via Supabase OTP, uploads to this app via Bearer-authed API |
+| 4 | Next | **Mobile app** (Expo / React Native) — in-person meetings, record and upload |
+| 5 | | **Meeting bot** that joins Zoom/Meet/Teams, via Recall.ai |
+| 6 | | Premium plan: custom templates, Stripe billing |
+| 7 | | Sharing, comments, integrations (Slack/Notion export, Hubspot etc.) |
 
 ## Setup
 
@@ -70,6 +70,10 @@ recap/
 │   └── middleware.ts                # auth gate for /dashboard, /meetings
 └── supabase/schema.sql              # canonical schema + RLS + seeds
 ```
+
+## How auth works (web vs. desktop / mobile)
+
+The web app uses Supabase cookies (magic-link → session in cookies, gated by `src/middleware.ts`). The desktop and (future) mobile apps can't use cookies, so every API route also accepts an `Authorization: Bearer <access_token>` header — see [`src/lib/supabase/auth.ts`](src/lib/supabase/auth.ts). The same routes also emit CORS headers and an `OPTIONS` handler, so cross-origin calls from `file://` (Electron) and from Expo Web work without proxying.
 
 ## How transcription works
 

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseFromRequest, corsHeaders, corsPreflight } from "@/lib/supabase/auth";
 
 const PatchBody = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -18,39 +18,44 @@ const PatchBody = z.object({
     .optional(),
 });
 
+export function OPTIONS() {
+  return corsPreflight();
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const supabase = supabaseServer();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { supabase, user } = await supabaseFromRequest(request);
+  if (!user)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: corsHeaders() });
 
   const body = PatchBody.parse(await request.json());
   const { data, error } = await supabase
     .from("meetings")
     .update(body)
     .eq("id", params.id)
-    .eq("owner_id", userData.user.id)
+    .eq("owner_id", user.id)
     .select("*")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json(data);
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 400, headers: corsHeaders() });
+  return NextResponse.json(data, { headers: corsHeaders() });
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const supabase = supabaseServer();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { supabase, user } = await supabaseFromRequest(request);
+  if (!user)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: corsHeaders() });
 
   const { data: meeting } = await supabase
     .from("meetings")
     .select("audio_path")
     .eq("id", params.id)
-    .eq("owner_id", userData.user.id)
+    .eq("owner_id", user.id)
     .single();
 
   if (meeting?.audio_path) {
@@ -60,7 +65,8 @@ export async function DELETE(
     .from("meetings")
     .delete()
     .eq("id", params.id)
-    .eq("owner_id", userData.user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ ok: true });
+    .eq("owner_id", user.id);
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 400, headers: corsHeaders() });
+  return NextResponse.json({ ok: true }, { headers: corsHeaders() });
 }
