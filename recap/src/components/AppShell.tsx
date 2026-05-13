@@ -31,6 +31,16 @@ export default function AppShell({ email, children }: Props) {
               Meetings
             </Link>
             <Link
+              href="/dashboard/record"
+              className={
+                pathname.startsWith("/dashboard/record")
+                  ? "font-medium"
+                  : "text-ink/60 hover:text-ink"
+              }
+            >
+              Record
+            </Link>
+            <Link
               href="/dashboard/upload"
               className={
                 pathname.startsWith("/dashboard/upload")
@@ -38,7 +48,7 @@ export default function AppShell({ email, children }: Props) {
                   : "text-ink/60 hover:text-ink"
               }
             >
-              New
+              Upload
             </Link>
             <span className="text-ink/50">{email}</span>
             <button onClick={signOut} className="text-ink/60 hover:text-ink">

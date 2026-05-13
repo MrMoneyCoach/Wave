@@ -20,14 +20,22 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Your meetings</h1>
-        <Link
-          href="/dashboard/upload"
-          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper hover:opacity-90"
-        >
-          New meeting
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/dashboard/upload"
+            className="rounded-md border border-ink/15 bg-white px-4 py-2 text-sm font-medium hover:bg-ink/5"
+          >
+            Upload
+          </Link>
+          <Link
+            href="/dashboard/record"
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper hover:opacity-90"
+          >
+            Record
+          </Link>
+        </div>
       </div>
 
       {list.length === 0 ? (
@@ -35,12 +43,20 @@ export default async function DashboardPage() {
           <p className="text-sm text-ink/70">
             No meetings yet. Upload your first recording to get a transcript and template summary in minutes.
           </p>
-          <Link
-            href="/dashboard/upload"
-            className="mt-4 inline-block rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper hover:opacity-90"
-          >
-            Upload a recording
-          </Link>
+          <div className="mt-4 flex justify-center gap-2">
+            <Link
+              href="/dashboard/record"
+              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper hover:opacity-90"
+            >
+              Record a meeting
+            </Link>
+            <Link
+              href="/dashboard/upload"
+              className="rounded-md border border-ink/15 bg-white px-4 py-2 text-sm font-medium hover:bg-ink/5"
+            >
+              Upload a file
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="mt-6 divide-y divide-ink/10 rounded-lg border border-ink/10 bg-white">

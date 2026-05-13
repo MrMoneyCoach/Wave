@@ -44,12 +44,12 @@ export default function LandingPage() {
       </section>
 
       <section className="mt-16 border-t border-ink/10 pt-10">
-        <h2 className="text-xl font-semibold">Coming next</h2>
+        <h2 className="text-xl font-semibold">Capture options</h2>
         <ul className="mt-4 space-y-2 text-ink/70">
-          <li>Record system audio + mic directly from your browser</li>
-          <li>Downloadable desktop recorder (macOS, Windows) for higher-quality local capture</li>
-          <li>iOS / Android app for in-person meetings on the go</li>
-          <li>Bot that joins Zoom, Meet and Teams calls on your behalf</li>
+          <li><strong>Available now</strong> — upload a recording, or record system audio + mic directly from your browser</li>
+          <li>Coming soon — downloadable desktop recorder (macOS, Windows) for higher-quality local capture</li>
+          <li>Coming soon — iOS / Android app for in-person meetings on the go</li>
+          <li>Coming soon — bot that joins Zoom, Meet and Teams calls on your behalf</li>
         </ul>
       </section>
     </main>
