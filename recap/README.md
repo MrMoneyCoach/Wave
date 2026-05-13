@@ -23,8 +23,8 @@ Everything below is implemented and builds cleanly:
 | 1 | ✅ Done | Web app foundation: upload → transcribe → templated summary |
 | 2 | ✅ Done | Live recording in the browser at `/dashboard/record` (system audio via `getDisplayMedia`, mic via `getUserMedia`, mixed, uploaded) |
 | 3 | ✅ Done | Downloadable **desktop recorder** (Electron) under [`recap/desktop/`](desktop/) — native system audio + mic capture, signs in via Supabase OTP, uploads to this app via Bearer-authed API |
-| 4 | Next | **Mobile app** (Expo / React Native) — in-person meetings, record and upload |
-| 5 | | **Meeting bot** that joins Zoom/Meet/Teams, via Recall.ai |
+| 4 | ✅ Done | **Mobile app** (Expo / React Native) under [`recap/mobile/`](mobile/) — mic-only recorder for in-person meetings (iOS/Android don't allow third-party system-audio capture) |
+| 5 | Next | **Meeting bot** that joins Zoom/Meet/Teams, via Recall.ai |
 | 6 | | Premium plan: custom templates, Stripe billing |
 | 7 | | Sharing, comments, integrations (Slack/Notion export, Hubspot etc.) |
 
