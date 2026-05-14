@@ -3,14 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-import type { Meeting, Segment, Template, TemplateSection } from "@/lib/types";
+import type { Comment, IntegrationStatus, Meeting, MeetingShare, Segment, Template } from "@/lib/types";
 import { formatDate, formatSeconds, speakerColor, speakerName } from "@/lib/format";
+import { SummaryDisplay } from "@/components/SummaryDisplay";
+import SharePanel from "./SharePanel";
+import Comments from "./Comments";
+import ExportButtons from "./ExportButtons";
 
 type Props = {
   meeting: Meeting;
   segments: Segment[];
   templates: Template[];
   speakerAliases: Record<string, string>;
+  isOwner: boolean;
+  currentUserId: string;
+  shares: MeetingShare[];
+  comments: Comment[];
+  integrations: IntegrationStatus;
 };
 
 const POLL_STATUSES: Meeting["status"][] = [
@@ -21,7 +30,17 @@ const POLL_STATUSES: Meeting["status"][] = [
   "summarizing",
 ];
 
-export default function MeetingView({ meeting, segments, templates, speakerAliases: initialAliases }: Props) {
+export default function MeetingView({
+  meeting,
+  segments,
+  templates,
+  speakerAliases: initialAliases,
+  isOwner,
+  currentUserId,
+  shares,
+  comments,
+  integrations,
+}: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<"summary" | "transcript">("summary");
   const [aliases, setAliases] = useState(initialAliases);
@@ -106,6 +125,7 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
           <p className="mt-1 text-sm text-ink/60">
             {formatDate(meeting.created_at)} · {formatSeconds(meeting.duration_seconds)} ·{" "}
             {speakerCount} {speakerCount === 1 ? "speaker" : "speakers"}
+            {!isOwner && " · shared with you"}
           </p>
         </div>
         <StatusBadge status={meeting.status} />
@@ -120,7 +140,7 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
       {POLL_STATUSES.includes(meeting.status) && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-ink/15 bg-white px-3 py-2 text-sm text-ink/70">
           <span>{processingMessage(meeting.status, meeting.source)}</span>
-          {meeting.source === "meeting_bot" && meeting.recall_bot_id && (
+          {isOwner && meeting.source === "meeting_bot" && meeting.recall_bot_id && (
             <button
               type="button"
               onClick={stopBot}
@@ -148,35 +168,51 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
             {activeTemplate && meeting.summary ? (
               <SummaryDisplay sections={activeTemplate.sections} summary={meeting.summary} />
             ) : meeting.status === "ready" ? (
-              <p className="text-sm text-ink/60">No summary yet. Pick a template on the right.</p>
+              <p className="text-sm text-ink/60">
+                {isOwner
+                  ? "No summary yet. Pick a template on the right."
+                  : "No summary yet for this meeting."}
+              </p>
             ) : (
               <p className="text-sm text-ink/60">Summary will appear here when processing finishes.</p>
             )}
           </div>
-          <aside>
-            <div className="text-xs font-medium uppercase tracking-widest text-ink/50">Template</div>
-            <select
-              value={meeting.template_id ?? ""}
-              onChange={(e) => changeTemplate(e.target.value)}
-              disabled={resummarizing || POLL_STATUSES.includes(meeting.status)}
-              className="mt-2 w-full rounded-md border border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-ink"
-            >
-              <option value="" disabled>
-                Choose a template…
-              </option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.is_premium ? " (Pro)" : ""}
+          {isOwner ? (
+            <aside>
+              <div className="text-xs font-medium uppercase tracking-widest text-ink/50">Template</div>
+              <select
+                value={meeting.template_id ?? ""}
+                onChange={(e) => changeTemplate(e.target.value)}
+                disabled={resummarizing || POLL_STATUSES.includes(meeting.status)}
+                className="mt-2 w-full rounded-md border border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-ink"
+              >
+                <option value="" disabled>
+                  Choose a template…
                 </option>
-              ))}
-            </select>
-            {activeTemplate?.description && (
-              <p className="mt-2 text-xs text-ink/60">{activeTemplate.description}</p>
-            )}
-            {resummarizing && <p className="mt-2 text-xs text-ink/60">Regenerating summary…</p>}
-            {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-          </aside>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.is_premium ? " (Pro)" : ""}
+                  </option>
+                ))}
+              </select>
+              {activeTemplate?.description && (
+                <p className="mt-2 text-xs text-ink/60">{activeTemplate.description}</p>
+              )}
+              {resummarizing && <p className="mt-2 text-xs text-ink/60">Regenerating summary…</p>}
+              {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+            </aside>
+          ) : (
+            activeTemplate && (
+              <aside>
+                <div className="text-xs font-medium uppercase tracking-widest text-ink/50">Template</div>
+                <p className="mt-2 text-sm">{activeTemplate.name}</p>
+                {activeTemplate.description && (
+                  <p className="mt-1 text-xs text-ink/60">{activeTemplate.description}</p>
+                )}
+              </aside>
+            )
+          )}
         </div>
       ) : (
         <div className="mt-6 space-y-3">
@@ -189,7 +225,7 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
                 {formatSeconds(s.start_seconds)}
               </span>
               <div className="flex-1">
-                {editingSpeaker === s.speaker ? (
+                {isOwner && editingSpeaker === s.speaker ? (
                   <input
                     autoFocus
                     defaultValue={speakerName(s.speaker, aliases)}
@@ -202,9 +238,11 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
                   />
                 ) : (
                   <button
-                    onClick={() => setEditingSpeaker(s.speaker)}
-                    title="Click to rename"
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${speakerColor(s.speaker)}`}
+                    onClick={() => isOwner && setEditingSpeaker(s.speaker)}
+                    title={isOwner ? "Click to rename" : undefined}
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${speakerColor(s.speaker)} ${
+                      isOwner ? "" : "cursor-default"
+                    }`}
                   >
                     {speakerName(s.speaker, aliases)}
                   </button>
@@ -215,78 +253,24 @@ export default function MeetingView({ meeting, segments, templates, speakerAlias
           ))}
         </div>
       )}
+
+      {isOwner && (
+        <ExportButtons
+          meetingId={meeting.id}
+          integrations={integrations}
+          hasSummary={!!meeting.summary}
+        />
+      )}
+
+      {isOwner && (
+        <SharePanel
+          meetingId={meeting.id}
+          initial={{ public_share_token: meeting.public_share_token, shares }}
+        />
+      )}
+
+      <Comments meetingId={meeting.id} currentUserId={currentUserId} initial={comments} />
     </div>
-  );
-}
-
-function SummaryDisplay({
-  sections,
-  summary,
-}: {
-  sections: TemplateSection[];
-  summary: Record<string, string>;
-}) {
-  return (
-    <div className="prose-recap">
-      {sections.map((sec) => {
-        const value = summary[sec.key];
-        if (!value || value.trim().toLowerCase() === "none") return null;
-        return (
-          <section key={sec.key} className="mt-2">
-            <h2>{sec.label}</h2>
-            <MarkdownBlock text={value} />
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Tiny, dependency-free renderer good enough for the bulleted markdown Claude returns. */
-function MarkdownBlock({ text }: { text: string }) {
-  const lines = text.split("\n");
-  const blocks: React.ReactNode[] = [];
-  let bullets: string[] = [];
-  let i = 0;
-
-  const flush = () => {
-    if (bullets.length) {
-      blocks.push(
-        <ul key={`ul-${blocks.length}`}>
-          {bullets.map((b, idx) => (
-            <li key={idx}>{renderInline(b)}</li>
-          ))}
-        </ul>,
-      );
-      bullets = [];
-    }
-  };
-
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) {
-      flush();
-      continue;
-    }
-    if (line.startsWith("- ") || line.startsWith("* ")) {
-      bullets.push(line.slice(2));
-    } else {
-      flush();
-      blocks.push(<p key={`p-${i++}`}>{renderInline(line)}</p>);
-    }
-  }
-  flush();
-  return <>{blocks}</>;
-}
-
-function renderInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((p, i) =>
-    p.startsWith("**") && p.endsWith("**") ? (
-      <strong key={i}>{p.slice(2, -2)}</strong>
-    ) : (
-      <span key={i}>{p}</span>
-    ),
   );
 }
 

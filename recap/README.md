@@ -26,7 +26,7 @@ Everything below is implemented and builds cleanly:
 | 4 | ✅ Done | **Mobile app** (Expo / React Native) under [`recap/mobile/`](mobile/) — mic-only recorder for in-person meetings (iOS/Android don't allow third-party system-audio capture) |
 | 5 | ✅ Done | **Meeting bot** via [Recall.ai](https://recall.ai) — dispatches a bot to Zoom/Meet/Teams calls, recording is downloaded and pushed through the same pipeline |
 | 6 | ✅ Done | **Pro plan**: custom templates and Stripe-powered billing (checkout + customer portal + webhook keeps `profiles.plan` in sync) |
-| 7 | Next | Sharing, comments, integrations (Slack/Notion export, Hubspot etc.) |
+| 7 | ✅ Done | **Sharing, comments & integrations**: public share links, per-teammate sharing by email, comment threads, one-click export to Slack & Notion |
 
 ## Setup
 
@@ -70,6 +70,16 @@ recap/
 │   └── middleware.ts                # auth gate for /dashboard, /meetings
 └── supabase/schema.sql              # canonical schema + RLS + seeds
 ```
+
+## Sharing, comments & integrations (Phase 7)
+
+- **Public links** — toggle a meeting public from its Share panel; it becomes readable at `/share/<token>` with no sign-in. The page uses the service-role client and gates purely on the unguessable token (`robots: noindex`). Disable to revoke instantly.
+- **Per-teammate sharing** — add a teammate by email; when they sign in with that email the meeting shows up in their own dashboard. Enforced by RLS policies (`meetings: shared read`, `segments: shared read`) matching `auth.jwt() ->> 'email'` against the `meeting_shares` table. Non-owners get a read-only view — no template switching, speaker renaming, or sharing controls.
+- **Comments** — threaded comments on each meeting, visible to everyone with access (owner + shared teammates). RLS lets any viewer insert and only the author delete.
+- **Slack export** — paste an Incoming Webhook URL in Settings; "Post to Slack" on any meeting sends the templated summary to that channel.
+- **Notion export** — paste an internal-integration token + a parent page ID in Settings; "Export to Notion" creates a child page with the summary as headings + bullet blocks.
+
+All integration credentials live on the user's `profiles` row (readable only by them via RLS) — no extra env vars, no OAuth apps to maintain.
 
 ## Billing setup (Stripe)
 

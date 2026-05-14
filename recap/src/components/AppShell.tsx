@@ -80,6 +80,16 @@ export default function AppShell({ email, children }: Props) {
             >
               Billing
             </Link>
+            <Link
+              href="/dashboard/settings"
+              className={
+                pathname.startsWith("/dashboard/settings")
+                  ? "font-medium"
+                  : "text-ink/60 hover:text-ink"
+              }
+            >
+              Settings
+            </Link>
             <span className="hidden text-ink/50 lg:inline">{email}</span>
             <button onClick={signOut} className="text-ink/60 hover:text-ink">
               Sign out

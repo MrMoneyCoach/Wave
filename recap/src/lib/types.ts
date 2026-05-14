@@ -52,6 +52,28 @@ export type Meeting = {
   summary: Record<string, string> | null;
   error: string | null;
   recall_bot_id: string | null;
+  public_share_token: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type MeetingShare = {
+  id: string;
+  meeting_id: string;
+  shared_with_email: string;
+  created_at: string;
+};
+
+export type Comment = {
+  id: string;
+  meeting_id: string;
+  author_id: string;
+  author_email: string;
+  body: string;
+  created_at: string;
+};
+
+export type IntegrationStatus = {
+  slack: boolean;
+  notion: boolean;
 };
