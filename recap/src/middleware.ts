@@ -2,12 +2,19 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // No backend configured yet — let everything through. The landing page and
+  // /preview render fine without it; the real app pages surface their own
+  // "not configured" errors if visited directly.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({ request: { headers: request.headers } });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         get(name: string) {
           return request.cookies.get(name)?.value;
@@ -23,8 +30,7 @@ export async function middleware(request: NextRequest) {
           response.cookies.set({ name, value: "", ...options });
         },
       },
-    },
-  );
+    });
 
   const { data } = await supabase.auth.getUser();
   const protectedPath =

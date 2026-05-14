@@ -15,18 +15,22 @@ export default function LandingPage() {
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
-          href="/login"
+          href="/preview"
           className="rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper hover:opacity-90"
+        >
+          See an interactive preview
+        </Link>
+        <Link
+          href="/login"
+          className="rounded-md border border-ink/15 px-5 py-3 text-sm font-medium hover:bg-ink/5"
         >
           Sign in / sign up
         </Link>
-        <Link
-          href="/dashboard"
-          className="rounded-md border border-ink/15 px-5 py-3 text-sm font-medium hover:bg-ink/5"
-        >
-          Go to dashboard
-        </Link>
       </div>
+      <p className="mt-2 text-xs text-ink/50">
+        The preview is a no-login tour with demo data — click through the whole UI before you set
+        anything up.
+      </p>
 
       <section className="mt-16 grid gap-8 md:grid-cols-3">
         <Feature
