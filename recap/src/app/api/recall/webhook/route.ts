@@ -4,10 +4,11 @@ import { getBot, pickRecordingUrl, verifyRecallWebhook } from "@/lib/recall";
 import { transcribeFromUrl } from "@/lib/deepgram";
 import { summarizeMeeting } from "@/lib/summarize";
 
-// Generous timeout: this single function downloads the recording from Recall,
-// uploads it to Supabase Storage, runs Deepgram, runs Claude. For meetings up
-// to ~90 minutes this comfortably fits under 300s.
-export const maxDuration = 300;
+// This function downloads the recording from Recall, uploads it to Supabase
+// Storage, runs Deepgram, runs Claude. 60s is the Hobby-plan ceiling and works
+// on every plan; bump this to 300 on Pro for long recordings, or move the body
+// into a queue worker (see README).
+export const maxDuration = 60;
 
 // Recall posts JSON payloads with an `event` and `data` field. Signature
 // headers are Svix-style (svix-id, svix-timestamp, svix-signature).

@@ -4,7 +4,9 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { transcribeFromUrl } from "@/lib/deepgram";
 import { summarizeMeeting } from "@/lib/summarize";
 
-export const maxDuration = 300;
+// 60s is the Hobby-plan ceiling and works on every plan. On Pro you can raise
+// this for longer recordings; see the README for the queue-worker alternative.
+export const maxDuration = 60;
 
 export function OPTIONS() {
   return corsPreflight();

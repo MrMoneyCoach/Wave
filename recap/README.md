@@ -108,7 +108,7 @@ To enable it:
 
 If `RECALL_API_KEY` is missing, the Bot tab still renders but `POST /api/bots` returns a clear error. If `RECALL_WEBHOOK_SECRET` is missing, signature verification is skipped — fine for local dev, not safe for production. The webhook handler is idempotent: if Recall replays it, already-processed meetings are skipped.
 
-The webhook function downloads the recording and runs transcription inline (`maxDuration = 300`s on Vercel), so meetings up to ~90 minutes fit comfortably. For longer recordings, move the body into a queue worker (e.g. Inngest, Trigger.dev, or a Supabase Edge Function).
+The webhook function downloads the recording and runs transcription inline. `maxDuration` is set to **60s** — the Vercel **Hobby**-plan ceiling — which comfortably covers short meetings. On the **Pro** plan you can raise `maxDuration` (up to 300s) in the `transcribe`, `summarize`, and `recall/webhook` routes for longer recordings; for anything longer still, move the body into a queue worker (e.g. Inngest, Trigger.dev, or a Supabase Edge Function).
 
 ## How auth works (web vs. desktop / mobile)
 
