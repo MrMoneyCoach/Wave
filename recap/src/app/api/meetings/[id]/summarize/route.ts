@@ -4,7 +4,8 @@ import { supabaseFromRequest, corsHeaders, corsPreflight } from "@/lib/supabase/
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { summarizeMeeting } from "@/lib/summarize";
 
-export const maxDuration = 120;
+// 60s is the Hobby-plan ceiling and works on every plan.
+export const maxDuration = 60;
 
 const Body = z.object({ template_id: z.string().uuid() });
 
