@@ -41,7 +41,7 @@ export default function PerkCard({ tier, index }: Props) {
       {tier.ribbon && (
         <span
           className={cn(
-            "absolute -top-3 left-8 px-3 py-1 text-[10px] uppercase tracking-[0.24em] font-medium",
+            "absolute -top-3 left-8 px-3 py-1 font-display text-[11px] uppercase tracking-[0.3em]",
             ribbonAccent[tier.ribbon] ?? "bg-skin text-earth"
           )}
         >
@@ -50,11 +50,11 @@ export default function PerkCard({ tier, index }: Props) {
       )}
 
       <div className="flex items-baseline justify-between gap-4 mb-6">
-        <span className="font-sans text-caption uppercase tracking-[0.28em] text-stone">
+        <span className="font-display text-[14px] uppercase tracking-[0.32em] text-stone">
           Tier {String(tier.number).padStart(2, "0")}
         </span>
         {save !== null && (
-          <span className="font-sans text-caption uppercase tracking-[0.2em] text-clay">
+          <span className="font-display text-[13px] uppercase tracking-[0.28em] text-clay">
             Save {save}%
           </span>
         )}
@@ -68,11 +68,11 @@ export default function PerkCard({ tier, index }: Props) {
       </p>
 
       <div className="mt-8 flex items-baseline gap-3">
-        <span className="font-serif font-light text-earth text-[clamp(2.5rem,4.5vw,3.5rem)] leading-none">
+        <span className="font-display text-earth text-[clamp(3rem,5vw,4rem)] leading-none">
           £{tier.price}
         </span>
         {tier.retailValue && tier.retailValue > tier.price && (
-          <span className="font-sans text-caption text-stone line-through">
+          <span className="font-display text-stone text-lg line-through">
             £{tier.retailValue}
           </span>
         )}

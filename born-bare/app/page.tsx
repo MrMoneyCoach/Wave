@@ -121,7 +121,7 @@ export default function HomePage() {
 
             <div className="lg:col-span-7 order-1 lg:order-2">
               <Reveal>
-                <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8">
+                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8">
                   The quiet problem
                 </p>
               </Reveal>
@@ -158,7 +158,7 @@ export default function HomePage() {
         <Container>
           <Reveal>
             <div className="max-w-3xl mb-16">
-              <p className="text-caption uppercase tracking-[0.32em] text-stone mb-6">
+              <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-6">
                 The world of Born Bare
               </p>
               <h2 className="text-display-2 lg:text-[clamp(2rem,4vw,3.25rem)] leading-tight text-earth">
@@ -174,7 +174,7 @@ export default function HomePage() {
       <Section bg="bare" className="pt-0">
         <Container>
           <Reveal>
-            <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8 text-center">
+            <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8 text-center">
               Three things to know
             </p>
           </Reveal>
@@ -189,7 +189,7 @@ export default function HomePage() {
             {pillars.map((pillar, i) => (
               <Reveal key={pillar.title} delay={i * 0.12}>
                 <article className="flex flex-col h-full">
-                  <span className="text-caption uppercase tracking-[0.28em] text-stone mb-6">
+                  <span className="font-display text-[12px] uppercase tracking-[0.36em] text-stone mb-6">
                     {pillar.eyebrow}
                   </span>
                   <h3 className="font-serif font-light text-earth text-[clamp(1.5rem,2.2vw,1.85rem)] leading-tight">
@@ -211,7 +211,7 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-20 items-center">
             <div className="lg:col-span-6">
               <Reveal>
-                <p className="text-caption uppercase tracking-[0.32em] text-bare/45 mb-8">
+                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-bare/45 mb-8">
                   Sustainability, the proof
                 </p>
               </Reveal>
@@ -247,10 +247,10 @@ export default function HomePage() {
                 {stats.map((stat, i) => (
                   <Reveal key={stat.label} delay={i * 0.08}>
                     <div className="bg-earth p-8 h-full">
-                      <p className="font-sans text-[10px] uppercase tracking-[0.28em] text-bare/45 mb-3">
+                      <p className="font-display text-[11px] uppercase tracking-[0.32em] text-bare/45 mb-3">
                         {stat.label}
                       </p>
-                      <p className="font-serif font-light text-bare text-[clamp(1.5rem,2.6vw,2.25rem)] leading-tight">
+                      <p className="font-display text-bare text-[clamp(2.5rem,4vw,3.5rem)] leading-none">
                         {stat.value}
                       </p>
                     </div>
@@ -278,7 +278,7 @@ export default function HomePage() {
 
             <div className="lg:col-span-7">
               <Reveal>
-                <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8">
+                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8">
                   Meet Ren
                 </p>
               </Reveal>
@@ -306,7 +306,7 @@ export default function HomePage() {
       <Section bg="skin">
         <Container>
           <Reveal>
-            <p className="text-caption uppercase tracking-[0.32em] text-stone mb-10 text-center">
+            <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-10 text-center">
               Early voices
             </p>
           </Reveal>

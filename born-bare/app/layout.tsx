@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans, Bebas_Neue } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CookieBanner from "@/components/CookieBanner";
@@ -19,6 +19,16 @@ const sans = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+// Tall condensed display accent — stand-in for Charles Daoud's "Dense".
+// To swap to Dense itself, download the OTF/TTF, drop into public/fonts/,
+// declare it via @font-face in globals.css, and bind to --font-display.
+const display = Bebas_Neue({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -57,7 +67,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-GB" className={`${serif.variable} ${sans.variable}`}>
+    <html lang="en-GB" className={`${serif.variable} ${sans.variable} ${display.variable}`}>
       <body className="min-h-screen flex flex-col bg-bare text-earth">
         <StructuredData />
         <RefCodeCapture />
