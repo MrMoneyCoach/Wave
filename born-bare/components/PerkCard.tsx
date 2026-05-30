@@ -97,6 +97,7 @@ export default function PerkCard({ tier, index }: Props) {
             ctaLabel="Notify me"
             successLabel="Saved. We'll be in touch."
             showConsent={false}
+            compactSuccess
             className="text-left"
           />
         ) : (

@@ -16,6 +16,7 @@ const cols = [
     links: [
       { href: "/kickstarter", label: "Coming soon" },
       { href: "/#waitlist", label: "Join the waitlist" },
+      { href: "/status", label: "My referral status" },
     ],
   },
   {

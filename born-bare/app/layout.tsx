@@ -3,6 +3,8 @@ import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CookieBanner from "@/components/CookieBanner";
+import RefCodeCapture from "@/components/RefCodeCapture";
+import StructuredData from "@/components/StructuredData";
 import "./globals.css";
 
 const serif = Cormorant_Garamond({
@@ -57,6 +59,8 @@ export default function RootLayout({
   return (
     <html lang="en-GB" className={`${serif.variable} ${sans.variable}`}>
       <body className="min-h-screen flex flex-col bg-bare text-earth">
+        <StructuredData />
+        <RefCodeCapture />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

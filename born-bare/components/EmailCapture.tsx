@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import Button from "./Button";
+import WaitlistSuccess from "./WaitlistSuccess";
+import { joinWaitlist } from "@/app/actions/waitlist";
+import { readStoredReferralCode, clearStoredReferralCode } from "@/lib/referralStorage";
 import { cn } from "@/lib/utils";
 
 type Variant = "stacked" | "inline";
@@ -17,12 +20,14 @@ type Props = {
   placeholder?: string;
   showConsent?: boolean;
   theme?: "light" | "dark";
+  /** When true, the post-signup state is the compact one (used inside perk cards). */
+  compactSuccess?: boolean;
 };
 
 type State =
   | { status: "idle" }
   | { status: "submitting" }
-  | { status: "success"; email: string }
+  | { status: "success"; email: string; referralCode: string; alreadyJoined: boolean }
   | { status: "error"; message: string };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,15 +41,17 @@ export default function EmailCapture({
   placeholder = "Your email",
   showConsent = true,
   theme = "light",
+  compactSuccess = false,
   consentLabel = "I'm happy to receive occasional emails from Born Bare. Unsubscribe anytime.",
 }: Props) {
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState<State>({ status: "idle" });
+  const [, startTransition] = useTransition();
 
   const isDark = theme === "dark";
 
-  async function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = email.trim();
 
@@ -58,38 +65,65 @@ export default function EmailCapture({
     }
 
     setState({ status: "submitting" });
+    const referredByCode = readStoredReferralCode() ?? undefined;
 
-    // Phase 3 will replace this with a real Supabase insert through a server action.
-    await new Promise((res) => setTimeout(res, 600));
+    startTransition(async () => {
+      const result = await joinWaitlist({
+        email: trimmed,
+        source,
+        gdprConsent: consent || !showConsent,
+        referredByCode,
+      });
 
-    setState({ status: "success", email: trimmed });
-    setEmail("");
-    setConsent(false);
+      if (!result.ok) {
+        setState({ status: "error", message: result.error });
+        return;
+      }
+
+      if (referredByCode && !result.alreadyJoined) {
+        clearStoredReferralCode();
+      }
+
+      setState({
+        status: "success",
+        email: trimmed,
+        referralCode: result.referralCode,
+        alreadyJoined: result.alreadyJoined,
+      });
+      setEmail("");
+      setConsent(false);
+    });
   }
 
   if (state.status === "success") {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className={cn(
-          "text-balance text-body",
-          isDark ? "text-bare/90" : "text-earth/85",
-          className
-        )}
-      >
-        <p className="font-serif italic text-[clamp(1.25rem,2vw,1.5rem)] leading-snug">
-          {successLabel}
-        </p>
-        <p
+    if (compactSuccess) {
+      return (
+        <div
+          role="status"
+          aria-live="polite"
           className={cn(
-            "mt-3 text-caption",
-            isDark ? "text-bare/55" : "text-stone"
+            "text-balance",
+            isDark ? "text-bare/90" : "text-earth/85",
+            className
           )}
         >
-          We&rsquo;ll be in touch at {state.email}.
-        </p>
-      </div>
+          <p className="font-serif italic text-[clamp(1.1rem,1.6vw,1.3rem)] leading-snug">
+            {state.alreadyJoined ? "Already on the list." : successLabel}
+          </p>
+          <p className={cn("mt-2 text-caption", isDark ? "text-bare/55" : "text-stone")}>
+            Your link: <span className="font-sans tracking-[0.1em]">{state.referralCode}</span>
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <WaitlistSuccess
+        email={state.email}
+        referralCode={state.referralCode}
+        alreadyJoined={state.alreadyJoined}
+        theme={theme}
+      />
     );
   }
 
@@ -140,9 +174,7 @@ export default function EmailCapture({
           variant={isDark ? "secondary" : "primary"}
           className={cn(
             "shrink-0",
-            isDark
-              ? "border-bare/80 text-bare hover:bg-bare hover:text-earth"
-              : ""
+            isDark ? "border-bare/80 text-bare hover:bg-bare hover:text-earth" : ""
           )}
           disabled={state.status === "submitting"}
         >
@@ -187,10 +219,7 @@ export default function EmailCapture({
       {state.status === "error" && (
         <p
           role="alert"
-          className={cn(
-            "mt-4 text-caption",
-            isDark ? "text-bare" : "text-earth"
-          )}
+          className={cn("mt-4 text-caption", isDark ? "text-bare" : "text-earth")}
         >
           {state.message}
         </p>
