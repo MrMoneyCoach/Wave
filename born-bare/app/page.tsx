@@ -5,6 +5,8 @@ import Section from "@/components/Section";
 import Reveal from "@/components/Reveal";
 import EmailCapture from "@/components/EmailCapture";
 import ImagePlaceholder from "@/components/ImagePlaceholder";
+import VideoHero from "@/components/VideoHero";
+import TextureGrid from "@/components/TextureGrid";
 
 export const metadata: Metadata = {
   title: "Born Bare — Nothing but sleep.",
@@ -40,59 +42,68 @@ const stats = [
   { label: "Packaging", value: "Kraft, recyclable" },
 ];
 
+const textureTiles = [
+  {
+    name: "world-bamboo.jpg",
+    prompt:
+      "Macro of bamboo fibre weave, warm directional light, deeply tonal, no objects, painterly mood.",
+    caption: "Bamboo",
+  },
+  {
+    name: "world-linen.jpg",
+    prompt:
+      "Soft cream linen folded across the frame, golden hour light from the left, gentle film grain, no people.",
+    caption: "Linen",
+  },
+  {
+    name: "world-skin.jpg",
+    prompt:
+      "Macro of a sleeping baby's bare shoulder against a cream linen background, warm soft light, intimate detail.",
+    caption: "Skin",
+  },
+];
+
 export default function HomePage() {
   return (
     <>
-      {/* ─────────────────────── Hero ─────────────────────── */}
-      <Section size="large" bg="bare" className="pt-24 sm:pt-32 lg:pt-40">
-        <Container>
-          <div className="grid lg:grid-cols-12 gap-12 lg:gap-20 items-center">
-            <div className="lg:col-span-7">
-              <Reveal>
-                <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8">
-                  Born Bare &middot; pre-launch
-                </p>
-              </Reveal>
+      {/* ─────────────────────── Cinematic hero ─────────────────────── */}
+      <VideoHero
+        // When the Kickstarter cut is ready, drop the files into public/video/
+        // and uncomment these:
+        // sources={[
+        //   { src: "/video/hero.webm", type: "video/webm" },
+        //   { src: "/video/hero.mp4", type: "video/mp4" },
+        // ]}
+        // posterSrc="/video/hero-poster.jpg"
+      >
+        <Container className="h-full flex flex-col justify-end pb-24 sm:pb-28 lg:pb-32">
+          <div className="max-w-3xl">
+            <Reveal>
+              <p className="font-sans text-[11px] uppercase tracking-[0.34em] text-bare/65 mb-8">
+                Born Bare &middot; pre-launch
+              </p>
+            </Reveal>
 
-              <Reveal delay={0.15}>
-                <h1 className="text-display-1 sm:text-[clamp(3rem,7vw,5.5rem)] leading-[1.02] text-earth">
-                  Nothing but sleep.
-                </h1>
-              </Reveal>
+            <Reveal delay={0.2}>
+              <h1 className="font-serif font-light text-bare leading-[0.95] text-[clamp(3rem,9vw,7.5rem)]">
+                Nothing but sleep.
+              </h1>
+            </Reveal>
 
-              <Reveal delay={0.35}>
-                <p className="mt-8 font-serif italic text-earth/70 text-[clamp(1.25rem,2vw,1.65rem)] leading-relaxed max-w-prose">
-                  Better sleep starts here.
-                </p>
-              </Reveal>
+            <Reveal delay={0.4}>
+              <p className="mt-8 font-serif italic text-bare/85 text-[clamp(1.25rem,2vw,1.65rem)] leading-relaxed max-w-xl">
+                Better sleep starts here.
+              </p>
+            </Reveal>
 
-              <Reveal delay={0.55}>
-                <p className="mt-6 max-w-prose text-body text-earth/75">
-                  Bamboo nappies that are softer on skin and lighter on the planet.
-                  We&rsquo;re launching on Kickstarter soon &mdash; join the waitlist for
-                  founder pricing and first dibs.
-                </p>
-              </Reveal>
-
-              <Reveal delay={0.75}>
-                <div id="waitlist" className="mt-12 scroll-mt-24">
-                  <EmailCapture source="home-hero" />
-                </div>
-              </Reveal>
-            </div>
-
-            <div className="lg:col-span-5">
-              <Reveal delay={0.3}>
-                <ImagePlaceholder
-                  name="hero-sleeping-baby.jpg"
-                  prompt="Sleeping newborn in soft natural morning light on creased linen, off-centre composition, warm bone/earth palette, Kinfolk aesthetic."
-                  ratio="portrait"
-                />
-              </Reveal>
-            </div>
+            <Reveal delay={0.6}>
+              <div id="waitlist" className="mt-12 max-w-xl scroll-mt-24">
+                <EmailCapture source="home-hero" theme="dark" />
+              </div>
+            </Reveal>
           </div>
         </Container>
-      </Section>
+      </VideoHero>
 
       {/* ─────────────── Problem / Solution narrative ─────────────── */}
       <Section bg="skin">
@@ -116,7 +127,7 @@ export default function HomePage() {
               </Reveal>
 
               <Reveal delay={0.15}>
-                <h2 className="text-display-2 lg:text-[clamp(2.25rem,4vw,3.25rem)] leading-[1.1] text-earth max-w-3xl">
+                <h2 className="text-display-2 lg:text-[clamp(2.5rem,5vw,4rem)] leading-[1.05] text-earth max-w-3xl">
                   Most nappies wake babies up.
                 </h2>
               </Reveal>
@@ -125,8 +136,8 @@ export default function HomePage() {
                 <div className="mt-10 space-y-6 max-w-prose text-body text-earth/75">
                   <p>
                     The wetness. The chemicals. The rough seam at the hip. Tiny
-                    irritations add up &mdash; and a baby who&rsquo;s almost comfortable
-                    isn&rsquo;t sleeping.
+                    irritations add up &mdash; and a baby who&rsquo;s almost
+                    comfortable isn&rsquo;t sleeping.
                   </p>
                   <p>
                     We started with the question every exhausted parent eventually
@@ -142,8 +153,25 @@ export default function HomePage() {
         </Container>
       </Section>
 
+      {/* ─────────────── Texture grid (Skims-style world) ─────────────── */}
+      <Section bg="bare" className="py-28 sm:py-36">
+        <Container>
+          <Reveal>
+            <div className="max-w-3xl mb-16">
+              <p className="text-caption uppercase tracking-[0.32em] text-stone mb-6">
+                The world of Born Bare
+              </p>
+              <h2 className="text-display-2 lg:text-[clamp(2rem,4vw,3.25rem)] leading-tight text-earth">
+                Three things, considered.
+              </h2>
+            </div>
+          </Reveal>
+          <TextureGrid tiles={textureTiles} />
+        </Container>
+      </Section>
+
       {/* ─────────────────────── Three pillars ─────────────────────── */}
-      <Section bg="bare">
+      <Section bg="bare" className="pt-0">
         <Container>
           <Reveal>
             <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8 text-center">
