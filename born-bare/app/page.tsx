@@ -79,7 +79,7 @@ export default function HomePage() {
         <Container className="h-full flex flex-col justify-end pb-24 sm:pb-28 lg:pb-32">
           <div className="max-w-3xl">
             <Reveal>
-              <p className="font-sans text-[11px] uppercase tracking-[0.34em] text-bare/65 mb-8">
+              <p className="font-display text-[12px] uppercase tracking-[0.4em] text-bare/65 mb-8">
                 Born Bare &middot; pre-launch
               </p>
             </Reveal>
@@ -97,16 +97,65 @@ export default function HomePage() {
             </Reveal>
 
             <Reveal delay={0.6}>
-              <div id="waitlist" className="mt-12 max-w-xl scroll-mt-24">
-                <EmailCapture source="home-hero" theme="dark" />
+              <div className="mt-12 flex flex-wrap items-center gap-5">
+                <a
+                  href="#waitlist"
+                  className="inline-flex items-center justify-center font-display text-[14px] uppercase tracking-[0.3em] px-8 py-4 bg-bare text-earth hover:bg-bare/90 transition-colors duration-300 ease-calm"
+                >
+                  Join the waitlist
+                </a>
+                <a
+                  href="#story"
+                  className="inline-flex items-center gap-2 font-display text-[13px] uppercase tracking-[0.3em] text-bare/75 hover:text-bare transition-colors duration-300 ease-calm"
+                >
+                  The story <span aria-hidden>&darr;</span>
+                </a>
               </div>
             </Reveal>
           </div>
         </Container>
       </VideoHero>
 
+      {/* ─────────────────────── Dedicated waitlist ─────────────────────── */}
+      <Section
+        bg="bare"
+        size="default"
+        id="waitlist"
+        className="scroll-mt-20 border-b border-earth/10"
+      >
+        <Container>
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+            <div className="lg:col-span-6">
+              <Reveal>
+                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8">
+                  The waitlist
+                </p>
+              </Reveal>
+              <Reveal delay={0.15}>
+                <h2 className="font-serif font-light text-earth leading-[1.05] text-[clamp(2rem,4.5vw,3.25rem)] max-w-xl">
+                  Be among the first to try Born Bare.
+                </h2>
+              </Reveal>
+              <Reveal delay={0.35}>
+                <p className="mt-8 max-w-prose text-body text-earth/75">
+                  Founder pricing on Kickstarter, held for waitlist members for
+                  the first 48 hours. One gentle note when we&rsquo;re live, and
+                  a referral link you can share if you&rsquo;d like to.
+                </p>
+              </Reveal>
+            </div>
+
+            <div className="lg:col-span-6">
+              <Reveal delay={0.3}>
+                <EmailCapture source="home-hero" />
+              </Reveal>
+            </div>
+          </div>
+        </Container>
+      </Section>
+
       {/* ─────────────── Problem / Solution narrative ─────────────── */}
-      <Section bg="skin">
+      <Section bg="skin" id="story" className="scroll-mt-20">
         <Container>
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-20 items-center">
             <div className="lg:col-span-5 order-2 lg:order-1">
