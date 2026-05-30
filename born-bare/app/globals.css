@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Wordmark — Mango Grotesque, loaded via <link> in layout head */
+  --font-wordmark: "Mango Grotesque", system-ui, sans-serif;
+}
+
 @layer base {
   html {
     background-color: theme(colors.bare);

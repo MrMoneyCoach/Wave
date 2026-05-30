@@ -32,6 +32,9 @@ const display = Bebas_Neue({
   display: "swap",
 });
 
+// Mango Grotesque (logo wordmark) is loaded via a <link> in the head
+// below — next/font's curated list doesn't include it.
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://wearebornbare.com";
 
 export const metadata: Metadata = {
@@ -67,7 +70,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-GB" className={`${serif.variable} ${sans.variable} ${display.variable}`}>
+    <html
+      lang="en-GB"
+      className={`${serif.variable} ${sans.variable} ${display.variable}`}
+    >
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Mango+Grotesque:wght@300;400&display=swap"
+        />
+      </head>
       <body className="min-h-screen flex flex-col bg-bare text-earth">
         <StructuredData />
         <RefCodeCapture />
