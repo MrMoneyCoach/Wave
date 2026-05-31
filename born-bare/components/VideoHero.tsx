@@ -12,8 +12,6 @@ type Props = {
   posterSrc?: string;
   /** Friendly alt-text shown when nothing has loaded yet (a11y + dev). */
   posterAlt?: string;
-  /** Tint applied over the video for legibility. 0–1 */
-  overlayOpacity?: number;
   className?: string;
   children?: React.ReactNode;
 };
@@ -30,7 +28,6 @@ export default function VideoHero({
   sources = [],
   posterSrc,
   posterAlt = "Born Bare — sleeping baby, warm natural light",
-  overlayOpacity = 0.35,
   className,
   children,
 }: Props) {
@@ -92,15 +89,24 @@ export default function VideoHero({
       </div>
 
       {/* Layer 2 — darkening overlay for text legibility */}
+      {/* Layer 2a — soft top scrim so the nav stays legible on bright video */}
       <div
         aria-hidden
-        className="absolute inset-0"
+        className="absolute inset-x-0 top-0 h-40 pointer-events-none"
         style={{
-          background: `linear-gradient(to bottom, rgba(61,54,50,${
-            overlayOpacity * 0.3
-          }) 0%, rgba(61,54,50,${overlayOpacity * 0.5}) 50%, rgba(61,54,50,${
-            overlayOpacity * 1.2
-          }) 100%)`,
+          background:
+            "linear-gradient(to bottom, rgba(61,54,50,0.4) 0%, rgba(61,54,50,0) 100%)",
+        }}
+      />
+
+      {/* Layer 2b — deep bottom gradient. The hero copy sits in this band,
+          so it stays legible regardless of how warm/bright the video is. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgba(61,54,50,0) 0%, rgba(61,54,50,0) 35%, rgba(61,54,50,0.35) 60%, rgba(61,54,50,0.7) 80%, rgba(61,54,50,0.9) 100%)",
         }}
       />
 
