@@ -84,21 +84,10 @@ export default function VideoHero({
             decoding="async"
           />
         ) : (
-          // Branded fallback if neither video nor poster has been added yet
-          <div className="h-full w-full bg-gradient-to-b from-skin to-earth flex items-center justify-center p-8">
-            <div className="text-center max-w-md">
-              <p className="font-sans text-[10px] uppercase tracking-[0.32em] text-bare/55 mb-3">
-                Hero asset placeholder
-              </p>
-              <p className="font-serif italic text-bare/85 text-[clamp(1.1rem,1.6vw,1.35rem)] leading-snug">
-                Drop the Kickstarter video into{" "}
-                <span className="not-italic font-sans tracking-[0.05em]">
-                  /public/video/
-                </span>{" "}
-                and pass it to <span className="not-italic">VideoHero</span>.
-              </p>
-            </div>
-          </div>
+          // Tasteful, content-free placeholder until a video or poster
+          // is added. The dev-facing hint lives in the README — we
+          // never render breadcrumbs that show up to real visitors.
+          <div className="absolute inset-0 bg-gradient-to-b from-skin via-clay/60 to-earth" />
         )}
       </div>
 
