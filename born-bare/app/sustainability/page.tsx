@@ -51,10 +51,10 @@ export default function SustainabilityPage() {
             {credentials.map((c, i) => (
               <Reveal key={c.k} delay={i * 0.06}>
                 <div className="bg-skin/40 p-10 h-full">
-                  <p className="font-display text-[12px] uppercase tracking-[0.36em] text-stone mb-3">
+                  <p className="text-caption uppercase tracking-[0.28em] text-stone mb-3">
                     {c.k}
                   </p>
-                  <p className="font-display text-earth text-[clamp(2.5rem,4vw,3.5rem)] leading-none">
+                  <p className="font-serif font-light text-earth text-[clamp(1.75rem,2.8vw,2.5rem)] leading-tight">
                     {c.v}
                   </p>
                 </div>

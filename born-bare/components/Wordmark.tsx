@@ -15,9 +15,9 @@ export default function Wordmark({
 
   return (
     <span
-      aria-label="Born Bare"
+      aria-label="born bare"
       className={cn(
-        "font-wordmark font-light lowercase tracking-[0.18em] leading-none select-none",
+        "font-serif font-light tracking-wordmark leading-none select-none",
         stacked ? "flex flex-col gap-1" : "inline-block",
         colour,
         className

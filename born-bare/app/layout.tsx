@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans, Bebas_Neue } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CookieBanner from "@/components/CookieBanner";
@@ -22,40 +22,27 @@ const sans = DM_Sans({
   display: "swap",
 });
 
-// Tall condensed display accent — stand-in for Charles Daoud's "Dense".
-// To swap to Dense itself, download the OTF/TTF, drop into public/fonts/,
-// declare it via @font-face in globals.css, and bind to --font-display.
-const display = Bebas_Neue({
-  subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-// Mango Grotesque (logo wordmark) is loaded via a <link> in the head
-// below — next/font's curated list doesn't include it.
-
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://wearebornbare.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Born Bare — Nothing but sleep.",
-    template: "%s — Born Bare",
+    default: "born bare — nothing but sleep.",
+    template: "%s — born bare",
   },
   description:
     "Bamboo nappies for better sleep. Honest materials, kinder to skin, gentler on the planet. Join the waitlist.",
   openGraph: {
     type: "website",
-    siteName: "Born Bare",
-    title: "Born Bare — Nothing but sleep.",
+    siteName: "born bare",
+    title: "born bare — nothing but sleep.",
     description:
       "Bamboo nappies for better sleep. Honest materials, kinder to skin, gentler on the planet.",
     locale: "en_GB",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Born Bare — Nothing but sleep.",
+    title: "born bare — nothing but sleep.",
     description:
       "Bamboo nappies for better sleep. Honest materials, kinder to skin, gentler on the planet.",
   },
@@ -72,14 +59,8 @@ export default function RootLayout({
   return (
     <html
       lang="en-GB"
-      className={`${serif.variable} ${sans.variable} ${display.variable}`}
+      className={`${serif.variable} ${sans.variable}`}
     >
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Mango+Grotesque:wght@300;400&display=swap"
-        />
-      </head>
       <body className="min-h-screen flex flex-col bg-bare text-earth">
         <StructuredData />
         <RefCodeCapture />

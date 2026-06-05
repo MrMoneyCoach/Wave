@@ -2,11 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Wordmark — Mango Grotesque, loaded via <link> in layout head */
-  --font-wordmark: "Mango Grotesque", system-ui, sans-serif;
-}
-
 @layer base {
   html {
     background-color: theme(colors.bare);
@@ -21,6 +16,14 @@
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif font-light text-balance;
+  }
+
+  /* Cormorant headlines are lowercase by brand rule.
+     This guards every future edit — no matter how text is typed in
+     source, the rendered output stays lowercase wherever font-serif is used. */
+  h1, h2, h3, h4, h5, h6,
+  .font-serif {
+    text-transform: lowercase;
   }
 
   ::selection {

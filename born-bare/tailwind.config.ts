@@ -19,10 +19,6 @@ const config: Config = {
       fontFamily: {
         serif: ["var(--font-serif)", "Cormorant Garamond", "serif"],
         sans: ["var(--font-sans)", "DM Sans", "system-ui", "sans-serif"],
-        // Tall condensed display accent (Bebas Neue today, swap to "Dense" later)
-        display: ["var(--font-display)", "Bebas Neue", "Impact", "sans-serif"],
-        // Logo wordmark — Mango Grotesque
-        wordmark: ["var(--font-wordmark)", "Mango Grotesque", "sans-serif"],
       },
       fontSize: {
         // From brand guidelines

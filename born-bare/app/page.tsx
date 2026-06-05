@@ -79,7 +79,7 @@ export default function HomePage() {
         <Container className="h-full flex flex-col justify-end pb-24 sm:pb-28 lg:pb-32">
           <div className="max-w-3xl">
             <Reveal>
-              <p className="font-display text-[12px] uppercase tracking-[0.4em] text-bare/65 mb-8">
+              <p className="text-caption uppercase tracking-[0.32em] text-bare/65 mb-8">
                 Born Bare &middot; pre-launch
               </p>
             </Reveal>
@@ -100,13 +100,13 @@ export default function HomePage() {
               <div className="mt-12 flex flex-wrap items-center gap-5">
                 <a
                   href="#waitlist"
-                  className="inline-flex items-center justify-center font-display text-[14px] uppercase tracking-[0.3em] px-8 py-4 bg-bare text-earth hover:bg-bare/90 transition-colors duration-300 ease-calm"
+                  className="inline-flex items-center justify-center text-btn uppercase tracking-[0.18em] font-medium px-8 py-4 bg-bare text-earth hover:bg-bare/90 transition-colors duration-300 ease-calm"
                 >
                   Join the waitlist
                 </a>
                 <a
                   href="#story"
-                  className="inline-flex items-center gap-2 font-display text-[13px] uppercase tracking-[0.3em] text-bare/75 hover:text-bare transition-colors duration-300 ease-calm"
+                  className="inline-flex items-center gap-2 text-btn uppercase tracking-[0.18em] font-medium text-bare/75 hover:text-bare transition-colors duration-300 ease-calm"
                 >
                   The story <span aria-hidden>&darr;</span>
                 </a>
@@ -127,7 +127,7 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-20 items-center">
             <div className="lg:col-span-6">
               <Reveal>
-                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8">
+                <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8">
                   The waitlist
                 </p>
               </Reveal>
@@ -170,7 +170,7 @@ export default function HomePage() {
 
             <div className="lg:col-span-7 order-1 lg:order-2">
               <Reveal>
-                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8">
+                <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8">
                   The quiet problem
                 </p>
               </Reveal>
@@ -207,7 +207,7 @@ export default function HomePage() {
         <Container>
           <Reveal>
             <div className="max-w-3xl mb-16">
-              <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-6">
+              <p className="text-caption uppercase tracking-[0.32em] text-stone mb-6">
                 The world of Born Bare
               </p>
               <h2 className="text-display-2 lg:text-[clamp(2rem,4vw,3.25rem)] leading-tight text-earth">
@@ -223,7 +223,7 @@ export default function HomePage() {
       <Section bg="bare" className="pt-0">
         <Container>
           <Reveal>
-            <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8 text-center">
+            <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8 text-center">
               Three things to know
             </p>
           </Reveal>
@@ -238,7 +238,7 @@ export default function HomePage() {
             {pillars.map((pillar, i) => (
               <Reveal key={pillar.title} delay={i * 0.12}>
                 <article className="flex flex-col h-full">
-                  <span className="font-display text-[12px] uppercase tracking-[0.36em] text-stone mb-6">
+                  <span className="text-caption uppercase tracking-[0.28em] text-stone mb-6">
                     {pillar.eyebrow}
                   </span>
                   <h3 className="font-serif font-light text-earth text-[clamp(1.5rem,2.2vw,1.85rem)] leading-tight">
@@ -260,7 +260,7 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-20 items-center">
             <div className="lg:col-span-6">
               <Reveal>
-                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-bare/45 mb-8">
+                <p className="text-caption uppercase tracking-[0.32em] text-bare/45 mb-8">
                   Sustainability, the proof
                 </p>
               </Reveal>
@@ -296,10 +296,10 @@ export default function HomePage() {
                 {stats.map((stat, i) => (
                   <Reveal key={stat.label} delay={i * 0.08}>
                     <div className="bg-earth p-8 h-full">
-                      <p className="font-display text-[11px] uppercase tracking-[0.32em] text-bare/45 mb-3">
+                      <p className="font-sans text-[10px] uppercase tracking-[0.28em] text-bare/45 mb-3">
                         {stat.label}
                       </p>
-                      <p className="font-display text-bare text-[clamp(2.5rem,4vw,3.5rem)] leading-none">
+                      <p className="font-serif font-light text-bare text-[clamp(1.75rem,2.8vw,2.5rem)] leading-tight">
                         {stat.value}
                       </p>
                     </div>
@@ -327,7 +327,7 @@ export default function HomePage() {
 
             <div className="lg:col-span-7">
               <Reveal>
-                <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-8">
+                <p className="text-caption uppercase tracking-[0.32em] text-stone mb-8">
                   Meet Ren
                 </p>
               </Reveal>
@@ -355,7 +355,7 @@ export default function HomePage() {
       <Section bg="skin">
         <Container>
           <Reveal>
-            <p className="font-display text-[12px] uppercase tracking-[0.4em] text-stone mb-10 text-center">
+            <p className="text-caption uppercase tracking-[0.32em] text-stone mb-10 text-center">
               Early voices
             </p>
           </Reveal>
