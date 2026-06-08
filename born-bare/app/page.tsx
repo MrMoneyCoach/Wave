@@ -68,13 +68,10 @@ export default function HomePage() {
     <>
       {/* ─────────────────────── Cinematic hero ─────────────────────── */}
       <VideoHero
-        // When the Kickstarter cut is ready, drop the files into public/video/
-        // and uncomment these:
-        // sources={[
-        //   { src: "/video/hero.webm", type: "video/webm" },
-        //   { src: "/video/hero.mp4", type: "video/mp4" },
-        // ]}
-        // posterSrc="/video/hero-poster.jpg"
+        sources={[{ src: "/video/hero.mp4", type: "video/mp4" }]}
+        // Optional: add a hero-poster.jpg to /public/video/ to show a still
+        // while the video loads. Add a hero.webm before hero.mp4 for ~30%
+        // smaller payload on browsers that support it.
       >
         <Container className="h-full flex flex-col justify-end pb-24 sm:pb-28 lg:pb-32">
           <div className="max-w-3xl">
