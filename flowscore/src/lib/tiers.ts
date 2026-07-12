@@ -1,3 +1,5 @@
+// Subscription tier catalogue — edited in code for now, will move to DB
+// once pricing settles.
 export type TierId = "free" | "starter" | "grow" | "pro" | "unlimited";
 
 export type Tier = {
