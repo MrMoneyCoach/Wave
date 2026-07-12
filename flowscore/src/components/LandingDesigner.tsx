@@ -44,7 +44,8 @@ export type Block =
       body: string;
       ctaLabel: string;
       ctaUrl: string;
-    };
+    }
+  | { id: string; type: "custom-html"; html: string };
 
 const BLOCK_LIBRARY: { type: Block["type"]; label: string; icon: string }[] = [
   { type: "heading", label: "Heading", icon: "T" },
@@ -56,6 +57,7 @@ const BLOCK_LIBRARY: { type: Block["type"]; label: string; icon: string }[] = [
   { type: "hero-split", label: "Hero (split)", icon: "▤" },
   { type: "feature-grid", label: "Feature grid", icon: "▦" },
   { type: "image-text", label: "Image + text", icon: "▥" },
+  { type: "custom-html", label: "Custom HTML", icon: "</>" },
 ];
 
 function newId() {
@@ -118,6 +120,12 @@ function defaultBlock(type: Block["type"]): Block {
         body: "Two or three sentences pairing an image with a short value statement.",
         ctaLabel: "",
         ctaUrl: "",
+      };
+    case "custom-html":
+      return {
+        id: newId(),
+        type,
+        html: "<!-- Paste any HTML here. Runs as-is on the public page. -->",
       };
   }
 }
@@ -1196,6 +1204,26 @@ function BlockSettings({
       {block.type === "divider" && (
         <p className="text-sm text-slate-500">No settings.</p>
       )}
+
+      {block.type === "custom-html" && (
+        <>
+          <div>
+            <label className="label">HTML</label>
+            <textarea
+              className="input min-h-[220px] font-mono text-xs"
+              value={block.html}
+              onChange={(e) => onChange({ html: e.target.value })}
+              placeholder={`<div style="text-align:center">\n  <iframe src="https://calendly.com/..." width="100%" height="600"></iframe>\n</div>`}
+              spellCheck={false}
+            />
+          </div>
+          <p className="text-xs text-slate-500">
+            Paste any HTML — iframes, embeds, scripts, or your own markup.
+            Runs as-is on your public landing page, so only use snippets you
+            trust.
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -1477,6 +1505,25 @@ function BlockRender({ block, brand }: { block: Block; brand: string }) {
 
   if (block.type === "divider") {
     return <hr className="border-t border-slate-200" />;
+  }
+  if (block.type === "custom-html") {
+    // In the designer canvas we render a stylised placeholder rather than
+    // executing the HTML — some snippets (scripts, iframes) misbehave badly
+    // in a nested preview context. What actually runs on the public page is
+    // rendered via the QuizPlayer BlockRender + dangerouslySetInnerHTML.
+    return (
+      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-600">
+        <p className="font-semibold uppercase tracking-wide text-slate-500">
+          Custom HTML
+        </p>
+        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-white/70 p-2 font-mono text-[11px] leading-snug text-slate-700">
+          {block.html || "(empty — paste HTML in the right panel)"}
+        </pre>
+        <p className="mt-2 text-[11px] text-slate-500">
+          Live output shows on the published landing page.
+        </p>
+      </div>
+    );
   }
   return null;
 }

@@ -34,6 +34,7 @@ function parseBlocks(raw: string | null): Block[] {
       "hero-split",
       "feature-grid",
       "image-text",
+      "custom-html",
     ];
     return parsed.filter(
       (b: unknown): b is Block =>

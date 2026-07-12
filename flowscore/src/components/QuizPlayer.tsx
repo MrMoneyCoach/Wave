@@ -48,7 +48,8 @@ type Block =
       body: string;
       ctaLabel: string;
       ctaUrl: string;
-    };
+    }
+  | { id: string; type: "custom-html"; html: string };
 
 type Quiz = {
   id: string;
@@ -1348,6 +1349,19 @@ function BlockRender({ block, brand }: { block: Block; brand: string }) {
 
   if (block.type === "divider") {
     return <hr className="border-t border-slate-200" />;
+  }
+  if (block.type === "custom-html") {
+    if (!block.html) return null;
+    // Renders raw HTML pasted by the scorecard owner. Trust boundary: this
+    // is content the owner controls on their own landing page (equivalent to
+    // pasting HTML into their own website), so no sanitisation.
+    return (
+      <div
+        className="fs-custom-html"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: block.html }}
+      />
+    );
   }
   return null;
 }
