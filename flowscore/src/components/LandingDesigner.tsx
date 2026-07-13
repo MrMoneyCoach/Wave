@@ -711,6 +711,8 @@ function summarise(b: Block): string {
       return `${b.heading || "(grid)"} · ${b.items.length} item${b.items.length === 1 ? "" : "s"}`;
     case "image-text":
       return b.heading || "(image + text)";
+    case "custom-html":
+      return b.html ? "Custom HTML" : "(empty HTML)";
   }
 }
 
